@@ -77,6 +77,29 @@ func TestOriginal(t *testing.T) {
 	}
 }
 
+func TestParts(t *testing.T) {
+	v, err := NewVersion("1.2.3-beta.1+build.123")
+	if err != nil {
+		t.Error("Error parsing version 1.2.3-beta.1+build.123")
+	}
+
+	if v.Major() != 1 {
+		t.Error("Major() returning wrong value")
+	}
+	if v.Minor() != 2 {
+		t.Error("Minor() returning wrong value")
+	}
+	if v.Patch() != 3 {
+		t.Error("Patch() returning wrong value")
+	}
+	if v.Prerelease() != "beta.1" {
+		t.Error("Prerelease() returning wrong value")
+	}
+	if v.Metadata() != "build.123" {
+		t.Error("Metadata() returning wrong value")
+	}
+}
+
 func TestString(t *testing.T) {
 	tests := []struct {
 		version  string
@@ -109,6 +132,85 @@ func TestString(t *testing.T) {
 		s := v.String()
 		if s != tc.expected {
 			t.Errorf("Error generating string. Expected '%s' but got '%s'", tc.expected, s)
+		}
+	}
+}
+
+func TestCompare(t *testing.T) {
+	tests := []struct {
+		v1       string
+		v2       string
+		expected int
+	}{
+		{"1.2.3", "1.5.1", -1},
+		{"2.2.3", "1.5.1", 1},
+		{"2.2.3", "2.2.2", 1},
+		{"3.2-beta", "3.2-beta", 0},
+		{"1.3", "1.1.4", 1},
+		{"4.2", "4.2-beta", 1},
+		{"4.2-beta", "4.2", -1},
+		{"4.2-alpha", "4.2-beta", -1},
+		{"4.2-alpha", "4.2-alpha", 0},
+		{"4.2-beta.2", "4.2-beta.1", 1},
+		{"4.2-beta2", "4.2-beta1", 1},
+		{"4.2-beta", "4.2-beta.2", -1},
+		{"4.2-beta", "4.2-beta.foo", 1},
+		{"4.2-beta.2", "4.2-beta", 1},
+		{"4.2-beta.foo", "4.2-beta", -1},
+		{"1.2+bar", "1.2+baz", 0},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		v2, err := NewVersion(tc.v2)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		a := v1.Compare(v2)
+		e := tc.expected
+		if a != e {
+			t.Errorf(
+				"Comparison of '%s' and '%s' failed. Expected '%d', got '%d'",
+				tc.v1, tc.v2, e, a,
+			)
+		}
+	}
+}
+
+func TestLessThan(t *testing.T) {
+	tests := []struct {
+		v1       string
+		v2       string
+		expected bool
+	}{
+		{"1.2.3", "1.5.1", true},
+		{"2.2.3", "1.5.1", false},
+		{"3.2-beta", "3.2-beta", false},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		v2, err := NewVersion(tc.v2)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		a := v1.LessThan(v2)
+		e := tc.expected
+		if a != e {
+			t.Errorf(
+				"Comparison of '%s' and '%s' failed. Expected '%t', got '%t'",
+				tc.v1, tc.v2, e, a,
+			)
 		}
 	}
 }

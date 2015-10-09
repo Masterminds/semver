@@ -103,3 +103,155 @@ func (v *Version) String() string {
 func (v *Version) Original() string {
 	return v.original
 }
+
+// Major returns the major version.
+func (v *Version) Major() int64 {
+	return v.major
+}
+
+// Minor returns the minor version.
+func (v *Version) Minor() int64 {
+	return v.minor
+}
+
+// Patch returns the patch version.
+func (v *Version) Patch() int64 {
+	return v.patch
+}
+
+// Prerelease returns the pre-release version.
+func (v *Version) Prerelease() string {
+	return v.pre
+}
+
+// Metadata returns the metadata on the version.
+func (v *Version) Metadata() string {
+	return v.metadata
+}
+
+// LessThan tests if one version is less than another one.
+func (v *Version) LessThan(o *Version) bool {
+	return v.Compare(o) < 0
+}
+
+// Compare compares this version to another one. It returns -1, 0, or 1 if
+// the version smaller, equal, or larger than the other version.
+//
+// Versions are compared by X.Y.Z. Build metadata is ignored. Prerelease is
+// lower than the version without a prerelease.
+func (v *Version) Compare(o *Version) int {
+
+	// Fastpath if both versions are the same.
+	if v.String() == o.String() {
+		return 0
+	}
+
+	// Compare the major, minor, and patch version for differences. If a
+	// difference is found return the comparison.
+	if d := compareSegment(v.Major(), o.Major()); d != 0 {
+		return d
+	}
+	if d := compareSegment(v.Minor(), o.Minor()); d != 0 {
+		return d
+	}
+	if d := compareSegment(v.Patch(), o.Patch()); d != 0 {
+		return d
+	}
+
+	// At this point the major, minor, and patch versions are the same.
+	ps := v.pre
+	po := o.Prerelease()
+
+	if ps == "" && po == "" {
+		return 0
+	}
+	if ps == "" {
+		return 1
+	}
+	if po == "" {
+		return -1
+	}
+
+	return comparePrerelease(ps, po)
+}
+
+func compareSegment(v, o int64) int {
+	if v < o {
+		return -1
+	}
+	if v > o {
+		return 1
+	}
+
+	return 0
+}
+
+func comparePrerelease(v, o string) int {
+
+	// split the prelease versions by their part. The seperator, per the spec,
+	// is a .
+	sparts := strings.Split(v, ".")
+	oparts := strings.Split(o, ".")
+
+	// Find the longer length of the parts to know how many loop iterations to
+	// go through.
+	slen := len(sparts)
+	olen := len(oparts)
+
+	l := slen
+	if olen > slen {
+		l = olen
+	}
+
+	// Iterate over each part of the prereleases to compare the differences.
+	for i := 0; i < l; i++ {
+		// Since the lentgh of the parts can be different we need to create
+		// a placeholder. This is to avoid out of bounds issues.
+		stemp := ""
+		if i < slen {
+			stemp = sparts[i]
+		}
+
+		otemp := ""
+		if i < olen {
+			otemp = oparts[i]
+		}
+
+		d := comparePrePart(stemp, otemp)
+		if d != 0 {
+			return d
+		}
+	}
+
+	// Should never reach here as earlier comparisons handle this case
+	panic("should not reach here")
+}
+
+func comparePrePart(s, o string) int {
+	// Fastpath if they are equal
+	if s == o {
+		return 0
+	}
+
+	// When s or o are empty we can use the other in an attempt to determine
+	// the response.
+	if o == "" {
+		_, n := strconv.ParseInt(s, 10, 64)
+		if n != nil {
+			return -1
+		}
+		return 1
+	}
+	if s == "" {
+		_, n := strconv.ParseInt(o, 10, 64)
+		if n != nil {
+			return 1
+		}
+		return -1
+	}
+
+	if s > o {
+		return 1
+	}
+	return -1
+}
