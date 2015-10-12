@@ -139,6 +139,13 @@ func (v *Version) GreaterThan(o *Version) bool {
 	return v.Compare(o) > 0
 }
 
+// Equal tests if two versions are equal to each other.
+// Note, versions can be equal with different metadata since metadata
+// is not considered part of the comparable version.
+func (v *Version) Equal(o *Version) bool {
+	return v.Compare(o) == 0
+}
+
 // Compare compares this version to another one. It returns -1, 0, or 1 if
 // the version smaller, equal, or larger than the other version.
 //
@@ -228,8 +235,10 @@ func comparePrerelease(v, o string) int {
 		}
 	}
 
-	// Should never reach here as earlier comparisons handle this case
-	panic("should not reach here")
+	// Reaching here means two verisons are of equal value but have different
+	// metadata (the part following a +). They are not identical in string form
+	// but the version comparison finds them to be equal.
+	return 0
 }
 
 func comparePrePart(s, o string) int {
