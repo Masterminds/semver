@@ -106,6 +106,9 @@ func TestNewConstraint(t *testing.T) {
 		{">= bar", 0, 0, true},
 		{">= 1.2.3, < 2.0", 1, 2, false},
 		{">= 1.2.3, < 2.0 || => 3.0, < 4", 2, 2, false},
+
+		// The 3-4 should be broken into 2 by the range rewriting
+		{"3-4 || => 3.0, < 4", 2, 2, false},
 	}
 
 	for _, tc := range tests {
@@ -164,6 +167,8 @@ func TestConstraintsCheck(t *testing.T) {
 		{">=1.1, <2, !=1.2.3 || >= 3", "3.0.0", true},
 		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
 		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
+		{"1.1 - 2", "1.1.1", true},
+		{"1.1-3", "4.3.2", false},
 	}
 
 	for _, tc := range tests {
@@ -182,6 +187,25 @@ func TestConstraintsCheck(t *testing.T) {
 		a := c.Check(v)
 		if a != tc.check {
 			t.Errorf("Constraint '%s' failing", tc.constraint)
+		}
+	}
+}
+
+func TestRewriteRange(t *testing.T) {
+	tests := []struct {
+		c  string
+		nc string
+	}{
+		{"2-3", ">= 2, <= 3"},
+		{"2-3, 2-3", ">= 2, <= 3,>= 2, <= 3"},
+		{"2-3, 4.0.0-5.1", ">= 2, <= 3,>= 4.0.0, <= 5.1"},
+	}
+
+	for _, tc := range tests {
+		o := rewriteRange(tc.c)
+
+		if o != tc.nc {
+			t.Errorf("Range %s rewritten incorrectly as '%s'", tc.c, o)
 		}
 	}
 }

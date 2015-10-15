@@ -16,6 +16,13 @@ type Constraints struct {
 // NewConstraint returns a Constraints instance that a Version instance can
 // be checked against. If there is a parse error it will be returned.
 func NewConstraint(c string) (*Constraints, error) {
+
+	// Rewrite the constraint string to convert things like ranges
+	// into something the checks can handle.
+	for _, rwf := range rewriteFuncs {
+		c = rwf(c)
+	}
+
 	ors := strings.Split(c, "||")
 	or := make([][]*constraint, len(ors))
 	for k, v := range ors {
@@ -31,17 +38,6 @@ func NewConstraint(c string) (*Constraints, error) {
 		}
 		or[k] = result
 	}
-
-	// cs := strings.Split(c, ",")
-	// result := make([]*constraint, len(cs))
-	// for i, s := range cs {
-	// 	pc, err := parseConstraint(s)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	//
-	// 	result[i] = pc
-	// }
 
 	o := &Constraints{constraints: or}
 	return o, nil
@@ -92,6 +88,10 @@ func init() {
 		`^\s*(%s)\s*(%s)\s*$`,
 		strings.Join(ops, "|"),
 		SemVerRegex))
+
+	constraintRangeRegex = regexp.MustCompile(fmt.Sprintf(
+		`\s*(%s)\s*-\s*(%s)\s*`,
+		SemVerRegex, SemVerRegex))
 }
 
 // An individual constraint
@@ -156,4 +156,25 @@ func constraintGreaterThanEqual(v, c *Version) bool {
 
 func constraintLessThanEqual(v, c *Version) bool {
 	return v.Compare(c) <= 0
+}
+
+type rwfunc func(i string) string
+
+var constraintRangeRegex *regexp.Regexp
+var rewriteFuncs = []rwfunc{
+	rewriteRange,
+}
+
+func rewriteRange(i string) string {
+	m := constraintRangeRegex.FindAllStringSubmatch(i, -1)
+	if m == nil {
+		return i
+	}
+	o := i
+	for _, v := range m {
+		t := fmt.Sprintf(">= %s, <= %s", v[1], v[11])
+		o = strings.Replace(o, v[0], t, 1)
+	}
+
+	return o
 }
