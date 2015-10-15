@@ -7,6 +7,41 @@ import (
 	"strings"
 )
 
+// Constraints is one or more constraint that a semantic version can be
+// checked against.
+type Constraints struct {
+	constraints []*constraint
+}
+
+// NewConstraint returns a Constraints instance that a Version instance can
+// be checked against. If there is a parse error it will be returned.
+func NewConstraint(c string) (*Constraints, error) {
+	cs := strings.Split(c, ",")
+	result := make([]*constraint, len(cs))
+	for i, s := range cs {
+		pc, err := parseConstraint(s)
+		if err != nil {
+			return nil, err
+		}
+
+		result[i] = pc
+	}
+
+	o := &Constraints{constraints: result}
+	return o, nil
+}
+
+// Check tests if a version satisfies the constraints.
+func (cs Constraints) Check(v *Version) bool {
+	for _, c := range cs.constraints {
+		if !c.check(v) {
+			return false
+		}
+	}
+
+	return true
+}
+
 var constraintOps map[string]cfunc
 var constraintRegex *regexp.Regexp
 
@@ -55,7 +90,7 @@ type cfunc func(v, c *Version) bool
 func parseConstraint(c string) (*constraint, error) {
 	m := constraintRegex.FindStringSubmatch(c)
 	if m == nil {
-		return nil, fmt.Errorf("Improper constraint: %s", c)
+		return nil, fmt.Errorf("improper constraint: %s", c)
 	}
 
 	con, err := NewVersion(m[2])
@@ -63,7 +98,7 @@ func parseConstraint(c string) (*constraint, error) {
 
 		// The constraintRegex should catch any regex parsing errors. So,
 		// we should never get here.
-		return nil, errors.New("Constraint Parser Error")
+		return nil, errors.New("constraint Parser Error")
 	}
 
 	cs := &constraint{
