@@ -10,36 +10,61 @@ import (
 // Constraints is one or more constraint that a semantic version can be
 // checked against.
 type Constraints struct {
-	constraints []*constraint
+	constraints [][]*constraint
 }
 
 // NewConstraint returns a Constraints instance that a Version instance can
 // be checked against. If there is a parse error it will be returned.
 func NewConstraint(c string) (*Constraints, error) {
-	cs := strings.Split(c, ",")
-	result := make([]*constraint, len(cs))
-	for i, s := range cs {
-		pc, err := parseConstraint(s)
-		if err != nil {
-			return nil, err
-		}
+	ors := strings.Split(c, "||")
+	or := make([][]*constraint, len(ors))
+	for k, v := range ors {
+		cs := strings.Split(v, ",")
+		result := make([]*constraint, len(cs))
+		for i, s := range cs {
+			pc, err := parseConstraint(s)
+			if err != nil {
+				return nil, err
+			}
 
-		result[i] = pc
+			result[i] = pc
+		}
+		or[k] = result
 	}
 
-	o := &Constraints{constraints: result}
+	// cs := strings.Split(c, ",")
+	// result := make([]*constraint, len(cs))
+	// for i, s := range cs {
+	// 	pc, err := parseConstraint(s)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	//
+	// 	result[i] = pc
+	// }
+
+	o := &Constraints{constraints: or}
 	return o, nil
 }
 
 // Check tests if a version satisfies the constraints.
 func (cs Constraints) Check(v *Version) bool {
-	for _, c := range cs.constraints {
-		if !c.check(v) {
-			return false
+	// loop over the ORs and check the inner ANDs
+	for _, o := range cs.constraints {
+		joy := true
+		for _, c := range o {
+			if !c.check(v) {
+				joy = false
+				break
+			}
+		}
+
+		if joy {
+			return true
 		}
 	}
 
-	return true
+	return false
 }
 
 var constraintOps map[string]cfunc

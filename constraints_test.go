@@ -97,13 +97,15 @@ func TestConstraintCheck(t *testing.T) {
 func TestNewConstraint(t *testing.T) {
 	tests := []struct {
 		input string
+		ors   int
 		count int
 		err   bool
 	}{
-		{">= 1.1", 1, false},
-		{"2.0", 1, false},
-		{">= bar", 0, true},
-		{">= 1.2.3, < 2.0", 2, false},
+		{">= 1.1", 1, 1, false},
+		{"2.0", 1, 1, false},
+		{">= bar", 0, 0, true},
+		{">= 1.2.3, < 2.0", 1, 2, false},
+		{">= 1.2.3, < 2.0 || => 3.0, < 4", 2, 2, false},
 	}
 
 	for _, tc := range tests {
@@ -120,6 +122,12 @@ func TestNewConstraint(t *testing.T) {
 		}
 
 		l := len(v.constraints)
+		if tc.ors != l {
+			t.Errorf("Expected %s to have %d ORs but got %d",
+				tc.input, tc.ors, l)
+		}
+
+		l = len(v.constraints[0])
 		if tc.count != l {
 			t.Errorf("Expected %s to have %d constraints but got %d",
 				tc.input, tc.count, l)
@@ -152,6 +160,10 @@ func TestConstraintsCheck(t *testing.T) {
 		{">1.1, <2", "1.1.1", true},
 		{">1.1, <3", "4.3.2", false},
 		{">=1.1, <2, !=1.2.3", "1.2.3", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.1.2", true},
+		{">=1.1, <2, !=1.2.3 || >= 3", "3.0.0", true},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
 	}
 
 	for _, tc := range tests {
