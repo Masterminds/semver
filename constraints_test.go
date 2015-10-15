@@ -169,6 +169,10 @@ func TestConstraintsCheck(t *testing.T) {
 		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
 		{"1.1 - 2", "1.1.1", true},
 		{"1.1-3", "4.3.2", false},
+		{"^1.1", "1.1.1", true},
+		{"^1.1", "4.3.2", false},
+		{"^1.x", "1.1.1", true},
+		{"^1.x", "2.1.1", false},
 	}
 
 	for _, tc := range tests {
@@ -206,6 +210,53 @@ func TestRewriteRange(t *testing.T) {
 
 		if o != tc.nc {
 			t.Errorf("Range %s rewritten incorrectly as '%s'", tc.c, o)
+		}
+	}
+}
+
+func TestIsX(t *testing.T) {
+	tests := []struct {
+		t string
+		c bool
+	}{
+		{"A", false},
+		{"%", false},
+		{"X", true},
+		{"x", true},
+		{"*", true},
+	}
+
+	for _, tc := range tests {
+		a := isX(tc.t)
+		if a != tc.c {
+			t.Errorf("Function isX error on %s", tc.t)
+		}
+	}
+}
+
+func TestRewriteCarets(t *testing.T) {
+	tests := []struct {
+		c  string
+		nc string
+	}{
+		{"1.1, 4.0.0 - 5.1", "1.1, 4.0.0 - 5.1"},
+		{"^*", ">=0.0.0"},
+		{"^x", ">=0.0.0"},
+		{"^2", ">= 2, < 3"},
+		{"^2, ^2", ">= 2, < 3, >= 2, < 3"},
+		{"^2.1", ">= 2.1, < 3"},
+		{"^2.1.3", ">= 2.1.3, < 3"},
+		{"^1.1, 4.0.0 - 5.1", ">= 1.1, < 2, 4.0.0 - 5.1"},
+		{"^1.x", ">= 1.0, < 2"},
+		{"^1.2.x", ">= 1.2.0, < 2"},
+		{"^1.2.x-beta.1+foo", ">= 1.2.0-beta.1, < 2"},
+	}
+
+	for _, tc := range tests {
+		o := rewriteCarets(tc.c)
+
+		if o != tc.nc {
+			t.Errorf("Carets %s rewritten incorrectly as '%s'", tc.c, o)
 		}
 	}
 }

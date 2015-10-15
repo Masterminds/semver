@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -92,6 +93,8 @@ func init() {
 	constraintRangeRegex = regexp.MustCompile(fmt.Sprintf(
 		`\s*(%s)\s*-\s*(%s)\s*`,
 		SemVerRegex, SemVerRegex))
+
+	constraintCaretRegex = regexp.MustCompile(`\^` + cvRegex)
 }
 
 // An individual constraint
@@ -163,6 +166,16 @@ type rwfunc func(i string) string
 var constraintRangeRegex *regexp.Regexp
 var rewriteFuncs = []rwfunc{
 	rewriteRange,
+	rewriteCarets,
+}
+
+const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
+
+func isX(x string) bool {
+	l := strings.ToLower(x)
+	return l == "x" || l == "*"
 }
 
 func rewriteRange(i string) string {
@@ -174,6 +187,59 @@ func rewriteRange(i string) string {
 	for _, v := range m {
 		t := fmt.Sprintf(">= %s, <= %s", v[1], v[11])
 		o = strings.Replace(o, v[0], t, 1)
+	}
+
+	return o
+}
+
+// ^ --> * (any)
+// ^2, ^2.x, ^2.x.x --> >=2.0.0 <3.0.0
+// ^2.0, ^2.0.x --> >=2.0.0 <3.0.0
+// ^1.2, ^1.2.x --> >=1.2.0 <2.0.0
+// ^1.2.3 --> >=1.2.3 <2.0.0
+// ^1.2.0 --> >=1.2.0 <2.0.0
+var constraintCaretRegex *regexp.Regexp
+
+func rewriteCarets(i string) string {
+	m := constraintCaretRegex.FindAllStringSubmatch(i, -1)
+	if m == nil {
+		return i
+	}
+	o := i
+	for _, v := range m {
+		if isX(v[1]) {
+			o = strings.Replace(o, v[0], ">=0.0.0", 1)
+		} else if isX(strings.TrimPrefix(v[2], ".")) {
+			ii, err := strconv.ParseInt(v[1], 10, 32)
+
+			// The regular expression and isX checking should already make this
+			// safe so something is broken in the lib.
+			if err != nil {
+				panic("Error converting string to Int. Should not occur.")
+			}
+			t := fmt.Sprintf(">= %s.0%s, < %d", v[1], v[4], ii+1)
+			o = strings.Replace(o, v[0], t, 1)
+		} else if isX(strings.TrimPrefix(v[3], ".")) {
+			ii, err := strconv.ParseInt(v[1], 10, 32)
+
+			// The regular expression and isX checking should already make this
+			// safe so something is broken in the lib.
+			if err != nil {
+				panic("Error converting string to Int. Should not occur.")
+			}
+			t := fmt.Sprintf(">= %s%s.0%s, < %d", v[1], v[2], v[4], ii+1)
+			o = strings.Replace(o, v[0], t, 1)
+		} else {
+			ii, err := strconv.ParseInt(v[1], 10, 32)
+			// The regular expression and isX checking should already make this
+			// safe so something is broken in the lib.
+			if err != nil {
+				panic("Error converting string to Int. Should not occur.")
+			}
+
+			t := fmt.Sprintf(">= %s%s%s%s, < %d", v[1], v[2], v[3], v[4], ii+1)
+			o = strings.Replace(o, v[0], t, 1)
+		}
 	}
 
 	return o
