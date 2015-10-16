@@ -173,6 +173,15 @@ func TestConstraintsCheck(t *testing.T) {
 		{"^1.1", "4.3.2", false},
 		{"^1.x", "1.1.1", true},
 		{"^1.x", "2.1.1", false},
+		{"~1.x", "2.1.1", false},
+		{"~1.x", "1.3.5", true},
+		{"~1.x", "1.4", true},
+		{"~1.1", "1.1.1", true},
+		{"~1.2.3", "1.2.5", true},
+		{"~1.2.3", "1.2.2", false},
+		{"~1.2.3", "1.3.2", false},
+		{"~1.1", "1.2.3", false},
+		{"~1.3", "2.4.5", false},
 	}
 
 	for _, tc := range tests {
@@ -254,6 +263,33 @@ func TestRewriteCarets(t *testing.T) {
 
 	for _, tc := range tests {
 		o := rewriteCarets(tc.c)
+
+		if o != tc.nc {
+			t.Errorf("Carets %s rewritten incorrectly as '%s'", tc.c, o)
+		}
+	}
+}
+
+func TestRewriteTilde(t *testing.T) {
+	tests := []struct {
+		c  string
+		nc string
+	}{
+		{"1.1, 4.0.0 - 5.1", "1.1, 4.0.0 - 5.1"},
+		{"~*", ">=0.0.0"},
+		{"~x", ">=0.0.0"},
+		{"~2", ">= 2.0.0, < 3.0.0"},
+		{"~2, ~2", ">= 2.0.0, < 3.0.0, >= 2.0.0, < 3.0.0"},
+		{"~2.1", ">= 2.1, < 2.2.0"},
+		{"~2.1.3", ">= 2.1.3, < 2.2.0"},
+		{"~1.1, 4.0.0 - 5.1", ">= 1.1, < 1.2.0, 4.0.0 - 5.1"},
+		{"~1.x", ">= 1.0.0, < 2.0.0"},
+		{"~1.2.x", ">= 1.2.0, < 1.3.0"},
+		{"~1.2.x-beta.1+foo", ">= 1.2.0-beta.1, < 1.3.0"},
+	}
+
+	for _, tc := range tests {
+		o := rewriteTilde(tc.c)
 
 		if o != tc.nc {
 			t.Errorf("Carets %s rewritten incorrectly as '%s'", tc.c, o)
