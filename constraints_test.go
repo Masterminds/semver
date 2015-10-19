@@ -243,30 +243,3 @@ func TestIsX(t *testing.T) {
 		}
 	}
 }
-
-func TestRewriteCarets(t *testing.T) {
-	tests := []struct {
-		c  string
-		nc string
-	}{
-		{"1.1, 4.0.0 - 5.1", "1.1, 4.0.0 - 5.1"},
-		{"^*", ">=0.0.0"},
-		{"^x", ">=0.0.0"},
-		{"^2", ">= 2, < 3"},
-		{"^2, ^2", ">= 2, < 3, >= 2, < 3"},
-		{"^2.1", ">= 2.1, < 3"},
-		{"^2.1.3", ">= 2.1.3, < 3"},
-		{"^1.1, 4.0.0 - 5.1", ">= 1.1, < 2, 4.0.0 - 5.1"},
-		{"^1.x", ">= 1.0, < 2"},
-		{"^1.2.x", ">= 1.2.0, < 2"},
-		{"^1.2.x-beta.1+foo", ">= 1.2.0-beta.1, < 2"},
-	}
-
-	for _, tc := range tests {
-		o := rewriteCarets(tc.c)
-
-		if o != tc.nc {
-			t.Errorf("Carets %s rewritten incorrectly as '%s'", tc.c, o)
-		}
-	}
-}
