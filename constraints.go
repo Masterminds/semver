@@ -168,7 +168,17 @@ func constraintGreaterThan(v *Version, c *constraint) bool {
 }
 
 func constraintLessThan(v *Version, c *constraint) bool {
-	return v.Compare(c.con) == -1
+	if !c.dirty {
+		return v.Compare(c.con) < 0
+	}
+
+	if v.Major() > c.con.Major() {
+		return false
+	} else if v.Minor() > c.con.Minor() && !c.minorDirty {
+		return false
+	}
+
+	return true
 }
 
 func constraintGreaterThanEqual(v *Version, c *constraint) bool {
@@ -176,7 +186,17 @@ func constraintGreaterThanEqual(v *Version, c *constraint) bool {
 }
 
 func constraintLessThanEqual(v *Version, c *constraint) bool {
-	return v.Compare(c.con) <= 0
+	if !c.dirty {
+		return v.Compare(c.con) <= 0
+	}
+
+	if v.Major() > c.con.Major() {
+		return false
+	} else if v.Minor() > c.con.Minor() && !c.minorDirty {
+		return false
+	}
+
+	return true
 }
 
 // ~*, ~>* --> >= 0.0.0 (any)
