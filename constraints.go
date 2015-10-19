@@ -68,7 +68,7 @@ var constraintRegex *regexp.Regexp
 
 func init() {
 	constraintOps = map[string]cfunc{
-		"":   constraintEqual,
+		"":   constraintTildeOrEqual,
 		"=":  constraintEqual,
 		"!=": constraintNotEqual,
 		">":  constraintGreaterThan,
@@ -109,7 +109,7 @@ type constraint struct {
 
 	// When an x is used as part of the version (e.g., 1.x)
 	minorDirty bool
-	patchDirty bool
+	dirty      bool
 }
 
 // Check if a version meets the constraint
@@ -127,14 +127,16 @@ func parseConstraint(c string) (*constraint, error) {
 
 	ver := m[2]
 	minorDirty := false
-	patchDirty := false
+	dirty := false
 	if isX(m[3]) {
 		ver = "0.0.0"
+		dirty = true
 	} else if isX(strings.TrimPrefix(m[4], ".")) {
 		minorDirty = true
+		dirty = true
 		ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
 	} else if isX(strings.TrimPrefix(m[5], ".")) {
-		patchDirty = true
+		dirty = true
 		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
 	}
 
@@ -150,7 +152,7 @@ func parseConstraint(c string) (*constraint, error) {
 		function:   constraintOps[m[1]],
 		con:        con,
 		minorDirty: minorDirty,
-		patchDirty: patchDirty,
+		dirty:      dirty,
 	}
 	return cs, nil
 }
@@ -200,6 +202,16 @@ func constraintTilde(v *Version, c *constraint) bool {
 	}
 
 	return true
+}
+
+// When there is a .x (dirty) status it automatically opts in to ~. Otherwise
+// it's a straight =
+func constraintTildeOrEqual(v *Version, c *constraint) bool {
+	if c.dirty {
+		return constraintTilde(v, c)
+	}
+
+	return constraintEqual(v, c)
 }
 
 // ^* --> (any)

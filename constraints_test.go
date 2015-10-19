@@ -13,12 +13,12 @@ func TestParseConstraint(t *testing.T) {
 		err bool
 	}{
 		{">= 1.2", constraintGreaterThanEqual, "1.2.0", false},
-		{"1.0", constraintEqual, "1.0.0", false},
+		{"1.0", constraintTildeOrEqual, "1.0.0", false},
 		{"foo", nil, "", true},
 		{"<= 1.2", constraintLessThanEqual, "1.2.0", false},
 		{"=< 1.2", constraintLessThanEqual, "1.2.0", false},
 		{"=> 1.2", constraintGreaterThanEqual, "1.2.0", false},
-		{"v1.2", constraintEqual, "1.2.0", false},
+		{"v1.2", constraintTildeOrEqual, "1.2.0", false},
 		{"=1.5", constraintEqual, "1.5.0", false},
 		{"> 1.3", constraintGreaterThan, "1.3.0", false},
 		{"< 1.4.1", constraintLessThan, "1.4.1", false},
@@ -147,6 +147,8 @@ func TestConstraintsCheck(t *testing.T) {
 		{"= 2.0", "1.2.3", false},
 		{"= 2.0", "2.0.0", true},
 		{"4.1", "4.1.0", true},
+		{"4.1.x", "4.1.3", true},
+		{"1.x", "1.4", true},
 		{"!=4.1", "4.1.0", false},
 		{"!=4.1", "5.1.0", true},
 		{">1.1", "4.1.0", true},
