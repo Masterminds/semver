@@ -17,11 +17,8 @@ type Constraints struct {
 // be checked against. If there is a parse error it will be returned.
 func NewConstraint(c string) (*Constraints, error) {
 
-	// Rewrite the constraint string to convert things like ranges
-	// into something the checks can handle.
-	for _, rwf := range rewriteFuncs {
-		c = rwf(c)
-	}
+	// Rewrite - ranges into a comparison operation.
+	c = rewriteRange(c)
 
 	ors := strings.Split(c, "||")
 	or := make([][]*constraint, len(ors))
@@ -94,7 +91,7 @@ func init() {
 
 	constraintRangeRegex = regexp.MustCompile(fmt.Sprintf(
 		`\s*(%s)\s*-\s*(%s)\s*`,
-		SemVerRegex, SemVerRegex))
+		cvRegex, cvRegex))
 }
 
 // An individual constraint
@@ -235,9 +232,6 @@ func constraintCaret(v *Version, c *constraint) bool {
 type rwfunc func(i string) string
 
 var constraintRangeRegex *regexp.Regexp
-var rewriteFuncs = []rwfunc{
-	rewriteRange,
-}
 
 const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
