@@ -88,7 +88,7 @@ func init() {
 	constraintRegex = regexp.MustCompile(fmt.Sprintf(
 		`^\s*(%s)\s*(%s)\s*$`,
 		strings.Join(ops, "|"),
-		SemVerRegex))
+		cvRegex))
 
 	constraintRangeRegex = regexp.MustCompile(fmt.Sprintf(
 		`\s*(%s)\s*-\s*(%s)\s*`,
@@ -108,6 +108,9 @@ type constraint struct {
 	// The version used in the constraint check. For example, if a constraint
 	// is '<= 2.0.0' the con a version instance representing 2.0.0.
 	con *Version
+
+	// When an x is used as part of the version (e.g., 1.x)
+	dirty bool
 }
 
 // Check if a version meets the constraint
@@ -123,7 +126,17 @@ func parseConstraint(c string) (*constraint, error) {
 		return nil, fmt.Errorf("improper constraint: %s", c)
 	}
 
-	con, err := NewVersion(m[2])
+	ver := m[2]
+	dirty := false
+	if isX(strings.TrimPrefix(m[4], ".")) {
+		dirty = true
+		ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
+	} else if isX(strings.TrimPrefix(m[5], ".")) {
+		dirty = true
+		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
+	}
+
+	con, err := NewVersion(ver)
 	if err != nil {
 
 		// The constraintRegex should catch any regex parsing errors. So,
@@ -134,6 +147,7 @@ func parseConstraint(c string) (*constraint, error) {
 	cs := &constraint{
 		function: constraintOps[m[1]],
 		con:      con,
+		dirty:    dirty,
 	}
 	return cs, nil
 }
