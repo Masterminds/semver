@@ -78,6 +78,8 @@ func init() {
 		"=>": constraintGreaterThanEqual,
 		"<=": constraintLessThanEqual,
 		"=<": constraintLessThanEqual,
+		"~":  constraintTilde,
+		"~>": constraintTilde,
 	}
 
 	ops := make([]string, 0, len(constraintOps))
@@ -95,8 +97,6 @@ func init() {
 		SemVerRegex, SemVerRegex))
 
 	constraintCaretRegex = regexp.MustCompile(`\^` + cvRegex)
-
-	constraintTildeRegex = regexp.MustCompile(`~>?` + cvRegex)
 }
 
 // An individual constraint
@@ -110,15 +110,16 @@ type constraint struct {
 	con *Version
 
 	// When an x is used as part of the version (e.g., 1.x)
-	dirty bool
+	minorDirty bool
+	patchDirty bool
 }
 
 // Check if a version meets the constraint
 func (c *constraint) check(v *Version) bool {
-	return c.function(v, c.con)
+	return c.function(v, c)
 }
 
-type cfunc func(v, c *Version) bool
+type cfunc func(v *Version, c *constraint) bool
 
 func parseConstraint(c string) (*constraint, error) {
 	m := constraintRegex.FindStringSubmatch(c)
@@ -127,12 +128,15 @@ func parseConstraint(c string) (*constraint, error) {
 	}
 
 	ver := m[2]
-	dirty := false
-	if isX(strings.TrimPrefix(m[4], ".")) {
-		dirty = true
+	minorDirty := false
+	patchDirty := false
+	if isX(m[3]) {
+		ver = "0.0.0"
+	} else if isX(strings.TrimPrefix(m[4], ".")) {
+		minorDirty = true
 		ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
 	} else if isX(strings.TrimPrefix(m[5], ".")) {
-		dirty = true
+		patchDirty = true
 		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
 	}
 
@@ -145,36 +149,61 @@ func parseConstraint(c string) (*constraint, error) {
 	}
 
 	cs := &constraint{
-		function: constraintOps[m[1]],
-		con:      con,
-		dirty:    dirty,
+		function:   constraintOps[m[1]],
+		con:        con,
+		minorDirty: minorDirty,
+		patchDirty: patchDirty,
 	}
 	return cs, nil
 }
 
 // Constraint functions
-func constraintEqual(v, c *Version) bool {
-	return v.Equal(c)
+func constraintEqual(v *Version, c *constraint) bool {
+	return v.Equal(c.con)
 }
 
-func constraintNotEqual(v, c *Version) bool {
-	return !v.Equal(c)
+func constraintNotEqual(v *Version, c *constraint) bool {
+	return !v.Equal(c.con)
 }
 
-func constraintGreaterThan(v, c *Version) bool {
-	return v.Compare(c) == 1
+func constraintGreaterThan(v *Version, c *constraint) bool {
+	return v.Compare(c.con) == 1
 }
 
-func constraintLessThan(v, c *Version) bool {
-	return v.Compare(c) == -1
+func constraintLessThan(v *Version, c *constraint) bool {
+	return v.Compare(c.con) == -1
 }
 
-func constraintGreaterThanEqual(v, c *Version) bool {
-	return v.Compare(c) >= 0
+func constraintGreaterThanEqual(v *Version, c *constraint) bool {
+	return v.Compare(c.con) >= 0
 }
 
-func constraintLessThanEqual(v, c *Version) bool {
-	return v.Compare(c) <= 0
+func constraintLessThanEqual(v *Version, c *constraint) bool {
+	return v.Compare(c.con) <= 0
+}
+
+// ~*, ~>* --> >= 0.0.0 (any)
+// ~2, ~2.x, ~2.x.x, ~>2, ~>2.x ~>2.x.x --> >=2.0.0, <3.0.0
+// ~2.0, ~2.0.x, ~>2.0, ~>2.0.x --> >=2.0.0, <2.1.0
+// ~1.2, ~1.2.x, ~>1.2, ~>1.2.x --> >=1.2.0, <1.3.0
+// ~1.2.3, ~>1.2.3 --> >=1.2.3, <1.3.0
+// ~1.2.0, ~>1.2.0 --> >=1.2.0, <1.3.0
+func constraintTilde(v *Version, c *constraint) bool {
+	fmt.Println(v.String(), c.con.String())
+
+	if v.LessThan(c.con) {
+		return false
+	}
+
+	if v.Major() != c.con.Major() {
+		return false
+	}
+
+	if v.Minor() != c.con.Minor() && !c.minorDirty {
+		return false
+	}
+
+	return true
 }
 
 type rwfunc func(i string) string
@@ -183,7 +212,6 @@ var constraintRangeRegex *regexp.Regexp
 var rewriteFuncs = []rwfunc{
 	rewriteRange,
 	rewriteCarets,
-	rewriteTilde,
 }
 
 const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
@@ -255,59 +283,6 @@ func rewriteCarets(i string) string {
 			}
 
 			t := fmt.Sprintf(">= %s%s%s%s, < %d", v[1], v[2], v[3], v[4], ii+1)
-			o = strings.Replace(o, v[0], t, 1)
-		}
-	}
-
-	return o
-}
-
-// ~, ~> --> * (any)
-// ~2, ~2.x, ~2.x.x, ~>2, ~>2.x ~>2.x.x --> >=2.0.0 <3.0.0
-// ~2.0, ~2.0.x, ~>2.0, ~>2.0.x --> >=2.0.0 <2.1.0
-// ~1.2, ~1.2.x, ~>1.2, ~>1.2.x --> >=1.2.0 <1.3.0
-// ~1.2.3, ~>1.2.3 --> >=1.2.3 <1.3.0
-// ~1.2.0, ~>1.2.0 --> >=1.2.0 <1.3.0
-var constraintTildeRegex *regexp.Regexp
-
-func rewriteTilde(i string) string {
-	m := constraintTildeRegex.FindAllStringSubmatch(i, -1)
-	if m == nil {
-		return i
-	}
-	o := i
-	for _, v := range m {
-		if isX(v[1]) {
-			o = strings.Replace(o, v[0], ">=0.0.0", 1)
-		} else if isX(strings.TrimPrefix(v[2], ".")) || v[2] == "" {
-			ii, err := strconv.ParseInt(v[1], 10, 32)
-
-			// The regular expression and isX checking should already make this
-			// safe so something is broken in the lib.
-			if err != nil {
-				panic("Error converting string to Int. Should not occur.")
-			}
-			t := fmt.Sprintf(">= %s.0.0%s, < %d.0.0", v[1], v[4], ii+1)
-			o = strings.Replace(o, v[0], t, 1)
-		} else if isX(strings.TrimPrefix(v[3], ".")) {
-			ii, err := strconv.ParseInt(strings.TrimPrefix(v[2], "."), 10, 32)
-
-			// The regular expression and isX checking should already make this
-			// safe so something is broken in the lib.
-			if err != nil {
-				panic("Error converting string to Int. Should not occur.")
-			}
-			t := fmt.Sprintf(">= %s%s.0%s, < %s.%d.0", v[1], v[2], v[4], v[1], ii+1)
-			o = strings.Replace(o, v[0], t, 1)
-		} else {
-			ii, err := strconv.ParseInt(strings.TrimPrefix(v[2], "."), 10, 32)
-			// The regular expression and isX checking should already make this
-			// safe so something is broken in the lib.
-			if err != nil {
-				panic("Error converting string to Int. Should not occur.")
-			}
-
-			t := fmt.Sprintf(">= %s%s%s%s, < %s.%d.0", v[1], v[2], v[3], v[4], v[1], ii+1)
 			o = strings.Replace(o, v[0], t, 1)
 		}
 	}
