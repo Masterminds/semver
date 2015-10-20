@@ -66,7 +66,7 @@ var constraintRegex *regexp.Regexp
 func init() {
 	constraintOps = map[string]cfunc{
 		"":   constraintTildeOrEqual,
-		"=":  constraintEqual,
+		"=":  constraintTildeOrEqual,
 		"!=": constraintNotEqual,
 		">":  constraintGreaterThan,
 		"<":  constraintLessThan,
@@ -155,11 +155,20 @@ func parseConstraint(c string) (*constraint, error) {
 }
 
 // Constraint functions
-func constraintEqual(v *Version, c *constraint) bool {
-	return v.Equal(c.con)
-}
-
 func constraintNotEqual(v *Version, c *constraint) bool {
+	if c.dirty {
+		if c.con.Major() != v.Major() {
+			return true
+		}
+		if c.con.Minor() != v.Minor() && !c.minorDirty {
+			return true
+		} else if c.minorDirty {
+			return false
+		}
+
+		return false
+	}
+
 	return !v.Equal(c.con)
 }
 
@@ -228,7 +237,7 @@ func constraintTildeOrEqual(v *Version, c *constraint) bool {
 		return constraintTilde(v, c)
 	}
 
-	return constraintEqual(v, c)
+	return v.Equal(c.con)
 }
 
 // ^* --> (any)
