@@ -219,6 +219,12 @@ func constraintTilde(v *Version, c *constraint) bool {
 		return false
 	}
 
+	// ~0.0.0 is a special case where all constraints are accepted. It's
+	// equivalent to >= 0.0.0.
+	if c.con.Major() == 0 && c.con.Minor() == 0 && c.con.Patch() == 0 {
+		return true
+	}
+
 	if v.Major() != c.con.Major() {
 		return false
 	}

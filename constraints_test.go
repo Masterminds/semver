@@ -144,6 +144,8 @@ func TestConstraintsCheck(t *testing.T) {
 		version    string
 		check      bool
 	}{
+		{"*", "1.2.3", true},
+		{"~0.0.0", "1.2.3", true},
 		{"= 2.0", "1.2.3", false},
 		{"= 2.0", "2.0.0", true},
 		{"4.1", "4.1.0", true},
@@ -188,7 +190,7 @@ func TestConstraintsCheck(t *testing.T) {
 		{"^1.x", "1.1.1", true},
 		{"^2.x", "1.1.1", false},
 		{"^1.x", "2.1.1", false},
-		{"~*", "2.1.1", false},
+		{"~*", "2.1.1", true},
 		{"~1.x", "2.1.1", false},
 		{"~1.x", "1.3.5", true},
 		{"~1.x", "1.4", true},
