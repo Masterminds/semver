@@ -13,5 +13,10 @@ install:
   - go version
   - go env
 
+build_script:
+  - go install -v ./...
+
 test_script:
   - go test -v
+
+deploy: off
