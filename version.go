@@ -19,7 +19,7 @@ var (
 	ErrInvalidSemVer = errors.New("Invalid Semantic Version")
 )
 
-// The regular expression used to parse a semantic version.
+// SemVerRegex id the regular expression used to parse a semantic version.
 const SemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
@@ -200,7 +200,7 @@ func compareSegment(v, o int64) int {
 
 func comparePrerelease(v, o string) int {
 
-	// split the prelease versions by their part. The seperator, per the spec,
+	// split the prelease versions by their part. The separator, per the spec,
 	// is a .
 	sparts := strings.Split(v, ".")
 	oparts := strings.Split(o, ".")
@@ -235,7 +235,7 @@ func comparePrerelease(v, o string) int {
 		}
 	}
 
-	// Reaching here means two verisons are of equal value but have different
+	// Reaching here means two versions are of equal value but have different
 	// metadata (the part following a +). They are not identical in string form
 	// but the version comparison finds them to be equal.
 	return 0
