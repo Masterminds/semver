@@ -260,3 +260,95 @@ func TestIsX(t *testing.T) {
 		}
 	}
 }
+
+func TestConstraintsValidate(t *testing.T) {
+	tests := []struct {
+		constraint string
+		version    string
+		check      bool
+	}{
+		{"*", "1.2.3", true},
+		{"~0.0.0", "1.2.3", true},
+		{"= 2.0", "1.2.3", false},
+		{"= 2.0", "2.0.0", true},
+		{"4.1", "4.1.0", true},
+		{"4.1.x", "4.1.3", true},
+		{"1.x", "1.4", true},
+		{"!=4.1", "4.1.0", false},
+		{"!=4.1", "5.1.0", true},
+		{"!=4.x", "5.1.0", true},
+		{"!=4.x", "4.1.0", false},
+		{"!=4.1.x", "4.2.0", true},
+		{"!=4.2.x", "4.2.3", false},
+		{">1.1", "4.1.0", true},
+		{">1.1", "1.1.0", false},
+		{"<1.1", "0.1.0", true},
+		{"<1.1", "1.1.0", false},
+		{"<1.1", "1.1.1", false},
+		{"<1.x", "1.1.1", true},
+		{"<1.x", "2.1.1", false},
+		{"<1.1.x", "1.2.1", false},
+		{"<1.1.x", "1.1.500", true},
+		{"<1.2.x", "1.1.1", true},
+		{">=1.1", "4.1.0", true},
+		{">=1.1", "1.1.0", true},
+		{">=1.1", "0.0.9", false},
+		{"<=1.1", "0.1.0", true},
+		{"<=1.1", "1.1.0", true},
+		{"<=1.x", "1.1.0", true},
+		{"<=2.x", "3.1.0", false},
+		{"<=1.1", "1.1.1", false},
+		{"<=1.1.x", "1.2.500", false},
+		{">1.1, <2", "1.1.1", true},
+		{">1.1, <3", "4.3.2", false},
+		{">=1.1, <2, !=1.2.3", "1.2.3", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.1.2", true},
+		{">=1.1, <2, !=1.2.3 || >= 3", "3.0.0", true},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
+		{"1.1 - 2", "1.1.1", true},
+		{"1.1-3", "4.3.2", false},
+		{"^1.1", "1.1.1", true},
+		{"^1.1", "4.3.2", false},
+		{"^1.x", "1.1.1", true},
+		{"^2.x", "1.1.1", false},
+		{"^1.x", "2.1.1", false},
+		{"~*", "2.1.1", true},
+		{"~1.x", "2.1.1", false},
+		{"~1.x", "1.3.5", true},
+		{"~1.x", "1.4", true},
+		{"~1.1", "1.1.1", true},
+		{"~1.2.3", "1.2.5", true},
+		{"~1.2.3", "1.2.2", false},
+		{"~1.2.3", "1.3.2", false},
+		{"~1.1", "1.2.3", false},
+		{"~1.3", "2.4.5", false},
+	}
+
+	for _, tc := range tests {
+		c, err := NewConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		a, msgs := c.Validate(v)
+		if a != tc.check {
+			t.Errorf("Constraint '%s' failing with '%s'", tc.constraint, tc.version)
+		} else if a == false && len(msgs) == 0 {
+			t.Errorf("%q failed with %q but no errors returned", tc.constraint, tc.version)
+		}
+
+		// if a == false {
+		// 	for _, m := range msgs {
+		// 		t.Errorf("%s", m)
+		// 	}
+		// }
+	}
+}
