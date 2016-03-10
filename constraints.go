@@ -113,8 +113,8 @@ func init() {
 		"=>": "%s is less than %s",
 		"<=": "%s is greater than %s",
 		"=<": "%s is greater than %s",
-		"~":  "%s does not have same minor version as %s",
-		"~>": "%s does not have same minor version as %s",
+		"~":  "%s does not have same major and minor version as %s",
+		"~>": "%s does not have same major and minor version as %s",
 		"^":  "%s does not have same major version as %s",
 	}
 

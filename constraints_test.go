@@ -351,4 +351,78 @@ func TestConstraintsValidate(t *testing.T) {
 		// 	}
 		// }
 	}
+
+	v, err := NewVersion("1.2.3")
+	if err != nil {
+		t.Errorf("err: %s", err)
+	}
+
+	c, err := NewConstraint("!= 1.2.5, ^2, <= 1.1.x")
+	if err != nil {
+		t.Errorf("err: %s", err)
+	}
+
+	_, msgs := c.Validate(v)
+	if len(msgs) != 2 {
+		t.Error("Invalid number of validations found")
+	}
+	e := msgs[0].Error()
+	if e != "1.2.3 does not have same major version as 2" {
+		t.Error("Did not get expected message: 1.2.3 does not have same major version as 2")
+	}
+	e = msgs[1].Error()
+	if e != "1.2.3 is greater than 1.1.x" {
+		t.Error("Did not get expected message: 1.2.3 is greater than 1.1.x")
+	}
+
+	tests2 := []struct {
+		constraint, version, msg string
+	}{
+		{"= 2.0", "1.2.3", "1.2.3 is not equal to 2.0"},
+		{"!=4.1", "4.1.0", "4.1.0 is equal to 4.1"},
+		{"!=4.x", "4.1.0", "4.1.0 is equal to 4.x"},
+		{"!=4.2.x", "4.2.3", "4.2.3 is equal to 4.2.x"},
+		{">1.1", "1.1.0", "1.1.0 is less than or equal to 1.1"},
+		{"<1.1", "1.1.0", "1.1.0 is greater than or equal to 1.1"},
+		{"<1.1", "1.1.1", "1.1.1 is greater than or equal to 1.1"},
+		{"<1.x", "2.1.1", "2.1.1 is greater than or equal to 1.x"},
+		{"<1.1.x", "1.2.1", "1.2.1 is greater than or equal to 1.1.x"},
+		{">=1.1", "0.0.9", "0.0.9 is less than 1.1"},
+		{"<=2.x", "3.1.0", "3.1.0 is greater than 2.x"},
+		{"<=1.1", "1.1.1", "1.1.1 is greater than 1.1"},
+		{"<=1.1.x", "1.2.500", "1.2.500 is greater than 1.1.x"},
+		{">1.1, <3", "4.3.2", "4.3.2 is greater than or equal to 3"},
+		{">=1.1, <2, !=1.2.3", "1.2.3", "1.2.3 is equal to 1.2.3"},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", "3.0.0 is greater than or equal to 2"},
+		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", "1.2.3 is equal to 1.2.3"},
+		{"1.1-3", "4.3.2", "4.3.2 is greater than 3"},
+		{"^1.1", "4.3.2", "4.3.2 does not have same major version as 1.1"},
+		{"^2.x", "1.1.1", "1.1.1 does not have same major version as 2.x"},
+		{"^1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
+		{"~1.x", "2.1.1", "2.1.1 does not have same major and minor version as 1.x"},
+		{"~1.2.3", "1.2.2", "1.2.2 does not have same major and minor version as 1.2.3"},
+		{"~1.2.3", "1.3.2", "1.3.2 does not have same major and minor version as 1.2.3"},
+		{"~1.1", "1.2.3", "1.2.3 does not have same major and minor version as 1.1"},
+		{"~1.3", "2.4.5", "2.4.5 does not have same major and minor version as 1.3"},
+	}
+
+	for _, tc := range tests2 {
+		c, err := NewConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		_, msgs := c.Validate(v)
+		e := msgs[0].Error()
+		if e != tc.msg {
+			t.Errorf("Did not get expected message %q: %s", tc.msg, e)
+		}
+	}
 }
