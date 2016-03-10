@@ -113,6 +113,33 @@ when comparisons of API versions as a major change is API breaking. For example,
 * `^2.3` is equivalent to `>= 2.3, < 3`
 * `^2.x` is equivalent to `>= 2.0.0, < 3`
 
+# Validation
+
+In addition to testing a version against a constraint, a version can be validated
+against a constraint. When validation fails a slice of errors containing why a
+version didn't meet the constraint is returned. For example,
+
+    c, err := semver.NewConstraint("<= 1.2.3, >= 1.4")
+    if err != nil {
+        // Handle constraint not being parseable.
+    }
+
+    v, _ := semver.NewVersion("1.3")
+    if err != nil {
+        // Handle version not being parseable.
+    }
+
+    // Validate a version against a constraint.
+    a, msgs := c.Validate(v)
+    // a is false
+    for _, m := range msgs {
+        fmt.Println(m)
+
+        // Loops over the errors which would read
+        // "1.3 is greater than 1.2.3"
+        // "1.3 is less than 1.4"
+    }
+
 # Contribute
 
 If you find an issue or want to contribute please file an [issue](https://github.com/Masterminds/semver/issues)

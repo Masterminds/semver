@@ -60,7 +60,31 @@ func (cs Constraints) Check(v *Version) bool {
 	return false
 }
 
+// Validate checks if a version satisfies a constraint. If not a slice of
+// reasons for the failure are returned in addition to a bool.
+func (cs Constraints) Validate(v *Version) (bool, []error) {
+	// loop over the ORs and check the inner ANDs
+	var e []error
+	for _, o := range cs.constraints {
+		joy := true
+		for _, c := range o {
+			if !c.check(v) {
+				em := fmt.Errorf(c.msg, v, c.orig)
+				e = append(e, em)
+				joy = false
+			}
+		}
+
+		if joy {
+			return true, []error{}
+		}
+	}
+
+	return false, e
+}
+
 var constraintOps map[string]cfunc
+var constraintMsg map[string]string
 var constraintRegex *regexp.Regexp
 
 func init() {
@@ -77,6 +101,21 @@ func init() {
 		"~":  constraintTilde,
 		"~>": constraintTilde,
 		"^":  constraintCaret,
+	}
+
+	constraintMsg = map[string]string{
+		"":   "%s is not equal to %s",
+		"=":  "%s is not equal to %s",
+		"!=": "%s is equal to %s",
+		">":  "%s is less than or equal to %s",
+		"<":  "%s is greater than or equal to %s",
+		">=": "%s is less than %s",
+		"=>": "%s is less than %s",
+		"<=": "%s is greater than %s",
+		"=<": "%s is greater than %s",
+		"~":  "%s does not have same major and minor version as %s",
+		"~>": "%s does not have same major and minor version as %s",
+		"^":  "%s does not have same major version as %s",
 	}
 
 	ops := make([]string, 0, len(constraintOps))
@@ -100,9 +139,14 @@ type constraint struct {
 	// the constraint.
 	function cfunc
 
+	msg string
+
 	// The version used in the constraint check. For example, if a constraint
 	// is '<= 2.0.0' the con a version instance representing 2.0.0.
 	con *Version
+
+	// The original parsed version (e.g., 4.x from != 4.x)
+	orig string
 
 	// When an x is used as part of the version (e.g., 1.x)
 	minorDirty bool
@@ -123,6 +167,7 @@ func parseConstraint(c string) (*constraint, error) {
 	}
 
 	ver := m[2]
+	orig := ver
 	minorDirty := false
 	dirty := false
 	if isX(m[3]) {
@@ -147,7 +192,9 @@ func parseConstraint(c string) (*constraint, error) {
 
 	cs := &constraint{
 		function:   constraintOps[m[1]],
+		msg:        constraintMsg[m[1]],
 		con:        con,
+		orig:       orig,
 		minorDirty: minorDirty,
 		dirty:      dirty,
 	}
@@ -240,6 +287,7 @@ func constraintTilde(v *Version, c *constraint) bool {
 // it's a straight =
 func constraintTildeOrEqual(v *Version, c *constraint) bool {
 	if c.dirty {
+		c.msg = constraintMsg["~"]
 		return constraintTilde(v, c)
 	}
 
