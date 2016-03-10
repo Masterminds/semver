@@ -136,8 +136,8 @@ version didn't meet the constraint is returned. For example,
         fmt.Println(m)
 
         // Loops over the errors which would read
-        "1.3 is greater than 1.2.3"
-        "1.3 is less than 1.4"
+        // "1.3 is greater than 1.2.3"
+        // "1.3 is less than 1.4"
     }
 
 # Contribute
