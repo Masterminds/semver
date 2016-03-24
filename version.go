@@ -187,6 +187,33 @@ func (v *Version) Compare(o *Version) int {
 	return comparePrerelease(ps, po)
 }
 
+func (v *Version) Admits(v2 *Version) error {
+	if v.Equal(v2) {
+		return nil
+	}
+
+	return fmt.Errorf("%s is not equal to %s\n", v.String(), v2.String())
+}
+
+func (v *Version) AdmitsAny() bool {
+	return true
+}
+
+func (v *Version) Intersect(c Constraint) Constraint {
+	if v2, ok := c.(*Version); ok {
+		if v.Equal(v2) {
+			return v
+		}
+		return None{}
+	}
+
+	return c.Intersect(v)
+}
+
+func (v *Version) IsMagic() bool {
+	return false
+}
+
 func compareSegment(v, o int64) int {
 	if v < o {
 		return -1
