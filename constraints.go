@@ -10,7 +10,7 @@ import (
 // Constraints is one or more constraint that a semantic version can be
 // checked against.
 type Constraints struct {
-	constraints [][]*constraint
+	constraints []constraintGroup
 }
 
 // NewConstraint returns a Constraints instance that a Version instance can
@@ -21,10 +21,10 @@ func NewConstraint(c string) (*Constraints, error) {
 	c = rewriteRange(c)
 
 	ors := strings.Split(c, "||")
-	or := make([][]*constraint, len(ors))
+	or := make([]constraintGroup, len(ors))
 	for k, v := range ors {
 		cs := strings.Split(v, ",")
-		result := make([]*constraint, len(cs))
+		result := make(constraintGroup, len(cs))
 		for i, s := range cs {
 			pc, err := parseConstraint(s)
 			if err != nil {
@@ -81,6 +81,106 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 	}
 
 	return false, e
+}
+
+func (cs Constraints) Intersect(other ...*Constraints) *Constraints {
+	// TODO not a pointer receiver...just overwrite cs?
+	rc := cs
+
+	// Extract the receiver's range
+
+	for _, o := range other {
+		for _, grp := range o.constraints {
+			if len(grp) == 0 {
+				// not sure how this would happen, but make sure we skip it
+				continue
+			}
+			c := grp.asConstraint()
+			if c == nil {
+				// no match at all, wtf, panic
+				panic("unreachable?")
+			}
+
+			switch r := c.(type) {
+			case None:
+				// Arriving at 'None' at any point guarantees our final answer
+				// will also be 'None'
+				// TODO ugh clean up how this is done
+				return &Constraints{}
+			case *Version:
+				// TODO ...bleh
+				return &Constraints{
+					constraints: []constraintGroup{
+						&constraint{
+							function:   constraintTildeOrEqual,
+							msg:        constraintMsg["="],
+							operand:    "=",
+							con:        r,
+							minorDirty: false, // OK?
+							dirty:      false, // OK?
+						},
+					},
+				}
+			}
+
+			// no min or max; the range must only have exact matches/negations
+			if rng.min != nil || rng.max != nil {
+			}
+		}
+	}
+
+	return &rc
+}
+
+type constraintGroup []*constraint
+
+func (cg constraintGroup) asConstraint() Constraint {
+	if len(cg) == 0 {
+		return nil
+	}
+
+	// TODO initialize rangeConstraint with appropriate min (zero) and max
+	// (Inf?) versions
+	rc := &rangeConstraint{}
+
+	// TODO because constraint building itself doesn't dedupe these, we always have to
+	// walk the whole list
+	for _, c := range cg {
+		switch c.predicate {
+		case "^", "~", "~>", ">", ">=", "=>":
+			if rc.min == nil {
+				rc.min = c
+			} else if c.predicate == ">" && rc.min.predicate != ">" {
+				// Different handling if current is gte, but new is just gt
+				if rc.min.con.LessThan(c.con) {
+					rc.min = c
+				}
+			} else if c.con.LessThan(rc.min.con) {
+				rc.min = c
+			}
+		case "<", "<=", "=<":
+			if rc.max == nil {
+				rc.max = c
+			} else if c.predicate == "<" && rc.max.predicate != "<" {
+				if rc.max.con.GreaterThan(c.con) {
+					rc.max = c
+				}
+			} else if c.con.GreaterThan(rc.max.con) {
+				rc.max = c
+			}
+		case "!=":
+			// drop excluded versions onto the appropriate list
+			rc.excl = append(rc.excl, c)
+		case "", "=":
+			// An exact match constraint has greater specificity, and zero
+			// flexibility; this group can't be a range
+			// TODO possible to have *more* than one exact version? shouldn't
+			// be, but...
+			return c.con
+		}
+	}
+
+	return rc
 }
 
 var constraintOps map[string]cfunc
@@ -145,6 +245,9 @@ type constraint struct {
 	// is '<= 2.0.0' the con a version instance representing 2.0.0.
 	con *Version
 
+	// The operator predicate applied to this constaint
+	predicate string
+
 	// The original parsed version (e.g., 4.x from != 4.x)
 	orig string
 
@@ -193,6 +296,7 @@ func parseConstraint(c string) (*constraint, error) {
 	cs := &constraint{
 		function:   constraintOps[m[1]],
 		msg:        constraintMsg[m[1]],
+		predicate:  m[1],
 		con:        con,
 		orig:       orig,
 		minorDirty: minorDirty,
