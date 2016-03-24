@@ -204,7 +204,7 @@ func (v *Version) Intersect(c Constraint) Constraint {
 		if v.Equal(v2) {
 			return v
 		}
-		return None{}
+		return none{}
 	}
 
 	return c.Intersect(v)

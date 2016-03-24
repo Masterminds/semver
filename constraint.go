@@ -26,11 +26,11 @@ type Constraint interface {
 }
 
 // Any is a constraint that is satisfied by any valid semantic version.
-type Any struct{}
+type any struct{}
 
 // Admits checks that a version satisfies the constraint. As all versions
 // satisfy Any, this always returns nil.
-func (Any) Admits(v *Version) error {
+func (any) Admits(v *Version) error {
 	return nil
 }
 
@@ -39,26 +39,26 @@ func (Any) Admits(v *Version) error {
 // As Any is the set of all possible versions, any intersection with that
 // infinite set will necessarily be the entirety of the second set. Thus, this
 // simply returns the passed constraint.
-func (Any) Intersect(c Constraint) Constraint {
+func (any) Intersect(c Constraint) Constraint {
 	return c
 }
 
 // AdmitsAny indicates whether there exists any version that can satisfy the
 // constraint. As all versions satisfy Any, this is always true.
-func (Any) AdmitsAny() bool {
+func (any) AdmitsAny() bool {
 	return true
 }
 
-func (Any) IsMagic() bool {
+func (any) IsMagic() bool {
 	return true
 }
 
 // None is an unsatisfiable constraint - it represents the empty set.
-type None struct{}
+type none struct{}
 
 // Admits checks that a version satisfies the constraint. As no version can
 // satisfy None, this always fails (returns an error).
-func (None) Admits(v *Version) error {
+func (none) Admits(v *Version) error {
 	return noneErr
 }
 
@@ -66,17 +66,17 @@ func (None) Admits(v *Version) error {
 //
 // None is the empty set of versions, and any intersection with the empty set is
 // necessarily the empty set. Thus, this always returns None.
-func (None) Intersect(Constraint) Constraint {
-	return None{}
+func (none) Intersect(Constraint) Constraint {
+	return none{}
 }
 
 // AdmitsAny indicates whether there exists any version that can satisfy the
 // constraint. As no versions satisfy None, this is always false.
-func (None) AdmitsAny() bool {
+func (none) AdmitsAny() bool {
 	return false
 }
 
-func (None) IsMagic() bool {
+func (none) IsMagic() bool {
 	return true
 }
 
@@ -109,10 +109,10 @@ func (rc rangeConstraint) Admits(v *Version) error {
 
 func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 	switch oc := c.(type) {
-	case Any:
+	case any:
 		return rc
-	case None:
-		return None{}
+	case none:
+		return none{}
 	case unionConstraint:
 		return oc.Intersect(rc)
 	case *Version, rangeConstraint:
@@ -125,7 +125,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 			if c.AdmitsAny() {
 				return rc
 			} else {
-				return None{}
+				return none{}
 			}
 		}
 		panic("unknown type")
