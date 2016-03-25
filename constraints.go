@@ -345,7 +345,8 @@ func parseConstraintNu(c string) (Constraint, error) {
 		// Tilde always expands to a range
 		return expandTilde(v, wildMinor), nil
 	case "!=":
-		// Not equals only expands to a range if any element isX()
+		// Not equals expands to a range if no element isX(); otherwise expands
+		// to a union of ranges
 		return expandNeq(v, wildMinor, wildPatch), nil
 	case "", "=":
 		if wildPatch || wildMinor {

@@ -170,11 +170,58 @@ func (rc rangeConstraint) IsMagic() bool {
 type unionConstraint []Constraint
 
 func (uc unionConstraint) Admits(v *Version) error {
-	panic("not implemented")
+	var err error
+	for _, c := range uc {
+		if err = c.Admits(v); err == nil {
+			return nil
+		}
+	}
+
+	// FIXME lollol, returning the last error is just laughably wrong
+	return err
 }
 
-func (uc unionConstraint) Intersect(Constraint) Constraint {
-	panic("not implemented - this is really the one annoying bit")
+func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
+	var other []Constraint
+
+	switch c2.(type) {
+	case none:
+		return none{}
+	case any:
+		return uc
+	case *Version:
+		return c2
+	case rangeConstraint:
+		other = append(other, c2)
+	case unionConstraint:
+		other = c2.(unionConstraint)
+	default:
+		// this duplicates what's above, but doing it this way allows a slightly
+		// faster path for internal operations while still respecting the
+		// interface contract
+		if c2.IsMagic() {
+			if c2.AdmitsAny() {
+				return uc
+			} else {
+				return none{}
+			}
+		}
+		panic("unknown type")
+	}
+
+	var newc []Constraint
+	// TODO dart has a smarter loop, i guess, but i don't grok it yet, so for
+	// now just do NxN
+	for _, c := range uc {
+		for _, oc := range other {
+			i := c.Intersect(oc)
+			if !isEmpty(i) {
+				newc = append(newc, i)
+			}
+		}
+	}
+
+	return Union(newc...)
 }
 
 func (uc unionConstraint) AdmitsAny() bool {
@@ -195,8 +242,8 @@ func Intersection(cg ...Constraint) Constraint {
 	// If there's zero or one constraints in the group, we can quit fast
 	switch len(cg) {
 	case 0:
-		// Zero members means unconstrained, so return any
-		return any{}
+		// Zero members, only sane thing to do is return none
+		return none{}
 	case 1:
 		// Just one member means that's our final constraint
 		return cg[0]
@@ -219,4 +266,44 @@ func Intersection(cg ...Constraint) Constraint {
 	}
 
 	return head
+}
+
+// Union takes a variable number of constraints, and returns the most compact
+// possible representation of those constraints.
+//
+// This effectively ORs together all the provided constraints. If any of the
+// included constraints are the set of all versions (any), that supercedes
+// everything else.
+func Union(cg ...Constraint) Constraint {
+	// If there's zero or one constraints in the group, we can quit fast
+	switch len(cg) {
+	case 0:
+		// Zero members, only sane thing to do is return none
+		return none{}
+	case 1:
+		return cg[0]
+	}
+
+	// Preliminary pass to look for 'any' in the current set
+	for _, c := range cg {
+		if _, ok := c.(any); ok {
+			return c
+		}
+	}
+
+	panic("unfinished")
+}
+
+func isEmpty(c Constraint) bool {
+	if _, ok := c.(none); ok {
+		return true
+	}
+	return c.IsMagic() && !c.AdmitsAny()
+}
+
+func isAny(c Constraint) bool {
+	if _, ok := c.(any); ok {
+		return true
+	}
+	return c.IsMagic() && c.AdmitsAny()
 }
