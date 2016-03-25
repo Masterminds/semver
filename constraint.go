@@ -20,13 +20,20 @@ type Constraint interface {
 	// can satisfy the Constraint.
 	AdmitsAny() bool
 
-	// IsMagic indicates if the constraint is 'magic' - e.g., is either the empty
-	// set, or the set of all versions.
-	IsMagic() bool
+	// Restrict implementation of this interface to this package. We need the
+	// flexibility of an interface, but we cover all possibilities here; closing
+	// off the interface to external implementation lets us safely do tricks
+	// with types for magic types (none and any)
+	_private()
 }
 
 // Any is a constraint that is satisfied by any valid semantic version.
 type any struct{}
+
+// Any creates a constraint that will match any version.
+func Any() Constraint {
+	return any{}
+}
 
 // Admits checks that a version satisfies the constraint. As all versions
 // satisfy Any, this always returns nil.
@@ -49,12 +56,15 @@ func (any) AdmitsAny() bool {
 	return true
 }
 
-func (any) IsMagic() bool {
-	return true
-}
+func (any) _private() {}
 
 // None is an unsatisfiable constraint - it represents the empty set.
 type none struct{}
+
+// None creates a constraint that matches no versions (the empty set).
+func None() Constraint {
+	return none{}
+}
 
 // Admits checks that a version satisfies the constraint. As no version can
 // satisfy None, this always fails (returns an error).
@@ -76,9 +86,7 @@ func (none) AdmitsAny() bool {
 	return false
 }
 
-func (none) IsMagic() bool {
-	return true
-}
+func (none) _private() {}
 
 type rangeConstraint struct {
 	min, max               *Version
@@ -143,16 +151,6 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 	case *Version, rangeConstraint:
 		break
 	default:
-		// this duplicates what's above, but doing it this way allows a slightly
-		// faster path for internal operations while still respecting the
-		// interface contract
-		if c.IsMagic() {
-			if c.AdmitsAny() {
-				return rc
-			} else {
-				return none{}
-			}
-		}
 		panic("unknown type")
 	}
 
@@ -163,9 +161,7 @@ func (rc rangeConstraint) AdmitsAny() bool {
 	return true
 }
 
-func (rc rangeConstraint) IsMagic() bool {
-	return false
-}
+func (rangeConstraint) _private() {}
 
 type unionConstraint []Constraint
 
@@ -196,16 +192,6 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 	case unionConstraint:
 		other = c2.(unionConstraint)
 	default:
-		// this duplicates what's above, but doing it this way allows a slightly
-		// faster path for internal operations while still respecting the
-		// interface contract
-		if c2.IsMagic() {
-			if c2.AdmitsAny() {
-				return uc
-			} else {
-				return none{}
-			}
-		}
 		panic("unknown type")
 	}
 
@@ -215,7 +201,7 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 	for _, c := range uc {
 		for _, oc := range other {
 			i := c.Intersect(oc)
-			if !isEmpty(i) {
+			if !IsNone(i) {
 				newc = append(newc, i)
 			}
 		}
@@ -228,9 +214,7 @@ func (uc unionConstraint) AdmitsAny() bool {
 	return true
 }
 
-func (uc unionConstraint) IsMagic() bool {
-	return false
-}
+func (unionConstraint) _private() {}
 
 // Intersection computes the intersection between N Constraints, returning as
 // compact a representation of the intersection as possible.
@@ -294,16 +278,15 @@ func Union(cg ...Constraint) Constraint {
 	panic("unfinished")
 }
 
-func isEmpty(c Constraint) bool {
-	if _, ok := c.(none); ok {
-		return true
-	}
-	return c.IsMagic() && !c.AdmitsAny()
+// IsNone indicates if a constraint will match no versions - that is, the
+// constraint represents the empty set.
+func IsNone(c Constraint) bool {
+	_, ok := c.(none)
+	return ok
 }
 
-func isAny(c Constraint) bool {
-	if _, ok := c.(any); ok {
-		return true
-	}
-	return c.IsMagic() && c.AdmitsAny()
+// IsAny indicates if a constraint will match any and all versions.
+func IsAny(c Constraint) bool {
+	_, ok := c.(none)
+	return ok
 }
