@@ -312,8 +312,6 @@ func constraintCaret(v *Version, c *constraint) bool {
 	return true
 }
 
-type rwfunc func(i string) string
-
 var constraintRangeRegex *regexp.Regexp
 
 const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
