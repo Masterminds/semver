@@ -140,6 +140,23 @@ func (rc rangeConstraint) Admits(v *Version) error {
 	return nil
 }
 
+func (rc rangeConstraint) dup() rangeConstraint {
+	var excl []*Version
+
+	if len(rc.excl) > 0 {
+		excl = make([]*Version, len(rc.excl))
+		copy(excl, rc.excl)
+	}
+
+	return rangeConstraint{
+		min:        rc.min,
+		max:        rc.max,
+		includeMin: rc.includeMin,
+		includeMax: rc.includeMax,
+		excl:       excl,
+	}
+}
+
 func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 	switch oc := c.(type) {
 	case any:
@@ -148,8 +165,57 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 		return none{}
 	case unionConstraint:
 		return oc.Intersect(rc)
-	case *Version, rangeConstraint:
-		break
+	case *Version:
+		if err := rc.Admits; err != nil {
+			return none{}
+		} else {
+			return c
+		}
+	case rangeConstraint:
+		nr := rc.dup()
+
+		if oc.min != nil {
+			if nr.min == nil || nr.min.LessThan(oc.min) {
+				nr.min = oc.min
+				nr.includeMin = oc.includeMin
+			} else if oc.min.Equal(nr.min) && !oc.includeMin {
+				// intersection means we must follow the least inclusive
+				nr.includeMin = false
+			}
+		}
+
+		if oc.max != nil {
+			if nr.max == nil || nr.max.GreaterThan(oc.max) {
+				nr.max = oc.max
+				nr.includeMax = oc.includeMax
+			} else if oc.max.Equal(nr.max) && !oc.includeMax {
+				// intersection means we must follow the least inclusive
+				nr.includeMax = false
+			}
+		}
+
+		if nr.min == nil && nr.max == nil {
+			return nr
+		}
+
+		// TODO could still have nils?
+		if nr.min.Equal(nr.max) {
+			// min and max are equal. if range is inclusive, return that
+			// version; otherwise, none
+			if nr.includeMin && nr.includeMax {
+				return nr.min
+			}
+			return None()
+		}
+
+		if nr.min != nil && nr.max != nil && nr.min.GreaterThan(nr.max) {
+			// min is greater than max - not possible, so we return none
+			return None()
+		}
+
+		// range now fully validated, return what we have
+		return nr
+
 	default:
 		panic("unknown type")
 	}
