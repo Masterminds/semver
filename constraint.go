@@ -460,6 +460,44 @@ func (uc unionConstraint) AdmitsAny() bool {
 }
 
 func (uc unionConstraint) Union(c Constraint) Constraint {
+	switch oc := c.(type) {
+	case any:
+		return Any()
+	case none:
+		return uc
+	case *Version:
+		// See if the union already includes this version
+		for _, ic := range uc {
+			if err := ic.Admits(oc); err == nil {
+				// It does; return the current union
+				return uc
+			}
+		}
+		// No match; append it to the union
+		nc := make(unionConstraint, len(uc)+1)
+		copy(nc, uc)
+		nc[len(nc)-1] = c
+
+		return nc
+	case rangeConstraint:
+		// Walk through the union and see what, if anything, the range bridges
+		var nc unionConstraint
+		for k, ic := range uc {
+			switch tic := ic.(type) {
+			case any, none, unionConstraint:
+				panic("canary: unionConstraint processing should disallow this")
+			case rangeConstraint:
+				rr := oc.Union(tic)
+				if _, ok := rr.(rangeConstraint); ok {
+					nc = append(nc, rr)
+				} else if nuc, ok := rr.(unionConstraint); ok {
+					nc = append(nc, nuc...)
+				} else {
+					panic("unreachable")
+				}
+			}
+		}
+	}
 }
 
 func (unionConstraint) _private() {}
@@ -516,14 +554,184 @@ func Union(cg ...Constraint) Constraint {
 		return cg[0]
 	}
 
-	// Preliminary pass to look for 'any' in the current set
+	// Preliminary pass to look for 'any' in the current set (and bail out early
+	// if found), but also dump the others constraints into buckets
+	var versions Collection
+	var ranges ascendingRanges
+	var unions []unionConstraint
+
 	for _, c := range cg {
-		if _, ok := c.(any); ok {
+		switch tc := c.(type) {
+		case any:
 			return c
+		case none:
+			continue
+		case *Version:
+			versions = append(versions, tc)
+		case rangeConstraint:
+			ranges = append(ranges, tc)
+		case unionConstraint:
+			unions = append(unions, tc)
+		default:
+			panic("unknown constraint type")
 		}
 	}
 
+	// Sort both the versions and ranges into ascending order
+	sort.Sort(versions)
+	sort.Sort(ranges)
+
+	// See if we can compress the pure ranges, if any
+	var merged []Constraint
+	if len(ranges) > 0 {
+		rr := ranges[0]
+		i := 0
+		// Move pairwise-ish through the ranges, attempting unions on each
+		for {
+			if len(ranges) < i+2 {
+				// We don't have another pair to process
+				break
+			}
+			if len(ranges) == i+1 {
+				// Just one more to process
+			}
+			c = rr.Union(r[i], r[i+1])
+
+			i += 2
+		}
+	}
+
+	var final []Constraint
+vloop:
+	for _, v := range versions {
+		for _, c := range ranges {
+			if err := c.Admits(v); err == nil {
+				continue vloop
+			}
+		}
+
+		for _, c := range unions {
+			if err := c.Admits(v); err == nil {
+				continue vloop
+			}
+		}
+
+		// Nothing else matched it - put it in the final set
+		final = append(final, v)
+	}
+
 	panic("unfinished")
+}
+
+type ascendingRanges []rangeConstraint
+
+func (rs ascendingRanges) Len() int {
+	return len(rs)
+}
+
+func (rs ascendingRanges) Less(i, j int) bool {
+	ir, jr := rs[i].max, rs[j].max
+	inil, jnil := ir == nil, jr == nil
+
+	if !inil && !jnil {
+		if ir.LessThan(jr) {
+			return true
+		}
+		if jr.LessThan(ir) {
+			return false
+		}
+
+		// Last possible - if i is inclusive, but j isn't, then put i after j
+		if !rs[j].includeMax && rs[i].includeMax {
+			return false
+		}
+
+		// Or, if j inclusive, but i isn't...but actually, since we can't return
+		// 0 on this comparator, this handles both that and the 'stable' case
+		return true
+	} else if inil || jnil {
+		// ascending, so, if jnil, then j has no max but i does, so i should
+		// come first. thus, return jnil
+		return jnil
+	}
+
+	// neither have maxes, so now go by the lowest min
+	ir, jr = rs[i].min, rs[j].min
+	inil, jnil = ir == nil, jr == nil
+
+	if !inil && !jnil {
+		if ir.LessThan(jr) {
+			return true
+		}
+		if jr.LessThan(ir) {
+			return false
+		}
+
+		// Last possible - if j is inclusive, but i isn't, then put i after j
+		if rs[j].includeMin && !rs[i].includeMin {
+			return false
+		}
+
+		// Or, if i inclusive, but j isn't...but actually, since we can't return
+		// 0 on this comparator, this handles both that and the 'stable' case
+		return true
+	} else if inil || jnil {
+		// ascending, so, if inil, then i has no min but j does, so j should
+		// come first. thus, return inil
+		return inil
+	}
+
+	// Default to keeping i before j
+	return true
+}
+
+func (rs ascendingRanges) Swap(i, j int) {
+	rs[i], rs[j] = rs[j], rs[i]
+}
+
+type constraintList []realConstraint
+
+func (cl constraintList) Len() int {
+	return len(cl)
+}
+
+func (cl constraintList) Swap(i, j int) {
+	cl[i], cl[j] = cl[j], cl[i]
+}
+
+func (cl constraintList) Less(i, j int) bool {
+	ic, jc := cl[i], cl[j]
+
+	switch tic := ic.(type) {
+	case *Version:
+		switch tjc := jc.(type) {
+		case *Version:
+			return tic.LessThan(tjc)
+		case rangeConstraint:
+			if tjc.min == nil {
+				return false
+			}
+			return tic.LessThan(tjc.min)
+		}
+	case rangeConstraint:
+		switch tjc := jc.(type) {
+		case *Version:
+			if tic.min == nil {
+				return true
+			}
+			return tic.min.LessThan(tjc)
+		case rangeConstraint:
+			if tic.min == nil {
+				return true
+			}
+			if tjc.min == nil {
+				return false
+			}
+			return tic.min.LessThan(tjc.min)
+		}
+	}
+
+	panic("unreachable")
 }
 
 // IsNone indicates if a constraint will match no versions - that is, the
