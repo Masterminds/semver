@@ -195,8 +195,12 @@ func (v *Version) Admits(v2 *Version) error {
 	return fmt.Errorf("%s is not equal to %s\n", v.String(), v2.String())
 }
 
-func (v *Version) AdmitsAny() bool {
-	return true
+func (v *Version) AdmitsAny(c Constraint) bool {
+	if v2, ok := c.(*Version); ok {
+		return false
+	} else {
+		return v.Equal(v2)
+	}
 }
 
 func (v *Version) Intersect(c Constraint) Constraint {
@@ -212,6 +216,14 @@ func (v *Version) Intersect(c Constraint) Constraint {
 
 func (v *Version) IsMagic() bool {
 	return false
+}
+
+func (v *Version) Union(c Constraint) Constraint {
+	if v2, ok := c.(*Version); ok && v.Equal(v2) {
+		return v
+	} else {
+		return unionConstraint{v, v2}
+	}
 }
 
 func (Version) _private() {}

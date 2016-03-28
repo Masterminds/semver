@@ -17,9 +17,15 @@ type Constraint interface {
 	// passed Constraint, and returns a new Constraint representing the result.
 	Intersect(Constraint) Constraint
 
+	// Union computes the union between the receiving Constraint and the passed
+	// Constraint, and returns a new Constraint representing the result.
+	Union(Constraint) Constraint
+
 	// AdmitsAny returns a bool indicating whether there exists any version that
-	// can satisfy the Constraint.
-	AdmitsAny() bool
+	// satisfies both the receiver constraint, and the passed Constraint.
+	//
+	// In other words, this reports whether an intersection would be non-empty.
+	AdmitsAny(Constraint) bool
 
 	// Restrict implementation of this interface to this package. We need the
 	// flexibility of an interface, but we cover all possibilities here; closing
@@ -58,10 +64,18 @@ func (any) Intersect(c Constraint) Constraint {
 	return c
 }
 
-// AdmitsAny indicates whether there exists any version that can satisfy the
-// constraint. As all versions satisfy Any, this is always true.
-func (any) AdmitsAny() bool {
+// AdmitsAny indicates whether there exists any version that can satisfy both
+// this constraint, and the passed constraint. As all versions
+// satisfy Any, this is always true - unless none is passed.
+func (any) AdmitsAny(c Constraint) bool {
+	if _, ok := c.(none); ok {
+		return false
+	}
 	return true
+}
+
+func (any) Union(c Constraint) Constraint {
+	return Any()
 }
 
 func (any) _private() {}
@@ -88,9 +102,13 @@ func (none) Intersect(Constraint) Constraint {
 	return None()
 }
 
+func (none) Union(c Constraint) Constraint {
+	return c
+}
+
 // AdmitsAny indicates whether there exists any version that can satisfy the
 // constraint. As no versions satisfy None, this is always false.
-func (none) AdmitsAny() bool {
+func (none) AdmitsAny(c Constraint) bool {
 	return false
 }
 
@@ -402,7 +420,8 @@ func areEq(v1, v2 *Version) bool {
 	return false
 }
 
-func (rc rangeConstraint) AdmitsAny() bool {
+func (rc rangeConstraint) AdmitsAny(c Constraint) bool {
+	// TODO
 	return true
 }
 
@@ -455,8 +474,13 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 	return Union(newc...)
 }
 
-func (uc unionConstraint) AdmitsAny() bool {
-	return true
+func (uc unionConstraint) AdmitsAny(c Constraint) bool {
+	for _, ic := range uc {
+		if ic.AdmitsAny(c) {
+			return true
+		}
+	}
+	return false
 }
 
 func (uc unionConstraint) Union(c Constraint) Constraint {
