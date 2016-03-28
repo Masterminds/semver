@@ -28,6 +28,13 @@ type Constraint interface {
 	_private()
 }
 
+// realConstraint is used internally to differentiate between any, none, and
+// unionConstraints, vs. Version and rangeConstraints.
+type realConstraint interface {
+	Constraint
+	_real()
+}
+
 // Any is a constraint that is satisfied by any valid semantic version.
 type any struct{}
 
@@ -368,6 +375,8 @@ func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
 
 	return true
 }
+
+func (rangeConstraint) _real() {}
 
 // areAdjacent tests two range constraints to determine if they are adjacent,
 // but non-overlapping.

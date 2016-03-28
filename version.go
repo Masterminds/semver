@@ -215,6 +215,7 @@ func (v *Version) IsMagic() bool {
 }
 
 func (Version) _private() {}
+func (Version) _real()    {}
 
 func compareSegment(v, o int64) int {
 	if v < o {
