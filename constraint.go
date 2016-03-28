@@ -77,7 +77,7 @@ func (none) Admits(v *Version) error {
 // None is the empty set of versions, and any intersection with the empty set is
 // necessarily the empty set. Thus, this always returns None.
 func (none) Intersect(Constraint) Constraint {
-	return none{}
+	return None()
 }
 
 // AdmitsAny indicates whether there exists any version that can satisfy the
@@ -162,12 +162,12 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 	case any:
 		return rc
 	case none:
-		return none{}
+		return None()
 	case unionConstraint:
 		return oc.Intersect(rc)
 	case *Version:
 		if err := rc.Admits; err != nil {
-			return none{}
+			return None()
 		} else {
 			return c
 		}
@@ -248,7 +248,7 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 
 	switch c2.(type) {
 	case none:
-		return none{}
+		return None()
 	case any:
 		return uc
 	case *Version:
@@ -293,7 +293,7 @@ func Intersection(cg ...Constraint) Constraint {
 	switch len(cg) {
 	case 0:
 		// Zero members, only sane thing to do is return none
-		return none{}
+		return None()
 	case 1:
 		// Just one member means that's our final constraint
 		return cg[0]
@@ -329,7 +329,7 @@ func Union(cg ...Constraint) Constraint {
 	switch len(cg) {
 	case 0:
 		// Zero members, only sane thing to do is return none
-		return none{}
+		return None()
 	case 1:
 		return cg[0]
 	}
