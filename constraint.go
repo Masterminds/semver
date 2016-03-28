@@ -3,6 +3,7 @@ package semver
 import (
 	"errors"
 	"fmt"
+	"sort"
 )
 
 var noneErr = errors.New("The 'None' constraint admits no versions.")
@@ -219,8 +220,177 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 	default:
 		panic("unknown type")
 	}
+}
 
-	panic("not implemented")
+func (rc rangeConstraint) Union(c Constraint) Constraint {
+	switch oc := c.(type) {
+	case any:
+		return Any()
+	case none:
+		return rc
+	case unionConstraint:
+		return oc.Union(rc)
+	case *Version:
+		if err := rc.Admits(oc); err == nil {
+			return rc
+		} else if len(rc.excl) > 0 { // TODO (re)checking like this is wasteful
+			// ensure we don't have an excl-specific mismatch; if we do, remove
+			// it and return that
+			for k, e := range rc.excl {
+				if e.Equal(oc) {
+					excl := make([]*Version, len(rc.excl)-1)
+
+					if k == len(rc.excl)-1 {
+						copy(excl, rc.excl[:k])
+					} else {
+						copy(excl, append(rc.excl[:k], rc.excl[k+1:]...))
+					}
+
+					return rangeConstraint{
+						min:        rc.min,
+						max:        rc.max,
+						includeMin: true,
+						includeMax: rc.includeMax,
+						excl:       excl,
+					}
+				}
+			}
+		}
+
+		if oc.Equal(rc.min) {
+			ret := rc.dup()
+			ret.includeMin = true
+			return ret
+		}
+	case rangeConstraint:
+		if areAdjacent(rc, oc) {
+			// Receiver adjoins the input from below
+			nc := rc.dup()
+
+			nc.max = oc.max
+			nc.includeMax = oc.includeMax
+			nc.excl = append(nc.excl, oc.excl...)
+
+			return nc
+		} else if areAdjacent(oc, rc) {
+			// Input adjoins the receiver from below
+			nc := oc.dup()
+
+			nc.max = rc.max
+			nc.includeMax = rc.includeMax
+			nc.excl = append(nc.excl, rc.excl...)
+
+			return nc
+
+		} else if i := rc.Intersect(oc); i.AdmitsAny() {
+			// Receiver and input overlap; form a new range accordingly.
+			nc := rangeConstraint{}
+
+			// For efficiency, we simultaneously determine if either of the
+			// ranges are supersets of the other, while also selecting the min
+			// and max of the new range
+			var info uint8
+
+			const (
+				lminlt uint8             = 1 << iota // left (rc) min less than right
+				rminlt                               // right (oc) min less than left
+				lmaxgt                               // left max greater than right
+				rmaxgt                               // right max greater than left
+				lsupr  = lminlt | lmaxgt             // left is superset of right
+				rsupl  = rminlt | rmaxgt             // right is superset of left
+			)
+
+			if rc.min != nil {
+				if oc.min == nil || rc.min.GreaterThan(oc.min) || (rc.min.Equal(oc.min) && !rc.includeMin && oc.includeMin) {
+					info |= rminlt
+					nc.min = oc.min
+				} else {
+					info |= lminlt
+					nc.min = rc.min
+				}
+			} else if oc.min != nil {
+				info |= lminlt
+				nc.min = rc.min
+			}
+
+			if rc.max != nil {
+				if oc.max == nil || rc.max.LessThan(oc.max) || (rc.max.Equal(oc.max) && !rc.includeMax && oc.includeMax) {
+					info |= rmaxgt
+					nc.max = oc.max
+				} else {
+					info |= lmaxgt
+					nc.max = rc.max
+				}
+			} else if oc.max != nil {
+				info |= lmaxgt
+				nc.max = rc.max
+			}
+
+			if info&lsupr != lsupr {
+				// rc is not superset of oc, so must walk oc.excl
+				for _, e := range oc.excl {
+					if rc.Admits(e) != nil {
+						nc.excl = append(nc.excl, e)
+					}
+				}
+			}
+
+			if info&rsupl != rsupl {
+				// oc is not superset of rc, so must walk rc.excl
+				for _, e := range rc.excl {
+					if oc.Admits(e) != nil {
+						nc.excl = append(nc.excl, e)
+					}
+				}
+			}
+
+			return nc
+		} else {
+			return unionConstraint{rc, oc}
+		}
+	}
+
+	panic("unknown type")
+}
+
+func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
+	if rc.min != nil {
+		if rc2.min == nil || rc.min.GreaterThan(rc2.min) || (rc.min.Equal(rc2.min) && !rc.includeMin && rc2.includeMin) {
+			return false
+		}
+	}
+
+	if rc.max != nil {
+		if rc2.max == nil || rc.max.LessThan(rc2.max) || (rc.max.Equal(rc2.max) && !rc.includeMax && rc2.includeMax) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// areAdjacent tests two range constraints to determine if they are adjacent,
+// but non-overlapping.
+//
+// Assumes the first range is less than the second.
+func areAdjacent(rc1, rc2 rangeConstraint) bool {
+	if !areEq(rc1.max, rc2.min) {
+		return false
+	}
+
+	return (rc1.includeMax && !rc2.includeMin) ||
+		(!rc1.includeMax && rc2.includeMin)
+}
+
+func areEq(v1, v2 *Version) bool {
+	if v1 == nil && v2 == nil {
+		return true
+	}
+
+	if v1 != nil && v2 != nil {
+		return v1.Equal(v2)
+	}
+	return false
 }
 
 func (rc rangeConstraint) AdmitsAny() bool {
@@ -278,6 +448,9 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 
 func (uc unionConstraint) AdmitsAny() bool {
 	return true
+}
+
+func (uc unionConstraint) Union(c Constraint) Constraint {
 }
 
 func (unionConstraint) _private() {}
