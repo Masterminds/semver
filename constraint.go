@@ -307,7 +307,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 
 			return nc
 
-		} else if i := rc.Intersect(oc); i.AdmitsAny() {
+		} else if rc.AdmitsAny(oc) {
 			// Receiver and input overlap; form a new range accordingly.
 			nc := rangeConstraint{}
 
@@ -396,11 +396,24 @@ func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
 
 func (rangeConstraint) _real() {}
 
-// areAdjacent tests two range constraints to determine if they are adjacent,
+// areAdjacent tests two constraints to determine if they are adjacent,
 // but non-overlapping.
 //
-// Assumes the first range is less than the second.
-func areAdjacent(rc1, rc2 rangeConstraint) bool {
+// If either constraint is not a range, returns false. We still allow it at the
+// type level, however, to make the check convenient elsewhere.
+//
+// Assumes the first range is less than the second; it is incumbent on the
+// caller to arrange the inputs appropriately.
+func areAdjacent(c1, c2 Constraint) bool {
+	var rc1, rc2 rangeConstraint
+	var ok bool
+	if rc1, ok = c1.(rangeConstraint); !ok {
+		return false
+	}
+	if rc2, ok = c2.(rangeConstraint); !ok {
+		return false
+	}
+
 	if !areEq(rc1.max, rc2.min) {
 		return false
 	}
@@ -427,7 +440,7 @@ func (rc rangeConstraint) AdmitsAny(c Constraint) bool {
 
 func (rangeConstraint) _private() {}
 
-type unionConstraint []Constraint
+type unionConstraint []realConstraint
 
 func (uc unionConstraint) Admits(v *Version) error {
 	var err error
@@ -442,9 +455,9 @@ func (uc unionConstraint) Admits(v *Version) error {
 }
 
 func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
-	var other []Constraint
+	var other []realConstraint
 
-	switch c2.(type) {
+	switch tc2 := c2.(type) {
 	case none:
 		return None()
 	case any:
@@ -452,7 +465,7 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 	case *Version:
 		return c2
 	case rangeConstraint:
-		other = append(other, c2)
+		other = append(other, tc2)
 	case unionConstraint:
 		other = c2.(unionConstraint)
 	default:
@@ -484,44 +497,7 @@ func (uc unionConstraint) AdmitsAny(c Constraint) bool {
 }
 
 func (uc unionConstraint) Union(c Constraint) Constraint {
-	switch oc := c.(type) {
-	case any:
-		return Any()
-	case none:
-		return uc
-	case *Version:
-		// See if the union already includes this version
-		for _, ic := range uc {
-			if err := ic.Admits(oc); err == nil {
-				// It does; return the current union
-				return uc
-			}
-		}
-		// No match; append it to the union
-		nc := make(unionConstraint, len(uc)+1)
-		copy(nc, uc)
-		nc[len(nc)-1] = c
-
-		return nc
-	case rangeConstraint:
-		// Walk through the union and see what, if anything, the range bridges
-		var nc unionConstraint
-		for k, ic := range uc {
-			switch tic := ic.(type) {
-			case any, none, unionConstraint:
-				panic("canary: unionConstraint processing should disallow this")
-			case rangeConstraint:
-				rr := oc.Union(tic)
-				if _, ok := rr.(rangeConstraint); ok {
-					nc = append(nc, rr)
-				} else if nuc, ok := rr.(unionConstraint); ok {
-					nc = append(nc, nuc...)
-				} else {
-					panic("unreachable")
-				}
-			}
-		}
-	}
+	return Union(uc, c)
 }
 
 func (unionConstraint) _private() {}
@@ -575,14 +551,13 @@ func Union(cg ...Constraint) Constraint {
 		// Zero members, only sane thing to do is return none
 		return None()
 	case 1:
+		// One member, so the result will just be that
 		return cg[0]
 	}
 
 	// Preliminary pass to look for 'any' in the current set (and bail out early
-	// if found), but also dump the others constraints into buckets
-	var versions Collection
-	var ranges ascendingRanges
-	var unions []unionConstraint
+	// if found), but also construct a []realConstraint for everything else
+	var real constraintList
 
 	for _, c := range cg {
 		switch tc := c.(type) {
@@ -591,60 +566,39 @@ func Union(cg ...Constraint) Constraint {
 		case none:
 			continue
 		case *Version:
-			versions = append(versions, tc)
+			real = append(real, tc)
 		case rangeConstraint:
-			ranges = append(ranges, tc)
+			real = append(real, tc)
 		case unionConstraint:
-			unions = append(unions, tc)
+			real = append(real, tc...)
 		default:
 			panic("unknown constraint type")
 		}
 	}
 
 	// Sort both the versions and ranges into ascending order
-	sort.Sort(versions)
-	sort.Sort(ranges)
+	sort.Sort(real)
 
-	// See if we can compress the pure ranges, if any
-	var merged []Constraint
-	if len(ranges) > 0 {
-		rr := ranges[0]
-		i := 0
-		// Move pairwise-ish through the ranges, attempting unions on each
-		for {
-			if len(ranges) < i+2 {
-				// We don't have another pair to process
-				break
-			}
-			if len(ranges) == i+1 {
-				// Just one more to process
-			}
-			c = rr.Union(r[i], r[i+1])
+	// Iteratively merge the constraintList elements
+	var nuc unionConstraint
+	for _, c := range real {
+		if len(nuc) == 0 {
+			nuc = append(nuc, c)
+			continue
+		}
 
-			i += 2
+		last := nuc[len(nuc)-1]
+		if last.AdmitsAny(c) || areAdjacent(last, c) {
+			nuc[len(nuc)-1] = last.Union(c).(realConstraint)
+		} else {
+			nuc = append(nuc, c)
 		}
 	}
 
-	var final []Constraint
-vloop:
-	for _, v := range versions {
-		for _, c := range ranges {
-			if err := c.Admits(v); err == nil {
-				continue vloop
-			}
-		}
-
-		for _, c := range unions {
-			if err := c.Admits(v); err == nil {
-				continue vloop
-			}
-		}
-
-		// Nothing else matched it - put it in the final set
-		final = append(final, v)
+	if len(nuc) == 1 {
+		return nuc[0]
 	}
-
-	panic("unfinished")
+	return nuc
 }
 
 type ascendingRanges []rangeConstraint
