@@ -443,7 +443,7 @@ func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
 		includeMin: true,
 	}
 
-	return unionConstraint{lr, hr}
+	return Union(lr, hr)
 }
 
 func expandGreater(v *Version, eq bool) Constraint {

@@ -1,31 +1,108 @@
 package semver
 
-import (
-	"reflect"
-	"testing"
-)
+import "testing"
 
 func TestParseConstraint(t *testing.T) {
 	tests := []struct {
 		in  string
-		f   cfunc
-		v   string
+		c   Constraint
 		err bool
 	}{
-		{">= 1.2", constraintGreaterThanEqual, "1.2.0", false},
-		{"1.0", constraintTildeOrEqual, "1.0.0", false},
-		{"foo", nil, "", true},
-		{"<= 1.2", constraintLessThanEqual, "1.2.0", false},
-		{"=< 1.2", constraintLessThanEqual, "1.2.0", false},
-		{"=> 1.2", constraintGreaterThanEqual, "1.2.0", false},
-		{"v1.2", constraintTildeOrEqual, "1.2.0", false},
-		{"=1.5", constraintTildeOrEqual, "1.5.0", false},
-		{"> 1.3", constraintGreaterThan, "1.3.0", false},
-		{"< 1.4.1", constraintLessThan, "1.4.1", false},
+		{"*", Any(), false},
+		{">= 1.2", rangeConstraint{
+			min: &Version{
+				major: 1,
+				minor: 2,
+				patch: 0,
+			},
+			includeMin: true,
+		}, false},
+		{"1.0", &Version{
+			major: 1,
+			minor: 0,
+			patch: 0,
+		}, false},
+		{"foo", nil, true},
+		{"<= 1.2", rangeConstraint{
+			max: &Version{
+				major: 1,
+				minor: 2,
+				patch: 0,
+			},
+			includeMax: true,
+		}, false},
+		{"=< 1.2", rangeConstraint{
+			max: &Version{
+				major: 1,
+				minor: 2,
+				patch: 0,
+			},
+			includeMax: true,
+		}, false},
+		{"=> 1.2", rangeConstraint{
+			min: &Version{
+				major: 1,
+				minor: 2,
+				patch: 0,
+			},
+			includeMin: true,
+		}, false},
+		{"v1.2", &Version{
+			major: 1,
+			minor: 2,
+			patch: 0,
+		}, false},
+		{"=1.5", &Version{
+			major: 1,
+			minor: 5,
+			patch: 0,
+		}, false},
+		{"> 1.3", rangeConstraint{
+			min: &Version{
+				major: 1,
+				minor: 3,
+				patch: 0,
+			},
+		}, false},
+		{"< 1.4.1", rangeConstraint{
+			max: &Version{
+				major: 1,
+				minor: 4,
+				patch: 1,
+			},
+		}, false},
+		{"~1.1.0", rangeConstraint{
+			min: &Version{
+				major: 1,
+				minor: 1,
+				patch: 0,
+			},
+			max: &Version{
+				major: 1,
+				minor: 2,
+				patch: 0,
+			},
+			includeMin: true,
+			includeMax: false,
+		}, false},
+		{"^1.1.0", rangeConstraint{
+			min: &Version{
+				major: 1,
+				minor: 1,
+				patch: 0,
+			},
+			max: &Version{
+				major: 2,
+				minor: 0,
+				patch: 0,
+			},
+			includeMin: true,
+			includeMax: false,
+		}, false},
 	}
 
 	for _, tc := range tests {
-		c, err := parseConstraint(tc.in)
+		c, err := parseConstraintNu(tc.in)
 		if tc.err && err == nil {
 			t.Errorf("Expected error for %s didn't occur", tc.in)
 		} else if !tc.err && err != nil {
@@ -38,16 +115,76 @@ func TestParseConstraint(t *testing.T) {
 			continue
 		}
 
-		if tc.v != c.con.String() {
+		if !constraintEq(tc.c, c) {
 			t.Errorf("Incorrect version found on %s", tc.in)
 		}
-
-		f1 := reflect.ValueOf(tc.f)
-		f2 := reflect.ValueOf(c.function)
-		if f1 != f2 {
-			t.Errorf("Wrong constraint found for %s", tc.in)
-		}
 	}
+}
+
+func constraintEq(c1, c2 Constraint) bool {
+	switch tc1 := c1.(type) {
+	case any:
+		if _, ok := c2.(any); !ok {
+			return false
+		}
+		return true
+	case none:
+		if _, ok := c2.(none); !ok {
+			return false
+		}
+		return true
+	case *Version:
+		if tc2, ok := c2.(*Version); ok {
+			return tc1.Equal(tc2)
+		}
+		return false
+	case rangeConstraint:
+		if tc2, ok := c2.(rangeConstraint); ok {
+			if len(tc1.excl) != len(tc2.excl) {
+				return false
+			}
+
+			if tc1.min != nil {
+				if !(tc1.includeMin == tc2.includeMin && tc1.min.Equal(tc2.min)) {
+					return false
+				}
+			} else if tc2.min != nil {
+				return false
+			}
+
+			if tc1.max != nil {
+				if !(tc1.includeMax == tc2.includeMax && tc1.max.Equal(tc2.max)) {
+					return false
+				}
+			} else if tc2.max != nil {
+				return false
+			}
+
+			for k, e := range tc1.excl {
+				if !e.Equal(tc2.excl[k]) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	case unionConstraint:
+		if tc2, ok := c2.(unionConstraint); ok {
+			if len(tc1) != len(tc2) {
+				return false
+			}
+
+			for k, c := range tc1 {
+				if !constraintEq(c, tc2[k]) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	}
+
+	panic("unknown type")
 }
 
 func TestConstraintCheck(t *testing.T) {
@@ -72,6 +209,8 @@ func TestConstraintCheck(t *testing.T) {
 		{"<=1.1", "0.1.0", true},
 		{"<=1.1", "1.1.0", true},
 		{"<=1.1", "1.1.1", false},
+		//{"<2.0.0", "2.0.0-alpha1", false},
+		//{"<=2.0.0", "2.0.0-alpha1", true},
 	}
 
 	for _, tc := range tests {

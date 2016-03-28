@@ -4,11 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 var noneErr = errors.New("The 'None' constraint admits no versions.")
 
 type Constraint interface {
+	// Constraints compose the fmt.Stringer interface. Printing a constraint
+	// will yield a string that, if passed to NewConstraint(), will produce the
+	// original constraint. (Bidirectional serialization)
+	fmt.Stringer
+
 	// Admits checks that a version satisfies the constraint. If it does not,
 	// an error is returned indcating the problem; if it does, the error is nil.
 	Admits(v *Version) error
@@ -49,6 +55,10 @@ func Any() Constraint {
 	return any{}
 }
 
+func (any) String() string {
+	return "*"
+}
+
 // Admits checks that a version satisfies the constraint. As all versions
 // satisfy Any, this always returns nil.
 func (any) Admits(v *Version) error {
@@ -86,6 +96,10 @@ type none struct{}
 // None creates a constraint that matches no versions (the empty set).
 func None() Constraint {
 	return none{}
+}
+
+func (none) String() string {
+	return ""
 }
 
 // Admits checks that a version satisfies the constraint. As no version can
@@ -325,6 +339,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 				rsupl  = rminlt | rmaxgt             // right is superset of left
 			)
 
+			// Pick the min
 			if rc.min != nil {
 				if oc.min == nil || rc.min.GreaterThan(oc.min) || (rc.min.Equal(oc.min) && !rc.includeMin && oc.includeMin) {
 					info |= rminlt
@@ -338,6 +353,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 				nc.min = rc.min
 			}
 
+			// Pick the max
 			if rc.max != nil {
 				if oc.max == nil || rc.max.LessThan(oc.max) || (rc.max.Equal(oc.max) && !rc.includeMax && oc.includeMax) {
 					info |= rmaxgt
@@ -351,6 +367,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 				nc.max = rc.max
 			}
 
+			// Reincorporate any excluded versions
 			if info&lsupr != lsupr {
 				// rc is not superset of oc, so must walk oc.excl
 				for _, e := range oc.excl {
@@ -394,6 +411,32 @@ func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
 	return true
 }
 
+func (rc rangeConstraint) String() string {
+	// TODO express using caret or tilde, where applicable
+	var pieces []string
+	if rc.min != nil {
+		if rc.includeMin {
+			pieces = append(pieces, fmt.Sprintf(">= %s", rc.min))
+		} else {
+			pieces = append(pieces, fmt.Sprintf("> %s", rc.min))
+		}
+	}
+
+	if rc.max != nil {
+		if rc.includeMax {
+			pieces = append(pieces, fmt.Sprintf(">= %s", rc.max))
+		} else {
+			pieces = append(pieces, fmt.Sprintf("> %s", rc.max))
+		}
+	}
+
+	for _, e := range rc.excl {
+		pieces = append(pieces, fmt.Sprintf("!=%s", e))
+	}
+
+	return strings.Join(pieces, ", ")
+}
+
 func (rangeConstraint) _real() {}
 
 // areAdjacent tests two constraints to determine if they are adjacent,
@@ -434,7 +477,9 @@ func areEq(v1, v2 *Version) bool {
 }
 
 func (rc rangeConstraint) AdmitsAny(c Constraint) bool {
-	// TODO
+	if _, ok := rc.Intersect(c).(none); ok {
+		return false
+	}
 	return true
 }
 
@@ -500,6 +545,14 @@ func (uc unionConstraint) Union(c Constraint) Constraint {
 	return Union(uc, c)
 }
 
+func (uc unionConstraint) String() string {
+	var pieces []string
+	for _, c := range uc {
+		pieces = append(pieces, c.String())
+	}
+
+	return strings.Join(pieces, " || ")
+}
 func (unionConstraint) _private() {}
 
 // Intersection computes the intersection between N Constraints, returning as
