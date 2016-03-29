@@ -38,51 +38,16 @@ func BenchmarkNewConstraintUnion(b *testing.B) {
 	benchNewConstraint("~2.0.0 || =3.1.0", b)
 }
 
-/* Check benchmarks */
-
-func benchCheckVersion(c, v string, b *testing.B) {
-	version, _ := semver.NewVersion(v)
-	constraint, _ := semver.NewConstraint(c)
-
-	for i := 0; i < b.N; i++ {
-		constraint.Check(version)
-	}
-}
-
-func BenchmarkCheckVersionUnary(b *testing.B) {
-	benchCheckVersion("=2.0", "2.0.0", b)
-}
-
-func BenchmarkCheckVersionTilde(b *testing.B) {
-	benchCheckVersion("~2.0.0", "2.0.5", b)
-}
-
-func BenchmarkCheckVersionCaret(b *testing.B) {
-	benchCheckVersion("^2.0.0", "2.1.0", b)
-}
-
-func BenchmarkCheckVersionWildcard(b *testing.B) {
-	benchCheckVersion("1.x", "1.4.0", b)
-}
-
-func BenchmarkCheckVersionRange(b *testing.B) {
-	benchCheckVersion(">=2.1.x, <3.1.0", "2.4.5", b)
-}
-
-func BenchmarkCheckVersionUnion(b *testing.B) {
-	benchCheckVersion("~2.0.0 || =3.1.0", "3.1.0", b)
-}
+/* Validate benchmarks, including fails */
 
 func benchValidateVersion(c, v string, b *testing.B) {
 	version, _ := semver.NewVersion(v)
 	constraint, _ := semver.NewConstraint(c)
 
 	for i := 0; i < b.N; i++ {
-		constraint.Validate(version)
+		constraint.Admits(version)
 	}
 }
-
-/* Validate benchmarks, including fails */
 
 func BenchmarkValidateVersionUnary(b *testing.B) {
 	benchValidateVersion("=2.0", "2.0.0", b)
