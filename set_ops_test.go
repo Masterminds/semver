@@ -351,6 +351,24 @@ func TestRangeUnion(t *testing.T) {
 		t.Errorf("Got constraint %q, but expected %q", actual, result)
 	}
 
+	// And top-adjacent at that version
+	rc2.includeMin = false
+	if actual = rc1.Union(rc2); !constraintEq(actual, result) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+	if actual = rc2.Union(rc1); !constraintEq(actual, result) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+	// And bottom-adjacent at that version
+	rc1.includeMax = false
+	rc2.includeMin = true
+	if actual = rc1.Union(rc2); !constraintEq(actual, result) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+	if actual = rc2.Union(rc1); !constraintEq(actual, result) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+
 	// Test excludes in overlapping range
 	rc1 = rangeConstraint{
 		min: newV(1, 5, 0),
@@ -405,11 +423,11 @@ func TestRangeUnion(t *testing.T) {
 		},
 	}
 
-	if actual = rc1.Union(rc2); !constraintEq(actual, rc2) {
-		t.Errorf("Got constraint %q, but expected %q", actual, rc2)
+	if actual = rc1.Union(rc2); !constraintEq(actual, rc1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, rc1)
 	}
-	if actual = rc2.Union(rc1); !constraintEq(actual, rc2) {
-		t.Errorf("Got constraint %q, but expected %q", actual, rc2)
+	if actual = rc2.Union(rc1); !constraintEq(actual, rc1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, rc1)
 	}
 
 	rc1 = rangeConstraint{
@@ -417,19 +435,12 @@ func TestRangeUnion(t *testing.T) {
 			newV(1, 5, 0),
 		},
 	}
-	result = rangeConstraint{
-		excl: []*Version{
-			newV(1, 5, 0),
-			newV(1, 6, 0),
-			newV(1, 7, 0),
-		},
-	}
 
-	if actual = rc1.Union(rc2); !constraintEq(actual, result) {
-		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	if actual = rc1.Union(rc2); !constraintEq(actual, Any()) {
+		t.Errorf("Got constraint %q, but expected %q", actual, Any())
 	}
-	if actual = rc2.Union(rc1); !constraintEq(actual, result) {
-		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	if actual = rc2.Union(rc1); !constraintEq(actual, Any()) {
+		t.Errorf("Got constraint %q, but expected %q", actual, Any())
 	}
 
 	// TODO test the pre-release special range stuff

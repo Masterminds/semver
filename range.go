@@ -192,7 +192,33 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			return ret
 		}
 	case rangeConstraint:
-		if areAdjacent(rc, oc) {
+		if (rc.min == nil && oc.max == nil) || (rc.max == nil && oc.min == nil) {
+			rcl, ocl := len(rc.excl), len(oc.excl)
+			// Quick check for open case
+			if rcl == 0 && ocl == 0 {
+				return Any()
+			}
+
+			// This is inefficient, but it's such an absurdly corner case...
+			if len(dedupeExcls(rc.excl, oc.excl)) == rcl+ocl {
+				// If deduped excludes are the same length as the individual
+				// excludes, then they have no overlapping elements, so the
+				// union knocks out the excludes and we're back to Any.
+				return Any()
+			}
+
+			// There's at least some dupes, which are all we need to include
+			nc := rangeConstraint{}
+			for _, e1 := range rc.excl {
+				for _, e2 := range oc.excl {
+					if e1.Equal(e2) {
+						nc.excl = append(nc.excl, e1)
+					}
+				}
+			}
+
+			return nc
+		} else if areAdjacent(rc, oc) {
 			// Receiver adjoins the input from below
 			nc := rc.dup()
 
@@ -367,6 +393,23 @@ func (rc rangeConstraint) AdmitsAny(c Constraint) bool {
 		return false
 	}
 	return true
+}
+
+func dedupeExcls(ex1, ex2 []*Version) []*Version {
+	// TODO stupid inefficient, but these are really only ever going to be
+	// small, so not worth optimizing right now
+	var ret []*Version
+oloop:
+	for _, e1 := range ex1 {
+		for _, e2 := range ex2 {
+			if e1.Equal(e2) {
+				continue oloop
+			}
+		}
+		ret = append(ret, e1)
+	}
+
+	return append(ret, ex2...)
 }
 
 func (rangeConstraint) _private() {}
