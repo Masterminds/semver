@@ -14,21 +14,26 @@ type rangeConstraint struct {
 
 func (rc rangeConstraint) Admits(v *Version) error {
 	var fail bool
-	var emsg string
+
+	rce := rangeConstraintError{
+		v:  v,
+		rc: rc,
+	}
+
 	if rc.min != nil {
 		// TODO ensure sane handling of prerelease versions (which are strictly
 		// less than the normal version, but should be admitted in a geq range)
 		cmp := rc.min.Compare(v)
 		if rc.includeMin {
-			emsg = "%s is less than %s"
+			rce.typ = rerrLT
 			fail = cmp == 1
 		} else {
-			emsg = "%s is less than or equal to %s"
+			rce.typ = rerrLTE
 			fail = cmp != -1
 		}
 
 		if fail {
-			return fmt.Errorf(emsg, v, rc.min.String())
+			return rce
 		}
 	}
 
@@ -37,21 +42,22 @@ func (rc rangeConstraint) Admits(v *Version) error {
 		// less than the normal version, but should be admitted in a geq range)
 		cmp := rc.max.Compare(v)
 		if rc.includeMax {
-			emsg = "%s is greater than %s"
+			rce.typ = rerrGT
 			fail = cmp == -1
 		} else {
-			emsg = "%s is greater than or equal to %s"
+			rce.typ = rerrGTE
 			fail = cmp != 1
 		}
 
 		if fail {
-			return fmt.Errorf(emsg, v, rc.max.String())
+			return rce
 		}
 	}
 
 	for _, excl := range rc.excl {
 		if excl.Equal(v) {
-			return fmt.Errorf("Version %s is specifically disallowed.", v.String())
+			rce.typ = rerrNE
+			return rce
 		}
 	}
 

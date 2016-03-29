@@ -201,7 +201,7 @@ func (v *Version) Admits(v2 *Version) error {
 		return nil
 	}
 
-	return fmt.Errorf("%s is not equal to %s\n", v.String(), v2.String())
+	return versionConstraintError{v: v, other: v2}
 }
 
 func (v *Version) AdmitsAny(c Constraint) bool {
