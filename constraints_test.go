@@ -234,8 +234,10 @@ func TestNewConstraint(t *testing.T) {
 		), false},
 		// demonstrates union compression
 		{"3-4 || => 3.0, < 4", rangeConstraint{
-			min: newV(3, 0, 0),
-			max: newV(4, 0, 0),
+			min:        newV(3, 0, 0),
+			max:        newV(4, 0, 0),
+			includeMin: true,
+			includeMax: true,
 		}, false},
 		{">=1.1.0, <2.0.0", rangeConstraint{
 			min:        newV(1, 1, 0),

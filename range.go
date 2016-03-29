@@ -2,6 +2,7 @@ package semver
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -233,13 +234,16 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 				if oc.min == nil || rc.min.GreaterThan(oc.min) || (rc.min.Equal(oc.min) && !rc.includeMin && oc.includeMin) {
 					info |= rminlt
 					nc.min = oc.min
+					nc.includeMin = oc.includeMin
 				} else {
 					info |= lminlt
 					nc.min = rc.min
+					nc.includeMin = rc.includeMin
 				}
 			} else if oc.min != nil {
 				info |= lminlt
 				nc.min = rc.min
+				nc.includeMin = rc.includeMin
 			}
 
 			// Pick the max
@@ -247,13 +251,16 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 				if oc.max == nil || rc.max.LessThan(oc.max) || (rc.max.Equal(oc.max) && !rc.includeMax && oc.includeMax) {
 					info |= rmaxgt
 					nc.max = oc.max
+					nc.includeMax = oc.includeMax
 				} else {
 					info |= lmaxgt
 					nc.max = rc.max
+					nc.includeMax = rc.includeMax
 				}
 			} else if oc.max != nil {
 				info |= lmaxgt
 				nc.max = rc.max
+				nc.includeMax = rc.includeMax
 			}
 
 			// Reincorporate any excluded versions
@@ -277,7 +284,10 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 
 			return nc
 		} else {
-			return unionConstraint{rc, oc}
+			// Don't call Union() here b/c it would duplicate work
+			uc := constraintList{rc, oc}
+			sort.Sort(uc)
+			return unionConstraint(uc)
 		}
 	}
 
