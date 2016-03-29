@@ -283,7 +283,9 @@ func TestConstraintsCheck(t *testing.T) {
 		check      bool
 	}{
 		{"*", "1.2.3", true},
-		{"~0.0.0", "1.2.3", true},
+		{"~0.0.0", "1.2.3", false}, // npm allows this weird thing, but we don't
+		{"~0.0.0", "0.1.9", false},
+		{"~0.0.0", "0.0.9", true},
 		{"= 2.0", "1.2.3", false},
 		{"= 2.0", "2.0.0", true},
 		{"4.1", "4.1.0", true},
