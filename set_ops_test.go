@@ -434,3 +434,43 @@ func TestRangeUnion(t *testing.T) {
 
 	// TODO test the pre-release special range stuff
 }
+
+func TestAreAdjacent(t *testing.T) {
+	rc1 := rangeConstraint{
+		min: newV(1, 0, 0),
+		max: newV(2, 0, 0),
+	}
+	rc2 := rangeConstraint{
+		min: newV(1, 2, 0),
+		max: newV(2, 2, 0),
+	}
+
+	if areAdjacent(rc1, rc2) {
+		t.Errorf("Ranges overlap, should not indicate as adjacent")
+	}
+
+	rc2 = rangeConstraint{
+		min: newV(2, 0, 0),
+	}
+
+	if areAdjacent(rc1, rc2) {
+		t.Errorf("Ranges are non-overlapping and non-adjacent, but reported as adjacent")
+	}
+
+	rc2.includeMin = true
+
+	if !areAdjacent(rc1, rc2) {
+		t.Errorf("Ranges are non-overlapping and adjacent, but reported as non-adjacent")
+	}
+
+	rc1.includeMax = true
+
+	if areAdjacent(rc1, rc2) {
+		t.Errorf("Ranges are overlapping at a single version, but reported as adjacent")
+	}
+
+	rc2.includeMin = false
+	if !areAdjacent(rc1, rc2) {
+		t.Errorf("Ranges are non-overlapping and adjacent, but reported as non-adjacent")
+	}
+}
