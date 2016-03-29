@@ -320,3 +320,14 @@ func comparePrePart(s, o string) int {
 	}
 	return -1
 }
+
+func areEq(v1, v2 *Version) bool {
+	if v1 == nil && v2 == nil {
+		return true
+	}
+
+	if v1 != nil && v2 != nil {
+		return v1.Equal(v2)
+	}
+	return false
+}

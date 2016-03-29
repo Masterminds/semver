@@ -1,36 +1,18 @@
 package semver
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
-func NewConstraint(c string) (Constraint, error) {
-	// Rewrite - ranges into a comparison operation.
-	c = rewriteRange(c)
-
-	ors := strings.Split(c, "||")
-	or := make([]Constraint, len(ors))
-	for k, v := range ors {
-		cs := strings.Split(v, ",")
-		result := make([]Constraint, len(cs))
-		for i, s := range cs {
-			pc, err := parseConstraint(s)
-			if err != nil {
-				return nil, err
-			}
-
-			result[i] = pc
-		}
-		or[k] = Intersection(result...)
-	}
-
-	return Union(or...), nil
-}
-
 var constraintRegex *regexp.Regexp
+var constraintRangeRegex *regexp.Regexp
+
+const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 func init() {
 	constraintOps := []string{
@@ -63,190 +45,252 @@ func init() {
 		cvRegex, cvRegex))
 }
 
-func parseConstraint(c string) (Constraint, error) {
-	m := constraintRegex.FindStringSubmatch(c)
-	if m == nil {
-		return nil, fmt.Errorf("Malformed constraint: %s", c)
-	}
+type Constraint interface {
+	// Constraints compose the fmt.Stringer interface. Printing a constraint
+	// will yield a string that, if passed to NewConstraint(), will produce the
+	// original constraint. (Bidirectional serialization)
+	fmt.Stringer
 
-	// Handle the full wildcard case first - easy!
-	if isX(m[3]) {
-		return any{}, nil
-	}
+	// Admits checks that a version satisfies the constraint. If it does not,
+	// an error is returned indcating the problem; if it does, the error is nil.
+	Admits(v *Version) error
 
-	ver := m[2]
-	var wildPatch, wildMinor bool
-	if isX(strings.TrimPrefix(m[4], ".")) {
-		wildPatch = true
-		wildMinor = true
-		ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
-	} else if isX(strings.TrimPrefix(m[5], ".")) {
-		wildPatch = true
-		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
-	}
+	// Intersect computes the intersection between the receiving Constraint and
+	// passed Constraint, and returns a new Constraint representing the result.
+	Intersect(Constraint) Constraint
 
-	v, err := NewVersion(ver)
-	if err != nil {
-		// The constraintRegex should catch any regex parsing errors. So,
-		// we should never get here.
-		return nil, errors.New("constraint Parser Error")
-	}
+	// Union computes the union between the receiving Constraint and the passed
+	// Constraint, and returns a new Constraint representing the result.
+	Union(Constraint) Constraint
 
-	switch m[1] {
-	case "^":
-		// Caret always expands to a range
-		return expandCaret(v), nil
-	case "~":
-		// Tilde always expands to a range
-		return expandTilde(v, wildMinor), nil
-	case "!=":
-		// Not equals expands to a range if no element isX(); otherwise expands
-		// to a union of ranges
-		return expandNeq(v, wildMinor, wildPatch), nil
-	case "", "=":
-		if wildPatch || wildMinor {
-			// Equalling a wildcard has the same behavior as expanding tilde
-			return expandTilde(v, wildMinor), nil
-		}
-		return v, nil
-	case ">":
-		return expandGreater(v, false), nil
-	case ">=", "=>":
-		return expandGreater(v, true), nil
-	case "<":
-		return expandLess(v, wildMinor, wildPatch, false), nil
-	case "<=", "=<":
-		return expandLess(v, wildMinor, wildPatch, true), nil
-	default:
-		// Shouldn't be possible to get here, unless the regex is allowing
-		// predicate we don't know about...
-		return nil, fmt.Errorf("Unrecognized predicate %q", m[1])
-	}
+	// AdmitsAny returns a bool indicating whether there exists any version that
+	// satisfies both the receiver constraint, and the passed Constraint.
+	//
+	// In other words, this reports whether an intersection would be non-empty.
+	AdmitsAny(Constraint) bool
+
+	// Restrict implementation of this interface to this package. We need the
+	// flexibility of an interface, but we cover all possibilities here; closing
+	// off the interface to external implementation lets us safely do tricks
+	// with types for magic types (none and any)
+	_private()
 }
 
-func expandCaret(v *Version) Constraint {
-	maxv := &Version{
-		major: v.major + 1,
-		minor: 0,
-		patch: 0,
-	}
-
-	return rangeConstraint{
-		min:        v,
-		max:        maxv,
-		includeMin: true,
-		includeMax: false,
-	}
+// realConstraint is used internally to differentiate between any, none, and
+// unionConstraints, vs. Version and rangeConstraints.
+type realConstraint interface {
+	Constraint
+	_real()
 }
 
-func expandTilde(v *Version, wildMinor bool) Constraint {
-	if wildMinor {
-		// When minor is wild on a tilde, behavior is same as caret
-		return expandCaret(v)
-	}
-
-	maxv := &Version{
-		major: v.major,
-		minor: v.minor + 1,
-		patch: 0,
-	}
-
-	return rangeConstraint{
-		min:        v,
-		max:        maxv,
-		includeMin: true,
-		includeMax: false,
-	}
-}
-
-// expandNeq expands a "not-equals" constraint.
+// NewConstraint takes a string representing a set of semver constraints, and
+// returns a corresponding Constraint object. Constraints are suitable
+// for checking Versions for admissibility, or combining with other Constraint
+// objects.
 //
-// If the constraint has any wildcards, it will expand into a unionConstraint
-// (which is how we represent a disjoint set). If there are no wildcards, it
-// will expand to a rangeConstraint with no min or max, but having the one
-// exception.
-func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
-	if !(wildMinor || wildPatch) {
-		return rangeConstraint{
-			excl: []*Version{v},
+// If an invalid constraint string is passed, more information is provided in
+// the returned error string.
+func NewConstraint(c string) (Constraint, error) {
+	// Rewrite - ranges into a comparison operation.
+	c = rewriteRange(c)
+
+	ors := strings.Split(c, "||")
+	or := make([]Constraint, len(ors))
+	for k, v := range ors {
+		cs := strings.Split(v, ",")
+		result := make([]Constraint, len(cs))
+		for i, s := range cs {
+			pc, err := parseConstraint(s)
+			if err != nil {
+				return nil, err
+			}
+
+			result[i] = pc
+		}
+		or[k] = Intersection(result...)
+	}
+
+	return Union(or...), nil
+}
+
+// Intersection computes the intersection between N Constraints, returning as
+// compact a representation of the intersection as possible.
+//
+// No error is indicated if all the sets are collectively disjoint; you must inspect the
+// return value to see if the result is the empty set (indicated by both
+// IsMagic() being true, and AdmitsAny() being false).
+func Intersection(cg ...Constraint) Constraint {
+	// If there's zero or one constraints in the group, we can quit fast
+	switch len(cg) {
+	case 0:
+		// Zero members, only sane thing to do is return none
+		return None()
+	case 1:
+		// Just one member means that's our final constraint
+		return cg[0]
+	}
+
+	// Preliminary first pass to look for a none (that would supercede everything
+	// else), and also construct a []realConstraint for everything else
+	var real constraintList
+
+	for _, c := range cg {
+		switch tc := c.(type) {
+		case any:
+			continue
+		case none:
+			return c
+		case *Version:
+			real = append(real, tc)
+		case rangeConstraint:
+			real = append(real, tc)
+		case unionConstraint:
+			real = append(real, tc...)
+		default:
+			panic("unknown constraint type")
 		}
 	}
 
-	// Create the low range with no min, and the max as the floor admitted by
-	// the wildcard
-	lr := rangeConstraint{
-		max:        v,
-		includeMax: false,
+	sort.Sort(real)
+
+	// Now we know there's no easy wins, so step through and intersect each with
+	// the previous
+	car, cdr := cg[0], cg[1:]
+	for _, c := range cdr {
+		car = car.Intersect(c)
+		if IsNone(car) {
+			return None()
+		}
 	}
 
-	// The high range uses the derived version, bumped depending on where the
-	// wildcards where, as the min, and is inclusive
-	minv := &Version{
-		major: v.major,
-		minor: v.minor,
-		patch: v.patch,
-	}
-
-	if wildMinor {
-		minv.major++
-	} else { // TODO should be an else if?
-		minv.minor++
-	}
-
-	hr := rangeConstraint{
-		min:        minv,
-		includeMin: true,
-	}
-
-	return Union(lr, hr)
+	return car
 }
 
-func expandGreater(v *Version, eq bool) Constraint {
-	return rangeConstraint{
-		min:        v,
-		includeMin: eq,
+// Union takes a variable number of constraints, and returns the most compact
+// possible representation of those constraints.
+//
+// This effectively ORs together all the provided constraints. If any of the
+// included constraints are the set of all versions (any), that supercedes
+// everything else.
+func Union(cg ...Constraint) Constraint {
+	// If there's zero or one constraints in the group, we can quit fast
+	switch len(cg) {
+	case 0:
+		// Zero members, only sane thing to do is return none
+		return None()
+	case 1:
+		// One member, so the result will just be that
+		return cg[0]
 	}
+
+	// Preliminary pass to look for 'any' in the current set (and bail out early
+	// if found), but also construct a []realConstraint for everything else
+	var real constraintList
+
+	for _, c := range cg {
+		switch tc := c.(type) {
+		case any:
+			return c
+		case none:
+			continue
+		case *Version:
+			real = append(real, tc)
+		case rangeConstraint:
+			real = append(real, tc)
+		case unionConstraint:
+			real = append(real, tc...)
+		default:
+			panic("unknown constraint type")
+		}
+	}
+
+	// Sort both the versions and ranges into ascending order
+	sort.Sort(real)
+
+	// Iteratively merge the constraintList elements
+	var nuc unionConstraint
+	for _, c := range real {
+		if len(nuc) == 0 {
+			nuc = append(nuc, c)
+			continue
+		}
+
+		last := nuc[len(nuc)-1]
+		if last.AdmitsAny(c) || areAdjacent(last, c) {
+			nuc[len(nuc)-1] = last.Union(c).(realConstraint)
+		} else {
+			nuc = append(nuc, c)
+		}
+	}
+
+	if len(nuc) == 1 {
+		return nuc[0]
+	}
+	return nuc
 }
 
-func expandLess(v *Version, wildMinor, wildPatch, eq bool) Constraint {
-	v2 := &Version{
-		major: v.major,
-		minor: v.minor,
-		patch: v.patch,
-	}
-	if wildMinor {
-		v2.major++
-	} else if wildPatch {
-		v2.minor++
-	}
+type ascendingRanges []rangeConstraint
 
-	return rangeConstraint{
-		max:        v2,
-		includeMax: eq,
-	}
+func (rs ascendingRanges) Len() int {
+	return len(rs)
 }
 
-var constraintRangeRegex *regexp.Regexp
+func (rs ascendingRanges) Less(i, j int) bool {
+	ir, jr := rs[i].max, rs[j].max
+	inil, jnil := ir == nil, jr == nil
 
-const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
-	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
-	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
+	if !inil && !jnil {
+		if ir.LessThan(jr) {
+			return true
+		}
+		if jr.LessThan(ir) {
+			return false
+		}
 
-func isX(x string) bool {
-	l := strings.ToLower(x)
-	return l == "x" || l == "*"
+		// Last possible - if i is inclusive, but j isn't, then put i after j
+		if !rs[j].includeMax && rs[i].includeMax {
+			return false
+		}
+
+		// Or, if j inclusive, but i isn't...but actually, since we can't return
+		// 0 on this comparator, this handles both that and the 'stable' case
+		return true
+	} else if inil || jnil {
+		// ascending, so, if jnil, then j has no max but i does, so i should
+		// come first. thus, return jnil
+		return jnil
+	}
+
+	// neither have maxes, so now go by the lowest min
+	ir, jr = rs[i].min, rs[j].min
+	inil, jnil = ir == nil, jr == nil
+
+	if !inil && !jnil {
+		if ir.LessThan(jr) {
+			return true
+		}
+		if jr.LessThan(ir) {
+			return false
+		}
+
+		// Last possible - if j is inclusive, but i isn't, then put i after j
+		if rs[j].includeMin && !rs[i].includeMin {
+			return false
+		}
+
+		// Or, if i inclusive, but j isn't...but actually, since we can't return
+		// 0 on this comparator, this handles both that and the 'stable' case
+		return true
+	} else if inil || jnil {
+		// ascending, so, if inil, then i has no min but j does, so j should
+		// come first. thus, return inil
+		return inil
+	}
+
+	// Default to keeping i before j
+	return true
 }
 
-func rewriteRange(i string) string {
-	m := constraintRangeRegex.FindAllStringSubmatch(i, -1)
-	if m == nil {
-		return i
-	}
-	o := i
-	for _, v := range m {
-		t := fmt.Sprintf(">= %s, <= %s", v[1], v[11])
-		o = strings.Replace(o, v[0], t, 1)
-	}
-
-	return o
+func (rs ascendingRanges) Swap(i, j int) {
+	rs[i], rs[j] = rs[j], rs[i]
 }
