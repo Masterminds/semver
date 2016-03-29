@@ -2,15 +2,6 @@ package semver
 
 import "testing"
 
-func ceq(c1, c2 Constraint, t *testing.T) bool {
-	if !constraintEq(c1, c2) {
-		t.Errorf("Got constraint %q, but expected %q", c2, c1)
-		return false
-	}
-
-	return true
-}
-
 func TestRangeIntersection(t *testing.T) {
 	var actual Constraint
 	// Test basic overlap case

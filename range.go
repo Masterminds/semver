@@ -89,7 +89,12 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 			return c
 		}
 	case rangeConstraint:
-		nr := rc.dup()
+		nr := rangeConstraint{
+			min:        rc.min,
+			max:        rc.max,
+			includeMin: rc.includeMin,
+			includeMax: rc.includeMax,
+		}
 
 		if oc.min != nil {
 			if nr.min == nil || nr.min.LessThan(oc.min) {
@@ -112,7 +117,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 		}
 
 		// Ensure any applicable excls from oc are included in nc
-		for _, e := range oc.excl {
+		for _, e := range append(rc.excl, oc.excl...) {
 			if nr.Admits(e) == nil {
 				nr.excl = append(nr.excl, e)
 			}
