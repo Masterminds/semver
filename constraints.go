@@ -359,9 +359,9 @@ func parseConstraintNu(c string) (Constraint, error) {
 	case ">=", "=>":
 		return expandGreater(v, true), nil
 	case "<":
-		return expandLess(v, false), nil
+		return expandLess(v, wildMinor, wildPatch, false), nil
 	case "<=", "=<":
-		return expandLess(v, true), nil
+		return expandLess(v, wildMinor, wildPatch, true), nil
 	default:
 		// Shouldn't be possible to get here, unless the regex is allowing
 		// predicate we don't know about...
@@ -434,7 +434,7 @@ func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
 
 	if wildMinor {
 		minv.major++
-	} else {
+	} else { // TODO should be an else if?
 		minv.minor++
 	}
 
@@ -453,9 +453,20 @@ func expandGreater(v *Version, eq bool) Constraint {
 	}
 }
 
-func expandLess(v *Version, eq bool) Constraint {
+func expandLess(v *Version, wildMinor, wildPatch, eq bool) Constraint {
+	v2 := &Version{
+		major: v.major,
+		minor: v.minor,
+		patch: v.patch,
+	}
+	if wildMinor {
+		v2.major++
+	} else if wildPatch {
+		v2.minor++
+	}
+
 	return rangeConstraint{
-		max:        v,
+		max:        v2,
 		includeMax: eq,
 	}
 }

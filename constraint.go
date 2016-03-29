@@ -234,6 +234,13 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 			}
 		}
 
+		// Ensure any applicable excls from oc are included in nc
+		for _, e := range oc.excl {
+			if nr.Admits(e) == nil {
+				nr.excl = append(nr.excl, e)
+			}
+		}
+
 		if nr.min == nil && nr.max == nil {
 			return nr
 		}
