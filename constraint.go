@@ -424,9 +424,9 @@ func (rc rangeConstraint) String() string {
 
 	if rc.max != nil {
 		if rc.includeMax {
-			pieces = append(pieces, fmt.Sprintf(">= %s", rc.max))
+			pieces = append(pieces, fmt.Sprintf("<= %s", rc.max))
 		} else {
-			pieces = append(pieces, fmt.Sprintf("> %s", rc.max))
+			pieces = append(pieces, fmt.Sprintf("< %s", rc.max))
 		}
 	}
 
@@ -572,23 +572,40 @@ func Intersection(cg ...Constraint) Constraint {
 		return cg[0]
 	}
 
-	// Do a preliminary first pass to see if we have any constraints that
-	// supercede everything else, making it easy
+	// Preliminary first pass to look for a none (that would supercede everything
+	// else), and also construct a []realConstraint for everything else
+	var real constraintList
+
 	for _, c := range cg {
-		switch c.(type) {
-		case none, *Version:
+		switch tc := c.(type) {
+		case any:
+			continue
+		case none:
 			return c
+		case *Version:
+			real = append(real, tc)
+		case rangeConstraint:
+			real = append(real, tc)
+		case unionConstraint:
+			real = append(real, tc...)
+		default:
+			panic("unknown constraint type")
 		}
 	}
 
+	sort.Sort(real)
+
 	// Now we know there's no easy wins, so step through and intersect each with
 	// the previous
-	head, tail := cg[0], cg[1:]
-	for _, c := range tail {
-		head = head.Intersect(c)
+	car, cdr := cg[0], cg[1:]
+	for _, c := range cdr {
+		car = car.Intersect(c)
+		if IsNone(car) {
+			return None()
+		}
 	}
 
-	return head
+	return car
 }
 
 // Union takes a variable number of constraints, and returns the most compact
