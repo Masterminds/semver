@@ -50,7 +50,7 @@ func TestParseConstraint(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		c, err := parseConstraintNu(tc.in)
+		c, err := parseConstraint(tc.in)
 		if tc.err && err == nil {
 			t.Errorf("Expected error for %s didn't occur", tc.in)
 		} else if !tc.err && err != nil {
@@ -171,7 +171,7 @@ func TestConstraintCheck(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		c, err := parseConstraintNu(tc.constraint)
+		c, err := parseConstraint(tc.constraint)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
@@ -258,7 +258,7 @@ func TestNewConstraint(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		c, err := NewConstraintNu(tc.input)
+		c, err := NewConstraint(tc.input)
 		if tc.err && err == nil {
 			t.Errorf("expected but did not get error for: %s", tc.input)
 			continue
@@ -341,7 +341,7 @@ func TestConstraintsCheck(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		c, err := NewConstraintNu(tc.constraint)
+		c, err := NewConstraint(tc.constraint)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
