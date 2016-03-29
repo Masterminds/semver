@@ -136,8 +136,8 @@ func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
 		includeMax: false,
 	}
 
-	// The high range uses the derived version, bumped depending on where the
-	// wildcards where, as the min, and is inclusive
+	// The high range uses the derived version (bumped depending on where the
+	// wildcards were) as the min, and is inclusive
 	minv := &Version{
 		major: v.major,
 		minor: v.minor,
