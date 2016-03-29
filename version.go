@@ -131,11 +131,21 @@ func (v *Version) Metadata() string {
 
 // LessThan tests if one version is less than another one.
 func (v *Version) LessThan(o *Version) bool {
+	// If a nil version was passed, fail and bail out early.
+	if o == nil {
+		return false
+	}
+
 	return v.Compare(o) < 0
 }
 
 // GreaterThan tests if one version is greater than another one.
 func (v *Version) GreaterThan(o *Version) bool {
+	// If a nil version was passed, fail and bail out early.
+	if o == nil {
+		return false
+	}
+
 	return v.Compare(o) > 0
 }
 
@@ -143,6 +153,11 @@ func (v *Version) GreaterThan(o *Version) bool {
 // Note, versions can be equal with different metadata since metadata
 // is not considered part of the comparable version.
 func (v *Version) Equal(o *Version) bool {
+	// If a nil version was passed, fail and bail out early.
+	if o == nil {
+		return false
+	}
+
 	return v.Compare(o) == 0
 }
 
