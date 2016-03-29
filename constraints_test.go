@@ -10,92 +10,40 @@ func TestParseConstraint(t *testing.T) {
 	}{
 		{"*", Any(), false},
 		{">= 1.2", rangeConstraint{
-			min: &Version{
-				major: 1,
-				minor: 2,
-				patch: 0,
-			},
+			min:        newV(1, 2, 0),
 			includeMin: true,
 		}, false},
-		{"1.0", &Version{
-			major: 1,
-			minor: 0,
-			patch: 0,
-		}, false},
+		{"1.0", newV(1, 0, 0), false},
 		{"foo", nil, true},
 		{"<= 1.2", rangeConstraint{
-			max: &Version{
-				major: 1,
-				minor: 2,
-				patch: 0,
-			},
+			max:        newV(1, 2, 0),
 			includeMax: true,
 		}, false},
 		{"=< 1.2", rangeConstraint{
-			max: &Version{
-				major: 1,
-				minor: 2,
-				patch: 0,
-			},
+			max:        newV(1, 2, 0),
 			includeMax: true,
 		}, false},
 		{"=> 1.2", rangeConstraint{
-			min: &Version{
-				major: 1,
-				minor: 2,
-				patch: 0,
-			},
+			min:        newV(1, 2, 0),
 			includeMin: true,
 		}, false},
-		{"v1.2", &Version{
-			major: 1,
-			minor: 2,
-			patch: 0,
-		}, false},
-		{"=1.5", &Version{
-			major: 1,
-			minor: 5,
-			patch: 0,
-		}, false},
+		{"v1.2", newV(1, 2, 0), false},
+		{"=1.5", newV(1, 5, 0), false},
 		{"> 1.3", rangeConstraint{
-			min: &Version{
-				major: 1,
-				minor: 3,
-				patch: 0,
-			},
+			min: newV(1, 3, 0),
 		}, false},
 		{"< 1.4.1", rangeConstraint{
-			max: &Version{
-				major: 1,
-				minor: 4,
-				patch: 1,
-			},
+			max: newV(1, 4, 1),
 		}, false},
 		{"~1.1.0", rangeConstraint{
-			min: &Version{
-				major: 1,
-				minor: 1,
-				patch: 0,
-			},
-			max: &Version{
-				major: 1,
-				minor: 2,
-				patch: 0,
-			},
+			min:        newV(1, 1, 0),
+			max:        newV(1, 2, 0),
 			includeMin: true,
 			includeMax: false,
 		}, false},
 		{"^1.1.0", rangeConstraint{
-			min: &Version{
-				major: 1,
-				minor: 1,
-				patch: 0,
-			},
-			max: &Version{
-				major: 2,
-				minor: 0,
-				patch: 0,
-			},
+			min:        newV(1, 1, 0),
+			max:        newV(2, 0, 0),
 			includeMin: true,
 			includeMax: false,
 		}, false},
@@ -106,7 +54,7 @@ func TestParseConstraint(t *testing.T) {
 		if tc.err && err == nil {
 			t.Errorf("Expected error for %s didn't occur", tc.in)
 		} else if !tc.err && err != nil {
-			t.Errorf("Unexpected error for %s", tc.in)
+			t.Errorf("Unexpected error %q for %s", err, tc.in)
 		}
 
 		// If an error was expected continue the loop and don't try the other
@@ -187,6 +135,15 @@ func constraintEq(c1, c2 Constraint) bool {
 	panic("unknown type")
 }
 
+// newV is a helper to create a new Version object.
+func newV(major, minor, patch int64) *Version {
+	return &Version{
+		major: major,
+		minor: minor,
+		patch: patch,
+	}
+}
+
 func TestConstraintCheck(t *testing.T) {
 	tests := []struct {
 		constraint string
@@ -214,7 +171,7 @@ func TestConstraintCheck(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		c, err := parseConstraint(tc.constraint)
+		c, err := parseConstraintNu(tc.constraint)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
@@ -226,7 +183,7 @@ func TestConstraintCheck(t *testing.T) {
 			continue
 		}
 
-		a := c.check(v)
+		a := c.Admits(v) == nil
 		if a != tc.check {
 			t.Errorf("Constraint '%s' failing", tc.constraint)
 		}
