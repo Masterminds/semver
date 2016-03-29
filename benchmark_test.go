@@ -131,3 +131,27 @@ func BenchmarkValidateVersionUnion(b *testing.B) {
 func BenchmarkValidateVersionUnionFail(b *testing.B) {
 	benchValidateVersion("~2.0.0 || =3.1.0", "3.1.1", b)
 }
+
+/* Version creation benchmarks */
+
+func benchNewVersion(v string, b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		semver.NewVersion(v)
+	}
+}
+
+func BenchmarkNewVersionSimple(b *testing.B) {
+	benchNewVersion("1.0.0", b)
+}
+
+func BenchmarkNewVersionPre(b *testing.B) {
+	benchNewVersion("1.0.0-alpha", b)
+}
+
+func BenchmarkNewVersionMeta(b *testing.B) {
+	benchNewVersion("1.0.0+metadata", b)
+}
+
+func BenchmarkNewVersionMetaDash(b *testing.B) {
+	benchNewVersion("1.0.0+metadata-dash", b)
+}
