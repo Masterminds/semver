@@ -40,6 +40,29 @@ func NewConstraint(c string) (*Constraints, error) {
 	return o, nil
 }
 
+func NewConstraintNu(c string) (Constraint, error) {
+	// Rewrite - ranges into a comparison operation.
+	c = rewriteRange(c)
+
+	ors := strings.Split(c, "||")
+	or := make([]Constraint, len(ors))
+	for k, v := range ors {
+		cs := strings.Split(v, ",")
+		result := make([]Constraint, len(cs))
+		for i, s := range cs {
+			pc, err := parseConstraintNu(s)
+			if err != nil {
+				return nil, err
+			}
+
+			result[i] = pc
+		}
+		or[k] = Intersection(result...)
+	}
+
+	return Union(or...), nil
+}
+
 // Check tests if a version satisfies the constraints.
 func (cs Constraints) Check(v *Version) bool {
 	// loop over the ORs and check the inner ANDs
