@@ -19,6 +19,10 @@ var (
 	ErrInvalidSemVer = errors.New("Invalid Semantic Version")
 )
 
+// Controls whether or not parsed constraints are cached
+var cacheVersions = true
+var versionCache = make(map[string]*Version)
+
 // SemVerRegex id the regular expression used to parse a semantic version.
 const SemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
@@ -39,6 +43,12 @@ func init() {
 // NewVersion parses a given version and returns an instance of Version or
 // an error if unable to parse the version.
 func NewVersion(v string) (*Version, error) {
+	if cacheVersions {
+		if sv, exists := versionCache[v]; exists {
+			return sv, nil
+		}
+	}
+
 	m := versionRegex.FindStringSubmatch(v)
 	if m == nil {
 		return nil, ErrInvalidSemVer
@@ -75,6 +85,10 @@ func NewVersion(v string) (*Version, error) {
 		sv.patch = temp
 	} else {
 		sv.patch = 0
+	}
+
+	if cacheVersions {
+		versionCache[v] = sv
 	}
 
 	return sv, nil

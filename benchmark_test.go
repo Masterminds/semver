@@ -1,16 +1,18 @@
-package semver_test
+package semver
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/Masterminds/semver"
-)
+func init() {
+	// disable constraint and version creation caching
+	cacheConstraints = false
+	cacheVersions = false
+}
 
 /* Constraint creation benchmarks */
 
 func benchNewConstraint(c string, b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		semver.NewConstraint(c)
+		NewConstraint(c)
 	}
 }
 
@@ -41,8 +43,8 @@ func BenchmarkNewConstraintUnion(b *testing.B) {
 /* Validate benchmarks, including fails */
 
 func benchValidateVersion(c, v string, b *testing.B) {
-	version, _ := semver.NewVersion(v)
-	constraint, _ := semver.NewConstraint(c)
+	version, _ := NewVersion(v)
+	constraint, _ := NewConstraint(c)
 
 	for i := 0; i < b.N; i++ {
 		constraint.Admits(version)
@@ -101,7 +103,7 @@ func BenchmarkValidateVersionUnionFail(b *testing.B) {
 
 func benchNewVersion(v string, b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		semver.NewVersion(v)
+		NewVersion(v)
 	}
 }
 

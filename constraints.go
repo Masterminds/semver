@@ -83,6 +83,10 @@ type realConstraint interface {
 	_real()
 }
 
+// Controls whether or not parsed constraints are cached
+var cacheConstraints = true
+var constraintCache = make(map[string]Constraint)
+
 // NewConstraint takes a string representing a set of semver constraints, and
 // returns a corresponding Constraint object. Constraints are suitable
 // for checking Versions for admissibility, or combining with other Constraint
@@ -90,9 +94,16 @@ type realConstraint interface {
 //
 // If an invalid constraint string is passed, more information is provided in
 // the returned error string.
-func NewConstraint(c string) (Constraint, error) {
+func NewConstraint(in string) (Constraint, error) {
+	if cacheConstraints {
+		// This means reparsing errors, but oh well
+		if final, exists := constraintCache[in]; exists {
+			return final, nil
+		}
+	}
+
 	// Rewrite - ranges into a comparison operation.
-	c = rewriteRange(c)
+	c := rewriteRange(in)
 
 	ors := strings.Split(c, "||")
 	or := make([]Constraint, len(ors))
@@ -110,7 +121,12 @@ func NewConstraint(c string) (Constraint, error) {
 		or[k] = Intersection(result...)
 	}
 
-	return Union(or...), nil
+	final := Union(or...)
+	if cacheConstraints {
+		constraintCache[in] = final
+	}
+
+	return final, nil
 }
 
 // Intersection computes the intersection between N Constraints, returning as
