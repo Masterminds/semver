@@ -130,11 +130,10 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 			}
 		}
 
-		if nr.min == nil && nr.max == nil {
+		if nr.min == nil || nr.max == nil {
 			return nr
 		}
 
-		// TODO could still have nils?
 		if nr.min.Equal(nr.max) {
 			// min and max are equal. if range is inclusive, return that
 			// version; otherwise, none
@@ -144,7 +143,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 			return None()
 		}
 
-		if nr.min != nil && nr.max != nil && nr.min.GreaterThan(nr.max) {
+		if nr.min.GreaterThan(nr.max) {
 			// min is greater than max - not possible, so we return none
 			return None()
 		}

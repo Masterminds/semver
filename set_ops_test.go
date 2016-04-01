@@ -203,6 +203,40 @@ func TestRangeIntersection(t *testing.T) {
 		t.Errorf("Got constraint %q, but expected %q", actual, rc1)
 	}
 
+	// Test min, and greater min
+	rc1 = rangeConstraint{
+		min: newV(1, 0, 0),
+	}
+	rc2 = rangeConstraint{
+		min:        newV(1, 5, 0),
+		includeMin: true,
+	}
+
+	if actual = rc1.Intersect(rc2); !constraintEq(actual, rc2) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+	if actual = rc2.Intersect(rc1); !constraintEq(actual, rc2) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+
+	// Test max, and lesser max
+	rc1 = rangeConstraint{
+		max: newV(1, 0, 0),
+	}
+	rc2 = rangeConstraint{
+		max: newV(1, 5, 0),
+	}
+	result = rangeConstraint{
+		max: newV(1, 0, 0),
+	}
+
+	if actual = rc1.Intersect(rc2); !constraintEq(actual, result) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+	if actual = rc2.Intersect(rc1); !constraintEq(actual, result) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+
 	// Ensure pure excludes come through as they should
 	rc1 = rangeConstraint{
 		excl: []*Version{
