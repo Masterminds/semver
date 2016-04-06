@@ -183,7 +183,7 @@ func TestConstraintCheck(t *testing.T) {
 			continue
 		}
 
-		a := c.Admits(v) == nil
+		a := c.Matches(v) == nil
 		if a != tc.check {
 			t.Errorf("Constraint '%s' failing", tc.constraint)
 		}
@@ -357,7 +357,7 @@ func TestConstraintsCheck(t *testing.T) {
 			continue
 		}
 
-		a := c.Admits(v) == nil
+		a := c.Matches(v) == nil
 		if a != tc.check {
 			if a {
 				t.Errorf("Input %q produced constraint %q; should not have admitted %q, but did", tc.constraint, c, tc.version)

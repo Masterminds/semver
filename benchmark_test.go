@@ -82,7 +82,7 @@ func benchValidateVersion(c, v string, b *testing.B) {
 	constraint, _ := NewConstraint(c)
 
 	for i := 0; i < b.N; i++ {
-		constraint.Admits(version)
+		constraint.Matches(version)
 	}
 }
 

@@ -12,7 +12,7 @@ type rangeConstraint struct {
 	excl                   []*Version
 }
 
-func (rc rangeConstraint) Admits(v *Version) error {
+func (rc rangeConstraint) Matches(v *Version) error {
 	var fail bool
 
 	rce := rangeConstraintError{
@@ -90,7 +90,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 	case unionConstraint:
 		return oc.Intersect(rc)
 	case *Version:
-		if err := rc.Admits; err != nil {
+		if err := rc.Matches; err != nil {
 			return None()
 		} else {
 			return c
@@ -125,7 +125,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 
 		// Ensure any applicable excls from oc are included in nc
 		for _, e := range append(rc.excl, oc.excl...) {
-			if nr.Admits(e) == nil {
+			if nr.Matches(e) == nil {
 				nr.excl = append(nr.excl, e)
 			}
 		}
@@ -165,7 +165,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 	case unionConstraint:
 		return oc.Union(rc)
 	case *Version:
-		if err := rc.Admits(oc); err == nil {
+		if err := rc.Matches(oc); err == nil {
 			return rc
 		} else if len(rc.excl) > 0 { // TODO (re)checking like this is wasteful
 			// ensure we don't have an excl-specific mismatch; if we do, remove
@@ -242,7 +242,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 
 			return nc
 
-		} else if rc.AdmitsAny(oc) {
+		} else if rc.MatchesAny(oc) {
 			// Receiver and input overlap; form a new range accordingly.
 			nc := rangeConstraint{}
 
@@ -298,7 +298,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			if info&lsupr != lsupr {
 				// rc is not superset of oc, so must walk oc.excl
 				for _, e := range oc.excl {
-					if rc.Admits(e) != nil {
+					if rc.Matches(e) != nil {
 						nc.excl = append(nc.excl, e)
 					}
 				}
@@ -307,7 +307,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			if info&rsupl != rsupl {
 				// oc is not superset of rc, so must walk rc.excl
 				for _, e := range rc.excl {
-					if oc.Admits(e) != nil {
+					if oc.Matches(e) != nil {
 						nc.excl = append(nc.excl, e)
 					}
 				}
@@ -393,7 +393,7 @@ func areAdjacent(c1, c2 Constraint) bool {
 		(!rc1.includeMax && rc2.includeMin)
 }
 
-func (rc rangeConstraint) AdmitsAny(c Constraint) bool {
+func (rc rangeConstraint) MatchesAny(c Constraint) bool {
 	if _, ok := rc.Intersect(c).(none); ok {
 		return false
 	}

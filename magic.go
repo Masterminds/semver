@@ -16,9 +16,9 @@ func (any) String() string {
 	return "*"
 }
 
-// Admits checks that a version satisfies the constraint. As all versions
+// Matches checks that a version satisfies the constraint. As all versions
 // satisfy Any, this always returns nil.
-func (any) Admits(v *Version) error {
+func (any) Matches(v *Version) error {
 	return nil
 }
 
@@ -31,10 +31,10 @@ func (any) Intersect(c Constraint) Constraint {
 	return c
 }
 
-// AdmitsAny indicates whether there exists any version that can satisfy both
+// MatchesAny indicates whether there exists any version that can satisfy both
 // this constraint, and the passed constraint. As all versions
 // satisfy Any, this is always true - unless none is passed.
-func (any) AdmitsAny(c Constraint) bool {
+func (any) MatchesAny(c Constraint) bool {
 	if _, ok := c.(none); ok {
 		return false
 	}
@@ -59,9 +59,9 @@ func (none) String() string {
 	return ""
 }
 
-// Admits checks that a version satisfies the constraint. As no version can
+// Matches checks that a version satisfies the constraint. As no version can
 // satisfy None, this always fails (returns an error).
-func (none) Admits(v *Version) error {
+func (none) Matches(v *Version) error {
 	return noneErr
 }
 
@@ -77,9 +77,9 @@ func (none) Union(c Constraint) Constraint {
 	return c
 }
 
-// AdmitsAny indicates whether there exists any version that can satisfy the
+// MatchesAny indicates whether there exists any version that can satisfy the
 // constraint. As no versions satisfy None, this is always false.
-func (none) AdmitsAny(c Constraint) bool {
+func (none) MatchesAny(c Constraint) bool {
 	return false
 }
 

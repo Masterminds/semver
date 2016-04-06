@@ -210,7 +210,7 @@ func (v *Version) Compare(o *Version) int {
 	return comparePrerelease(ps, po)
 }
 
-func (v *Version) Admits(v2 *Version) error {
+func (v *Version) Matches(v2 *Version) error {
 	if v.Equal(v2) {
 		return nil
 	}
@@ -218,7 +218,7 @@ func (v *Version) Admits(v2 *Version) error {
 	return versionConstraintError{v: v, other: v2}
 }
 
-func (v *Version) AdmitsAny(c Constraint) bool {
+func (v *Version) MatchesAny(c Constraint) bool {
 	if v2, ok := c.(*Version); ok {
 		return false
 	} else {

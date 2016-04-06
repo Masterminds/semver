@@ -51,9 +51,9 @@ type Constraint interface {
 	// original constraint. (Bidirectional serialization)
 	fmt.Stringer
 
-	// Admits checks that a version satisfies the constraint. If it does not,
+	// Matches checks that a version satisfies the constraint. If it does not,
 	// an error is returned indcating the problem; if it does, the error is nil.
-	Admits(v *Version) error
+	Matches(v *Version) error
 
 	// Intersect computes the intersection between the receiving Constraint and
 	// passed Constraint, and returns a new Constraint representing the result.
@@ -63,11 +63,11 @@ type Constraint interface {
 	// Constraint, and returns a new Constraint representing the result.
 	Union(Constraint) Constraint
 
-	// AdmitsAny returns a bool indicating whether there exists any version that
+	// MatchesAny returns a bool indicating whether there exists any version that
 	// satisfies both the receiver constraint, and the passed Constraint.
 	//
 	// In other words, this reports whether an intersection would be non-empty.
-	AdmitsAny(Constraint) bool
+	MatchesAny(Constraint) bool
 
 	// Restrict implementation of this interface to this package. We need the
 	// flexibility of an interface, but we cover all possibilities here; closing
@@ -232,7 +232,7 @@ func Union(cg ...Constraint) Constraint {
 		}
 
 		last := nuc[len(nuc)-1]
-		if last.AdmitsAny(c) || areAdjacent(last, c) {
+		if last.MatchesAny(c) || areAdjacent(last, c) {
 			nuc[len(nuc)-1] = last.Union(c).(realConstraint)
 		} else {
 			nuc = append(nuc, c)

@@ -4,10 +4,10 @@ import "strings"
 
 type unionConstraint []realConstraint
 
-func (uc unionConstraint) Admits(v *Version) error {
+func (uc unionConstraint) Matches(v *Version) error {
 	var err error
 	for _, c := range uc {
-		if err = c.Admits(v); err == nil {
+		if err = c.Matches(v); err == nil {
 			return nil
 		}
 	}
@@ -49,9 +49,9 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 	return Union(newc...)
 }
 
-func (uc unionConstraint) AdmitsAny(c Constraint) bool {
+func (uc unionConstraint) MatchesAny(c Constraint) bool {
 	for _, ic := range uc {
-		if ic.AdmitsAny(c) {
+		if ic.MatchesAny(c) {
 			return true
 		}
 	}
