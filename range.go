@@ -65,12 +65,14 @@ func (rc rangeConstraint) Matches(v *Version) error {
 }
 
 func (rc rangeConstraint) dup() rangeConstraint {
-	var excl []*Version
-
-	if len(rc.excl) > 0 {
-		excl = make([]*Version, len(rc.excl))
-		copy(excl, rc.excl)
+	// Only need to do anything if there are some excludes
+	if len(rc.excl) == 0 {
+		return rc
 	}
+
+	var excl []*Version
+	excl = make([]*Version, len(rc.excl))
+	copy(excl, rc.excl)
 
 	return rangeConstraint{
 		min:        rc.min,
@@ -90,7 +92,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 	case unionConstraint:
 		return oc.Intersect(rc)
 	case *Version:
-		if err := rc.Matches; err != nil {
+		if err := rc.Matches(oc); err != nil {
 			return None()
 		} else {
 			return c
@@ -165,6 +167,10 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 	case unionConstraint:
 		return oc.Union(rc)
 	case *Version:
+		if oc == nil {
+			// weird case, but this is the sanest answer we can give
+			return rc
+		}
 		if err := rc.Matches(oc); err == nil {
 			return rc
 		} else if len(rc.excl) > 0 { // TODO (re)checking like this is wasteful
@@ -183,7 +189,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 					return rangeConstraint{
 						min:        rc.min,
 						max:        rc.max,
-						includeMin: true,
+						includeMin: rc.includeMin,
 						includeMax: rc.includeMax,
 						excl:       excl,
 					}
@@ -191,11 +197,21 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			}
 		}
 
-		if oc.Equal(rc.min) {
+		if oc.LessThan(rc.min) {
+			return unionConstraint{oc, rc.dup()}
+		}
+		if areEq(oc, rc.min) {
 			ret := rc.dup()
 			ret.includeMin = true
 			return ret
 		}
+		if areEq(oc, rc.max) {
+			ret := rc.dup()
+			ret.includeMax = true
+			return ret
+		}
+		// Only possibility left is gt
+		return unionConstraint{rc.dup(), oc}
 	case rangeConstraint:
 		if (rc.min == nil && oc.max == nil) || (rc.max == nil && oc.min == nil) {
 			rcl, ocl := len(rc.excl), len(oc.excl)

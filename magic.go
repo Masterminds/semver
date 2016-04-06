@@ -94,6 +94,6 @@ func IsNone(c Constraint) bool {
 
 // IsAny indicates if a constraint will match any and all versions.
 func IsAny(c Constraint) bool {
-	_, ok := c.(none)
+	_, ok := c.(any)
 	return ok
 }

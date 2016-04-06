@@ -4,8 +4,41 @@ import "testing"
 
 func TestRangeIntersection(t *testing.T) {
 	var actual Constraint
-	// Test basic overlap case
+	// Test magic cases
 	rc1 := rangeConstraint{
+		min: newV(1, 0, 0),
+		max: newV(2, 0, 0),
+	}
+	if actual = rc1.Intersect(Any()); !constraintEq(actual, rc1) {
+		t.Errorf("Intersection of anything with Any should return self; got %s", actual)
+	}
+	if actual = rc1.Intersect(None()); !IsNone(actual) {
+		t.Errorf("Intersection of anything with None should always produce None; got %s", actual)
+	}
+
+	// Test single version cases
+
+	// single v, in range
+	v1 := newV(1, 5, 0)
+
+	if actual = rc1.Intersect(v1); !constraintEq(actual, v1) {
+		t.Errorf("Intersection of version with matching range should return the version; got %s", actual)
+	}
+
+	// now exclude just that version
+	rc1.excl = []*Version{v1}
+	if actual = rc1.Intersect(v1); !IsNone(actual) {
+		t.Errorf("Intersection of version with range having specific exclude for that version should produce None; got %s", actual)
+	}
+
+	// and, of course, none if the version is out of range
+	v2 := newV(0, 5, 0)
+	if actual = rc1.Intersect(v2); !IsNone(actual) {
+		t.Errorf("Intersection of version with non-matching range should produce None; got %s", actual)
+	}
+
+	// Test basic overlap case
+	rc1 = rangeConstraint{
 		min: newV(1, 0, 0),
 		max: newV(2, 0, 0),
 	}
@@ -266,12 +299,47 @@ func TestRangeIntersection(t *testing.T) {
 
 func TestRangeUnion(t *testing.T) {
 	var actual Constraint
-	// Test basic overlap case
+	// Test magic cases
 	rc1 := rangeConstraint{
 		min: newV(1, 0, 0),
 		max: newV(2, 0, 0),
 	}
-	rc2 := rangeConstraint{
+	if actual = rc1.Union(Any()); !IsAny(actual) {
+		t.Errorf("Union of anything with Any should always produce Any; got %s", actual)
+	}
+	if actual = rc1.Union(None()); !constraintEq(actual, rc1) {
+		t.Errorf("Union of anything with None should return self; got %s", actual)
+	}
+
+	// Test single version cases
+
+	// single v, in range
+	v1 := newV(1, 5, 0)
+
+	if actual = rc1.Union(v1); !constraintEq(actual, rc1) {
+		t.Errorf("Union of version with matching range should return the range; got %s", actual)
+	}
+
+	// now exclude just that version
+	rc2 := rc1.dup()
+	rc2.excl = []*Version{v1}
+	if actual = rc2.Union(v1); !constraintEq(actual, rc1) {
+		t.Errorf("Union of version with range having specific exclude for that version should produce the range without that exclude; got %s", actual)
+	}
+
+	// and a union if the version is not within the range
+	v2 := newV(0, 5, 0)
+	uresult := unionConstraint{v2, rc1}
+	if actual = rc1.Union(v2); !constraintEq(actual, uresult) {
+		t.Errorf("Union of version with non-matching range should produce a unionConstraint with those two; got %s", actual)
+	}
+
+	// Test basic overlap case
+	rc1 = rangeConstraint{
+		min: newV(1, 0, 0),
+		max: newV(2, 0, 0),
+	}
+	rc2 = rangeConstraint{
 		min: newV(1, 2, 0),
 		max: newV(2, 2, 0),
 	}
@@ -343,7 +411,7 @@ func TestRangeUnion(t *testing.T) {
 		min: newV(2, 0, 0),
 		max: newV(3, 0, 0),
 	}
-	uresult := unionConstraint{rc1, rc2}
+	uresult = unionConstraint{rc1, rc2}
 
 	if actual = rc1.Union(rc2); !constraintEq(actual, uresult) {
 		t.Errorf("Got constraint %q, but expected %q", actual, uresult)
