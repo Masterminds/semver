@@ -237,10 +237,6 @@ func (v *Version) Intersect(c Constraint) Constraint {
 	return c.Intersect(v)
 }
 
-func (v *Version) IsMagic() bool {
-	return false
-}
-
 func (v *Version) Union(c Constraint) Constraint {
 	if v2, ok := c.(*Version); ok && v.Equal(v2) {
 		return v

@@ -133,8 +133,8 @@ func NewConstraint(in string) (Constraint, error) {
 // compact a representation of the intersection as possible.
 //
 // No error is indicated if all the sets are collectively disjoint; you must inspect the
-// return value to see if the result is the empty set (indicated by both
-// IsMagic() being true, and AdmitsAny() being false).
+// return value to see if the result is the empty set (by calling IsNone() on
+// it).
 func Intersection(cg ...Constraint) Constraint {
 	// If there's zero or one constraints in the group, we can quit fast
 	switch len(cg) {
