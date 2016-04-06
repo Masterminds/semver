@@ -406,3 +406,77 @@ func TestIsX(t *testing.T) {
 		}
 	}
 }
+
+func TestIsSuperset(t *testing.T) {
+	rc1 := rangeConstraint{
+		min:        newV(1, 2, 0),
+		max:        newV(2, 0, 0),
+		includeMin: true,
+	}
+	rc2 := rangeConstraint{
+		min: newV(1, 2, 0),
+		max: newV(2, 1, 0),
+	}
+	rc3 := rangeConstraint{
+		max: newV(1, 10, 0),
+	}
+	rc4 := rangeConstraint{
+		min: newV(2, 0, 0),
+	}
+	rc5 := rangeConstraint{
+		min:        newV(1, 2, 0),
+		max:        newV(2, 0, 0),
+		includeMax: true,
+	}
+
+	pairs := []struct{ l, r rangeConstraint }{
+		{
+			// ensures lte is handled correctly (min side)
+			l: rc1,
+			r: rc2,
+		},
+		{
+			// ensures nil on min side works well
+			l: rc1,
+			r: rc3,
+		},
+		{
+			// ensures nil on max side works well
+			l: rc1,
+			r: rc4,
+		},
+		{
+			// ensures nils on both sides work well
+			l: rc3,
+			r: rc4,
+		},
+		{
+			// ensures gte is handled correctly (max side)
+			l: rc3,
+			r: rc5,
+		},
+	}
+
+	for _, p := range pairs {
+		if p.l.isSupersetOf(p.r) {
+			t.Errorf("%s is not a superset of %s", p.l, p.r)
+		}
+		if p.r.isSupersetOf(p.l) {
+			t.Errorf("%s is not a superset of %s", p.r, p.l)
+		}
+	}
+
+	rc2.max.minor = 0
+
+	if !rc1.isSupersetOf(rc2) {
+		t.Errorf("%s is a superset of %s", rc1, rc2)
+	}
+	rc2.includeMax = true
+	if rc2.isSupersetOf(rc1) {
+		t.Errorf("%s is not a superset of %s", rc1, rc2)
+	}
+	rc1.includeMin = false
+	if !rc2.isSupersetOf(rc1) {
+		t.Errorf("%s is a superset of %s", rc1, rc2)
+	}
+}
