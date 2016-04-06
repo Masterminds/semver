@@ -370,17 +370,17 @@ func (rc rangeConstraint) String() string {
 	var pieces []string
 	if rc.min != nil {
 		if rc.includeMin {
-			pieces = append(pieces, fmt.Sprintf(">= %s", rc.min))
+			pieces = append(pieces, fmt.Sprintf(">=%s", rc.min))
 		} else {
-			pieces = append(pieces, fmt.Sprintf("> %s", rc.min))
+			pieces = append(pieces, fmt.Sprintf(">%s", rc.min))
 		}
 	}
 
 	if rc.max != nil {
 		if rc.includeMax {
-			pieces = append(pieces, fmt.Sprintf("<= %s", rc.max))
+			pieces = append(pieces, fmt.Sprintf("<=%s", rc.max))
 		} else {
-			pieces = append(pieces, fmt.Sprintf("< %s", rc.max))
+			pieces = append(pieces, fmt.Sprintf("<%s", rc.max))
 		}
 	}
 

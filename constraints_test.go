@@ -368,6 +368,45 @@ func TestConstraintsCheck(t *testing.T) {
 	}
 }
 
+func TestBidirectionalSerialization(t *testing.T) {
+	tests := []struct {
+		io string
+		eq bool
+	}{
+		{"*", true},         // any
+		{"~0.0.0", false},   // tildes expand into ranges
+		{"^2.0", false},     // carets expand into ranges
+		{"=2.0", false},     // abbreviated versions print as full
+		{"4.1.x", false},    // wildcards expand into ranges
+		{">= 1.1.0", false}, // does not produce spaces on ranges
+		{"4.1.0", true},
+		{"!=4.1.0", true},
+		{">=1.1.0", true},
+		{">=1.1.0, <2.0.0", true},
+		{">1.0.0, <=1.1.0", true},
+		{"<=1.1.0", true},
+		{">=1.1.0, <2.0.0, !=1.2.3", true},
+		{">=1.1.0, <2.0.0, !=1.2.3 || >3.0.0", true},
+		{">=1.1.0, <2.0.0, !=1.2.3 || >=3.0.0", true},
+	}
+
+	for _, fix := range tests {
+		c, err := NewConstraint(fix.io)
+		if err != nil {
+			t.Errorf("Valid constraint string produced unexpected error: %s", err)
+		}
+
+		eq := fix.io == c.String()
+		if eq != fix.eq {
+			if eq {
+				t.Errorf("Constraint %q should not have reproduced input string %q, but did", c, fix.io)
+			} else {
+				t.Errorf("Constraint should have reproduced input string %q, but instead produced %q", fix.io, c)
+			}
+		}
+	}
+}
+
 func TestRewriteRange(t *testing.T) {
 	tests := []struct {
 		c  string
