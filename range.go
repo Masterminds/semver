@@ -325,6 +325,14 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 	panic("unknown type")
 }
 
+// isSupersetOf computes whether the receiver rangeConstraint is a superset of
+// the passed rangeConstraint.
+//
+// This is NOT a strict superset comparison, so identical ranges will both
+// report being supersets of each other.
+//
+// Note also that this does *not* compare excluded versions - it only compares
+// range endpoints.
 func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
 	if rc.min != nil {
 		if rc2.min == nil || rc.min.GreaterThan(rc2.min) || (rc.min.Equal(rc2.min) && !rc.includeMin && rc2.includeMin) {

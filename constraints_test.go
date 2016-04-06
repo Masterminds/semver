@@ -408,52 +408,63 @@ func TestIsX(t *testing.T) {
 }
 
 func TestIsSuperset(t *testing.T) {
-	rc1 := rangeConstraint{
-		min:        newV(1, 2, 0),
-		max:        newV(2, 0, 0),
-		includeMin: true,
+	rc := []rangeConstraint{
+		rangeConstraint{
+			min:        newV(1, 2, 0),
+			max:        newV(2, 0, 0),
+			includeMin: true,
+		},
+		rangeConstraint{
+			min: newV(1, 2, 0),
+			max: newV(2, 1, 0),
+		},
+		rangeConstraint{
+			max: newV(1, 10, 0),
+		},
+		rangeConstraint{
+			min: newV(2, 0, 0),
+		},
+		rangeConstraint{
+			min:        newV(1, 2, 0),
+			max:        newV(2, 0, 0),
+			includeMax: true,
+		},
 	}
-	rc2 := rangeConstraint{
-		min: newV(1, 2, 0),
-		max: newV(2, 1, 0),
-	}
-	rc3 := rangeConstraint{
-		max: newV(1, 10, 0),
-	}
-	rc4 := rangeConstraint{
-		min: newV(2, 0, 0),
-	}
-	rc5 := rangeConstraint{
-		min:        newV(1, 2, 0),
-		max:        newV(2, 0, 0),
-		includeMax: true,
+
+	for _, c := range rc {
+
+		// Superset comparison is not strict, so a range should always be a superset
+		// of itself.
+		if !c.isSupersetOf(c) {
+			t.Errorf("Ranges should be supersets of themselves; %s indicated it was not", c)
+		}
 	}
 
 	pairs := []struct{ l, r rangeConstraint }{
 		{
 			// ensures lte is handled correctly (min side)
-			l: rc1,
-			r: rc2,
+			l: rc[0],
+			r: rc[1],
 		},
 		{
 			// ensures nil on min side works well
-			l: rc1,
-			r: rc3,
+			l: rc[0],
+			r: rc[2],
 		},
 		{
 			// ensures nil on max side works well
-			l: rc1,
-			r: rc4,
+			l: rc[0],
+			r: rc[3],
 		},
 		{
 			// ensures nils on both sides work well
-			l: rc3,
-			r: rc4,
+			l: rc[2],
+			r: rc[3],
 		},
 		{
 			// ensures gte is handled correctly (max side)
-			l: rc3,
-			r: rc5,
+			l: rc[2],
+			r: rc[4],
 		},
 	}
 
@@ -466,17 +477,27 @@ func TestIsSuperset(t *testing.T) {
 		}
 	}
 
-	rc2.max.minor = 0
+	rc[1].max.minor = 0
 
-	if !rc1.isSupersetOf(rc2) {
-		t.Errorf("%s is a superset of %s", rc1, rc2)
+	if !rc[0].isSupersetOf(rc[1]) {
+		t.Errorf("%s is a superset of %s", rc[0], rc[1])
 	}
-	rc2.includeMax = true
-	if rc2.isSupersetOf(rc1) {
-		t.Errorf("%s is not a superset of %s", rc1, rc2)
+	rc[1].includeMax = true
+	if rc[1].isSupersetOf(rc[0]) {
+		t.Errorf("%s is not a superset of %s", rc[1], rc[0])
 	}
-	rc1.includeMin = false
-	if !rc2.isSupersetOf(rc1) {
-		t.Errorf("%s is a superset of %s", rc1, rc2)
+	rc[0].includeMin = false
+	if !rc[1].isSupersetOf(rc[0]) {
+		t.Errorf("%s is a superset of %s", rc[1], rc[0])
+	}
+
+	// isSupersetOf ignores excludes, so even though this would make rc[1] not a
+	// superset of rc[0] anymore, it should still say it is.
+	rc[1].excl = []*Version{
+		newV(1, 5, 0),
+	}
+
+	if !rc[1].isSupersetOf(rc[0]) {
+		t.Errorf("%s is still a superset of %s, because isSupersetOf is supposed to ignore excluded versions", rc[1], rc[0])
 	}
 }
