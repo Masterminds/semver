@@ -210,15 +210,23 @@ func Union(cg ...Constraint) Constraint {
 		case none:
 			continue
 		case *Version:
+			//if tc != nil {
+			//heap.Push(&real, tc)
+			//}
 			real = append(real, tc)
 		case rangeConstraint:
+			//heap.Push(&real, tc)
 			real = append(real, tc)
 		case unionConstraint:
 			real = append(real, tc...)
+			//for _, c2 := range tc {
+			//heap.Push(&real, c2)
+			//}
 		default:
 			panic("unknown constraint type")
 		}
 	}
+	// TODO wtf why isn't heap working...so, ugh, have to do this
 
 	// Sort both the versions and ranges into ascending order
 	sort.Sort(real)
@@ -232,10 +240,50 @@ func Union(cg ...Constraint) Constraint {
 		}
 
 		last := nuc[len(nuc)-1]
-		if last.MatchesAny(c) || areAdjacent(last, c) {
-			nuc[len(nuc)-1] = last.Union(c).(realConstraint)
-		} else {
-			nuc = append(nuc, c)
+		switch lt := last.(type) {
+		case *Version:
+			switch ct := c.(type) {
+			case *Version:
+				// Two versions in a row; only append if they're not equal
+				if !lt.Equal(ct) {
+					nuc = append(nuc, ct)
+				}
+			case rangeConstraint:
+				// Last was version, current is range. constraintList sorts by
+				// min version, so it's guaranteed that the version will be less
+				// than the range's min, guaranteeing that these are disjoint.
+				nuc = append(nuc, c)
+			}
+		case rangeConstraint:
+			switch ct := c.(type) {
+			case *Version:
+				// Last was range, current is version. constraintList sort invariants guarantee
+				// that the version will be greater than the min, so we have to
+				// determine if the version is less than the max. If it is, we
+				// subsume it into the range with a Union call.
+				//
+				// Lazy version: just union them and let rangeConstraint figure
+				// it out, then switch on the result type.
+				c2 := lt.Union(ct)
+				if crc, ok := c2.(realConstraint); ok {
+					nuc[len(nuc)-1] = crc
+				} else {
+					// Otherwise, all it can be is a union constraint. First
+					// item in the union will be the same range, second will be the
+					// version, so append onto nuc from one back from the end
+					nuc = append(nuc[:len(nuc)-1], c2.(unionConstraint)...)
+				}
+			case rangeConstraint:
+				if lt.MatchesAny(ct) || areAdjacent(lt, ct) {
+					// If the previous range overlaps or is adjacent to the
+					// current range, we know they'll be able to merge together,
+					// so overwrite the last item in nuc with the result of that
+					// merge (which is what Union will produce)
+					nuc[len(nuc)-1] = lt.Union(ct).(realConstraint)
+				} else {
+					nuc = append(nuc, c)
+				}
+			}
 		}
 	}
 

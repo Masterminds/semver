@@ -241,7 +241,7 @@ func (v *Version) Union(c Constraint) Constraint {
 	if v2, ok := c.(*Version); ok && v.Equal(v2) {
 		return v
 	} else {
-		return Union(v, v2)
+		return Union(v, c)
 	}
 }
 

@@ -89,6 +89,9 @@ func (cl constraintList) Less(i, j int) bool {
 	case *Version:
 		switch tjc := jc.(type) {
 		case *Version:
+			if tic == nil {
+				return false
+			}
 			return tic.LessThan(tjc)
 		case rangeConstraint:
 			if tjc.min == nil {
@@ -115,4 +118,15 @@ func (cl constraintList) Less(i, j int) bool {
 	}
 
 	panic("unreachable")
+}
+
+func (cl *constraintList) Push(x interface{}) {
+	*cl = append(*cl, x.(realConstraint))
+}
+
+func (cl *constraintList) Pop() interface{} {
+	o := *cl
+	c := o[len(o)-1]
+	*cl = o[:len(o)-1]
+	return c
 }

@@ -165,7 +165,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 	case none:
 		return rc
 	case unionConstraint:
-		return oc.Union(rc)
+		return Union(rc, oc)
 	case *Version:
 		if oc == nil {
 			// weird case, but this is the sanest answer we can give

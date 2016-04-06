@@ -548,6 +548,183 @@ func TestRangeUnion(t *testing.T) {
 	// TODO test the pre-release special range stuff
 }
 
+func TestUnionIntersection(t *testing.T) {
+	var actual Constraint
+	// magic first
+	u1 := unionConstraint{
+		newV(1, 1, 0),
+		newV(1, 2, 0),
+		newV(1, 3, 0),
+	}
+	if actual = u1.Intersect(Any()); !constraintEq(actual, u1) {
+		t.Errorf("Intersection of anything with Any should return self; got %s", actual)
+	}
+	if actual = u1.Intersect(None()); !IsNone(actual) {
+		t.Errorf("Intersection of anything with None should always produce None; got %s", actual)
+	}
+
+	// intersect of unions with single versions
+	v1 := newV(1, 1, 0)
+	if actual = u1.Intersect(v1); !constraintEq(actual, v1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, v1)
+	}
+	if actual = v1.Intersect(u1); !constraintEq(actual, v1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, v1)
+	}
+
+	// intersect of range with union of versions
+	u1 = unionConstraint{
+		newV(1, 1, 0),
+		newV(1, 2, 0),
+		newV(1, 3, 0),
+	}
+	rc1 := rangeConstraint{
+		min: newV(1, 0, 0),
+		max: newV(2, 0, 0),
+	}
+
+	if actual = u1.Intersect(rc1); !constraintEq(actual, u1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, u1)
+	}
+	if actual = rc1.Intersect(u1); !constraintEq(actual, u1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, u1)
+	}
+
+	u2 := unionConstraint{
+		newV(1, 1, 0),
+		newV(1, 2, 0),
+	}
+
+	if actual = u1.Intersect(u2); !constraintEq(actual, u2) {
+		t.Errorf("Got constraint %q, but expected %q", actual, u2)
+	}
+
+	// Overlapping sub/supersets
+	rc1 = rangeConstraint{
+		min: newV(1, 5, 0),
+		max: newV(1, 6, 0),
+	}
+	rc2 := rangeConstraint{
+		min: newV(2, 0, 0),
+		max: newV(3, 0, 0),
+	}
+	rc3 = rangeConstraint{
+		min: newV(1, 0, 0),
+		max: newV(2, 0, 0),
+	}
+	rc4 := rangeConstraint{
+		min: newV(2, 5, 0),
+		max: newV(2, 6, 0),
+	}
+	u1 = unionConstraint{rc1, rc2}
+	u2 = unionConstraint{rc3, rc4}
+	ur := unionConstraint{rc1, rc4}
+
+	if actual = u1.Intersect(u2); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+	if actual = u2.Intersect(u1); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+
+	// Ensure excludes carry as they should
+	rc1.excl = []*Version{newV(1, 5, 5)}
+	u1 = unionConstraint{rc1, rc2}
+	ur = unionConstraint{rc1, rc4}
+
+	if actual = u1.Intersect(u2); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+	if actual = u2.Intersect(u1); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+}
+
+func TestUnionUnion(t *testing.T) {
+	var actual Constraint
+	// magic first
+	u1 := unionConstraint{
+		newV(1, 1, 0),
+		newV(1, 2, 0),
+		newV(1, 3, 0),
+	}
+	if actual = u1.Union(Any()); !IsAny(actual) {
+		t.Errorf("Union of anything with Any should always return Any; got %s", actual)
+	}
+	if actual = u1.Union(None()); !constraintEq(actual, u1) {
+		t.Errorf("Union of anything with None should always return self; got %s", actual)
+	}
+
+	// union of uc with single versions
+	// already present
+	v1 := newV(1, 2, 0)
+	if actual = u1.Union(v1); !constraintEq(actual, u1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, u1)
+	}
+	if actual = v1.Union(u1); !constraintEq(actual, u1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, u1)
+	}
+
+	// not present
+	v2 := newV(1, 4, 0)
+	ur := append(u1, v2)
+	if actual = u1.Union(v2); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+	if actual = v2.Union(u1); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+
+	// union of uc with uc, all versions
+	u2 := unionConstraint{
+		newV(1, 3, 0),
+		newV(1, 4, 0),
+		newV(1, 5, 0),
+	}
+	ur = unionConstraint{
+		newV(1, 1, 0),
+		newV(1, 2, 0),
+		newV(1, 3, 0),
+		newV(1, 4, 0),
+		newV(1, 5, 0),
+	}
+
+	if actual = u1.Union(u2); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+	if actual = u2.Union(u1); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+
+	// union that should compress versions into range
+	rc1 := rangeConstraint{
+		min: newV(1, 0, 0),
+		max: newV(2, 0, 0),
+	}
+
+	if actual = u1.Union(rc1); !constraintEq(actual, rc1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, rc1)
+	}
+	if actual = rc1.Union(u1); !constraintEq(actual, rc1) {
+		t.Errorf("Got constraint %q, but expected %q", actual, rc1)
+	}
+
+	rc1.max = newV(1, 4, 5)
+	u3 := append(u2, newV(1, 7, 0))
+	ur = unionConstraint{
+		rc1,
+		newV(1, 5, 0),
+		newV(1, 7, 0),
+	}
+
+	if actual = u3.Union(rc1); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+	if actual = rc1.Union(u3); !constraintEq(actual, ur) {
+		t.Errorf("Got constraint %q, but expected %q", actual, ur)
+	}
+}
+
 func TestAreAdjacent(t *testing.T) {
 	rc1 := rangeConstraint{
 		min: newV(1, 0, 0),
