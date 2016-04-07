@@ -35,8 +35,7 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 	}
 
 	var newc []Constraint
-	// TODO dart has a smarter loop, i guess, but i don't grok it yet, so for
-	// now just do NxN
+	// TODO there's a smarter way to do this than NxN, but...worth it?
 	for _, c := range uc {
 		for _, oc := range other {
 			i := c.Intersect(oc)
@@ -89,12 +88,15 @@ func (cl constraintList) Less(i, j int) bool {
 	case *Version:
 		switch tjc := jc.(type) {
 		case *Version:
-			if tic == nil {
-				return false
-			}
 			return tic.LessThan(tjc)
 		case rangeConstraint:
 			if tjc.min == nil {
+				return false
+			}
+
+			// Because we don't assume stable sort, always put versions ahead of
+			// range mins if they're equal and includeMin is on
+			if tjc.includeMin && tic.Equal(tjc.min) {
 				return false
 			}
 			return tic.LessThan(tjc.min)
@@ -104,6 +106,12 @@ func (cl constraintList) Less(i, j int) bool {
 		case *Version:
 			if tic.min == nil {
 				return true
+			}
+
+			// Because we don't assume stable sort, always put versions ahead of
+			// range mins if they're equal and includeMin is on
+			if tic.includeMin && tjc.Equal(tic.min) {
+				return false
 			}
 			return tic.min.LessThan(tjc)
 		case rangeConstraint:

@@ -167,10 +167,6 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 	case unionConstraint:
 		return Union(rc, oc)
 	case *Version:
-		if oc == nil {
-			// weird case, but this is the sanest answer we can give
-			return rc
-		}
 		if err := rc.Matches(oc); err == nil {
 			return rc
 		} else if len(rc.excl) > 0 { // TODO (re)checking like this is wasteful

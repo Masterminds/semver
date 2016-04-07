@@ -146,7 +146,7 @@ func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
 
 	if wildMinor {
 		minv.major++
-	} else { // TODO should be an else if?
+	} else {
 		minv.minor++
 	}
 

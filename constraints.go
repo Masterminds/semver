@@ -146,37 +146,12 @@ func Intersection(cg ...Constraint) Constraint {
 		return cg[0]
 	}
 
-	// Preliminary first pass to look for a none (that would supercede everything
-	// else), and also construct a []realConstraint for everything else
-	var real constraintList
-
-	for _, c := range cg {
-		switch tc := c.(type) {
-		case any:
-			continue
-		case none:
-			return c
-		case *Version:
-			real = append(real, tc)
-		case rangeConstraint:
-			real = append(real, tc)
-		case unionConstraint:
-			real = append(real, tc...)
-		default:
-			panic("unknown constraint type")
-		}
-	}
-
-	sort.Sort(real)
-
-	// Now we know there's no easy wins, so step through and intersect each with
-	// the previous
 	car, cdr := cg[0], cg[1:]
 	for _, c := range cdr {
-		car = car.Intersect(c)
 		if IsNone(car) {
 			return None()
 		}
+		car = car.Intersect(c)
 	}
 
 	return car
@@ -252,7 +227,16 @@ func Union(cg ...Constraint) Constraint {
 				// Last was version, current is range. constraintList sorts by
 				// min version, so it's guaranteed that the version will be less
 				// than the range's min, guaranteeing that these are disjoint.
-				nuc = append(nuc, c)
+				//
+				// ...almost. If the min of the range is the same as the
+				// version, then a union should merge the two by making the
+				// range inclusive at the bottom.
+				if lt.Equal(ct.min) {
+					ct.includeMin = true
+					nuc[len(nuc)-1] = ct
+				} else {
+					nuc = append(nuc, c)
+				}
 			}
 		case rangeConstraint:
 			switch ct := c.(type) {
