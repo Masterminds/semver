@@ -215,7 +215,7 @@ func (v *Version) Matches(v2 *Version) error {
 		return nil
 	}
 
-	return versionConstraintError{v: v, other: v2}
+	return versionMatchFailure{v: v, other: v2}
 }
 
 func (v *Version) MatchesAny(c Constraint) bool {

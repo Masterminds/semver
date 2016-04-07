@@ -5,15 +5,16 @@ import "strings"
 type unionConstraint []realConstraint
 
 func (uc unionConstraint) Matches(v *Version) error {
-	var err error
+	var uce MultiMatchFailure
 	for _, c := range uc {
-		if err = c.Matches(v); err == nil {
+		if err := c.Matches(v); err == nil {
 			return nil
+		} else {
+			uce = append(uce, err.(MatchFailure))
 		}
 	}
 
-	// FIXME lollol, returning the last error is just laughably wrong
-	return err
+	return uce
 }
 
 func (uc unionConstraint) Intersect(c2 Constraint) Constraint {

@@ -446,6 +446,28 @@ func TestIsX(t *testing.T) {
 	}
 }
 
+func TestUnionErr(t *testing.T) {
+	u1 := Union(
+		rangeConstraint{
+			min:        newV(3, 0, 0),
+			max:        newV(4, 0, 0),
+			includeMin: true,
+			includeMax: true,
+		},
+		rangeConstraint{
+			min:        newV(1, 0, 0),
+			max:        newV(2, 0, 0),
+			includeMin: true,
+		},
+	)
+	fail := u1.Matches(newV(2, 5, 0))
+	failstr := `2.5.0 is greater than or equal to the maximum of >=1.0.0, <2.0.0
+2.5.0 is less than the minimum of >=3.0.0, <=4.0.0`
+	if fail.Error() != failstr {
+		t.Errorf("Did not get expected failure message from union, got %q", fail)
+	}
+}
+
 func TestIsSuperset(t *testing.T) {
 	rc := []rangeConstraint{
 		rangeConstraint{

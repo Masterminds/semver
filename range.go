@@ -15,7 +15,7 @@ type rangeConstraint struct {
 func (rc rangeConstraint) Matches(v *Version) error {
 	var fail bool
 
-	rce := rangeConstraintError{
+	rce := rangeMatchFailure{
 		v:  v,
 		rc: rc,
 	}
