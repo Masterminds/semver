@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
 var constraintRegex *regexp.Regexp
@@ -84,8 +85,14 @@ type realConstraint interface {
 }
 
 // Controls whether or not parsed constraints are cached
-var cacheConstraints = true
-var constraintCache = make(map[string]Constraint)
+var CacheConstraints = true
+var constraintCache = make(map[string]ccache)
+var constraintCacheLock sync.RWMutex
+
+type ccache struct {
+	c   Constraint
+	err error
+}
 
 // NewConstraint takes a string representing a set of semver constraints, and
 // returns a corresponding Constraint object. Constraints are suitable
@@ -95,11 +102,13 @@ var constraintCache = make(map[string]Constraint)
 // If an invalid constraint string is passed, more information is provided in
 // the returned error string.
 func NewConstraint(in string) (Constraint, error) {
-	if cacheConstraints {
-		// This means reparsing errors, but oh well
+	if CacheConstraints {
+		constraintCacheLock.RLock()
 		if final, exists := constraintCache[in]; exists {
-			return final, nil
+			constraintCacheLock.RUnlock()
+			return final.c, final.err
 		}
+		constraintCacheLock.RUnlock()
 	}
 
 	// Rewrite - ranges into a comparison operation.
@@ -113,6 +122,11 @@ func NewConstraint(in string) (Constraint, error) {
 		for i, s := range cs {
 			pc, err := parseConstraint(s)
 			if err != nil {
+				if CacheConstraints {
+					constraintCacheLock.Lock()
+					constraintCache[in] = ccache{err: err}
+					constraintCacheLock.Unlock()
+				}
 				return nil, err
 			}
 
@@ -122,8 +136,11 @@ func NewConstraint(in string) (Constraint, error) {
 	}
 
 	final := Union(or...)
-	if cacheConstraints {
-		constraintCache[in] = final
+
+	if CacheConstraints {
+		constraintCacheLock.Lock()
+		constraintCache[in] = ccache{c: final}
+		constraintCacheLock.Unlock()
 	}
 
 	return final, nil

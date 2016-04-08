@@ -835,6 +835,44 @@ func TestUnionUnion(t *testing.T) {
 	}
 }
 
+// Most version stuff got tested by range and/or union b/c most tests were
+// repeated bidirectionally (set operations are commutative; testing in pairs
+// helps us catch any situation where we fail to maintain that invariant)
+func TestVersionSetOps(t *testing.T) {
+	var actual Constraint
+
+	v1 := newV(1, 0, 0)
+
+	if actual = v1.Intersect(v1); !constraintEq(actual, v1) {
+		t.Errorf("Version intersected with itself should be itself, got %q", actual)
+	}
+	if !v1.MatchesAny(v1) {
+		t.Errorf("MatchesAny should work with a version against itself")
+	}
+
+	v2 := newV(2, 0, 0)
+	if actual = v1.Intersect(v2); !IsNone(actual) {
+		t.Errorf("Versions should only intersect with themselves, got %q", actual)
+	}
+	if v1.MatchesAny(v2) {
+		t.Errorf("MatchesAny should not work when combined with anything other than itself")
+	}
+
+	result := unionConstraint{v1, v2}
+
+	if actual = v1.Union(v1); !constraintEq(actual, v1) {
+		t.Errorf("Version union with itself should return self, got %q", actual)
+	}
+
+	if actual = v1.Union(v2); !constraintEq(actual, result) {
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+	if actual = v1.Union(v2); !constraintEq(actual, result) {
+		// Duplicate just to make sure ordering works right
+		t.Errorf("Got constraint %q, but expected %q", actual, result)
+	}
+}
+
 func TestAreAdjacent(t *testing.T) {
 	rc1 := rangeConstraint{
 		min: newV(1, 0, 0),

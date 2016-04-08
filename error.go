@@ -26,29 +26,29 @@ type MatchFailure interface {
 	Pair() (v *Version, c Constraint)
 }
 
-type rangeMatchFailure struct {
+type RangeMatchFailure struct {
 	v   *Version
 	rc  rangeConstraint
 	typ int8
 }
 
-func (rce rangeMatchFailure) Error() string {
+func (rce RangeMatchFailure) Error() string {
 	return fmt.Sprintf(rangeErrs[rce.typ], rce.v, rce.rc)
 }
 
-func (rce rangeMatchFailure) Pair() (v *Version, r Constraint) {
+func (rce RangeMatchFailure) Pair() (v *Version, r Constraint) {
 	return rce.v, rce.rc
 }
 
-type versionMatchFailure struct {
+type VersionMatchFailure struct {
 	v, other *Version
 }
 
-func (vce versionMatchFailure) Error() string {
+func (vce VersionMatchFailure) Error() string {
 	return fmt.Sprintf("%s is not equal to %s", vce.v, vce.other)
 }
 
-func (vce versionMatchFailure) Pair() (v *Version, r Constraint) {
+func (vce VersionMatchFailure) Pair() (v *Version, r Constraint) {
 	return vce.v, vce.other
 }
 

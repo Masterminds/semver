@@ -4,8 +4,8 @@ import "testing"
 
 func init() {
 	// disable constraint and version creation caching
-	cacheConstraints = false
-	cacheVersions = false
+	CacheConstraints = false
+	CacheVersions = false
 }
 
 var (

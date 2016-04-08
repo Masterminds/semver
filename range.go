@@ -15,7 +15,7 @@ type rangeConstraint struct {
 func (rc rangeConstraint) Matches(v *Version) error {
 	var fail bool
 
-	rce := rangeMatchFailure{
+	rce := RangeMatchFailure{
 		v:  v,
 		rc: rc,
 	}
@@ -439,3 +439,14 @@ oloop:
 
 func (rangeConstraint) _private() {}
 func (rangeConstraint) _real()    {}
+
+func areEq(v1, v2 *Version) bool {
+	if v1 == nil && v2 == nil {
+		return true
+	}
+
+	if v1 != nil && v2 != nil {
+		return v1.Equal(v2)
+	}
+	return false
+}

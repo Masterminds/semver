@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // The compiled version of the regex created at init() is cached here so it
@@ -19,9 +20,24 @@ var (
 	ErrInvalidSemVer = errors.New("Invalid Semantic Version")
 )
 
+// Error type; lets us defer string interpolation
+type badVersionSegment struct {
+	e error
+}
+
+func (b badVersionSegment) Error() string {
+	return fmt.Sprintf("Error parsing version segment: %s", b.e)
+}
+
 // Controls whether or not parsed constraints are cached
-var cacheVersions = true
-var versionCache = make(map[string]*Version)
+var CacheVersions = true
+var versionCache = make(map[string]vcache)
+var versionCacheLock sync.RWMutex
+
+type vcache struct {
+	v   *Version
+	err error
+}
 
 // SemVerRegex id the regular expression used to parse a semantic version.
 const SemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
@@ -43,14 +59,22 @@ func init() {
 // NewVersion parses a given version and returns an instance of Version or
 // an error if unable to parse the version.
 func NewVersion(v string) (*Version, error) {
-	if cacheVersions {
+	if CacheVersions {
+		versionCacheLock.RLock()
 		if sv, exists := versionCache[v]; exists {
-			return sv, nil
+			versionCacheLock.RUnlock()
+			return sv.v, sv.err
 		}
+		versionCacheLock.RUnlock()
 	}
 
 	m := versionRegex.FindStringSubmatch(v)
 	if m == nil {
+		if CacheVersions {
+			versionCacheLock.Lock()
+			versionCache[v] = vcache{err: ErrInvalidSemVer}
+			versionCacheLock.Unlock()
+		}
 		return nil, ErrInvalidSemVer
 	}
 
@@ -63,14 +87,28 @@ func NewVersion(v string) (*Version, error) {
 	var temp int64
 	temp, err := strconv.ParseInt(m[1], 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing version segment: %s", err)
+		bvs := badVersionSegment{e: err}
+		if CacheVersions {
+			versionCacheLock.Lock()
+			versionCache[v] = vcache{err: bvs}
+			versionCacheLock.Unlock()
+		}
+
+		return nil, bvs
 	}
 	sv.major = temp
 
 	if m[2] != "" {
 		temp, err = strconv.ParseInt(strings.TrimPrefix(m[2], "."), 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			bvs := badVersionSegment{e: err}
+			if CacheVersions {
+				versionCacheLock.Lock()
+				versionCache[v] = vcache{err: bvs}
+				versionCacheLock.Unlock()
+			}
+
+			return nil, bvs
 		}
 		sv.minor = temp
 	} else {
@@ -80,15 +118,24 @@ func NewVersion(v string) (*Version, error) {
 	if m[3] != "" {
 		temp, err = strconv.ParseInt(strings.TrimPrefix(m[3], "."), 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			bvs := badVersionSegment{e: err}
+			if CacheVersions {
+				versionCacheLock.Lock()
+				versionCache[v] = vcache{err: bvs}
+				versionCacheLock.Unlock()
+			}
+
+			return nil, bvs
 		}
 		sv.patch = temp
 	} else {
 		sv.patch = 0
 	}
 
-	if cacheVersions {
-		versionCache[v] = sv
+	if CacheVersions {
+		versionCacheLock.Lock()
+		versionCache[v] = vcache{v: sv}
+		versionCacheLock.Unlock()
 	}
 
 	return sv, nil
@@ -215,14 +262,16 @@ func (v *Version) Matches(v2 *Version) error {
 		return nil
 	}
 
-	return versionMatchFailure{v: v, other: v2}
+	return VersionMatchFailure{v: v, other: v2}
 }
 
 func (v *Version) MatchesAny(c Constraint) bool {
 	if v2, ok := c.(*Version); ok {
-		return false
-	} else {
 		return v.Equal(v2)
+	} else {
+		// The other implementations all have specific handling for this; fall
+		// back on theirs.
+		return c.MatchesAny(v)
 	}
 }
 
@@ -329,15 +378,4 @@ func comparePrePart(s, o string) int {
 		return 1
 	}
 	return -1
-}
-
-func areEq(v1, v2 *Version) bool {
-	if v1 == nil && v2 == nil {
-		return true
-	}
-
-	if v1 != nil && v2 != nil {
-		return v1.Equal(v2)
-	}
-	return false
 }
