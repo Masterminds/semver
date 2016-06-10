@@ -133,7 +133,7 @@ func (v *Version) Metadata() string {
 // How can be one of: patch, minor, major, prerelease
 func (v *Version) Inc(how string) bool {
 	if how == "prerelease" {
-		return v.IncPrelease()
+		return v.IncPrerelease()
 	} else if how == "patch" {
 		return v.IncPatch()
 	} else if how == "minor" {
