@@ -147,7 +147,7 @@ func (v *Version) Inc(how string) bool {
 // Increment version number by the prerelease number.
 // when version is 1.0.0-beta => 1.0.0-beta1
 // when version is 1.0.0-beta2 => 1.0.0-beta3
-func (v *Version) IncPrelease() bool {
+func (v *Version) IncPrerelease() bool {
 	if len(v.pre) == 0 {
 		return false
 	}
