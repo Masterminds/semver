@@ -129,6 +129,90 @@ func (v *Version) Metadata() string {
 	return v.metadata
 }
 
+// Increment version number,
+// How can be one of: patch, minor, major, prerelease
+func (v *Version) Inc(how string) bool {
+	if how == "prerelease" {
+		return v.IncPrerelease()
+	} else if how == "patch" {
+		return v.IncPatch()
+	} else if how == "minor" {
+		return v.IncMinor()
+	} else if how == "major" {
+		return v.IncMajor()
+	}
+	return false
+}
+
+// Increment version number by the prerelease number.
+// when version is 1.0.0-beta => 1.0.0-beta1
+// when version is 1.0.0-beta2 => 1.0.0-beta3
+func (v *Version) IncPrerelease() bool {
+	if len(v.pre) == 0 {
+		return false
+	}
+	r := regexp.MustCompile("^([a-z]+)([.-]?)([0-9]+)?")
+	if r.MatchString(v.pre) == false {
+		return false
+	}
+	oldParts := r.FindAllStringSubmatch(v.pre, -1)
+	newParts := oldParts[0][1] + oldParts[0][2]
+	if len(oldParts[0][3]) > 0 {
+		i, err := strconv.Atoi(oldParts[0][3])
+		if err != nil {
+			return false
+		}
+		newParts += strconv.Itoa(i + 1)
+	} else {
+		newParts += string("1")
+	}
+	v.pre = newParts
+	return true
+}
+
+// Increment version number by the minor number.
+// Unsets prerelease status.
+// Add +1 to patch number.
+func (v *Version) IncPatch() bool {
+	v.pre = ""
+	v.patch += 1
+	return true
+}
+
+// Increment version number by the minor number.
+// Unsets prerelease status.
+// Sets patch number to 0.
+// Add +1 to minor number.
+func (v *Version) IncMinor() bool {
+	v.pre = ""
+	v.patch = 0
+	v.minor += 1
+	return true
+}
+
+// Increment version number by the major number.
+// Unsets prerelease status.
+// Sets patch number to 0.
+// Sets minor number to 0.
+// Add +1 to major number.
+func (v *Version) IncMajor() bool {
+	v.pre = ""
+	v.patch = 0
+	v.minor = 0
+	v.major += 1
+	return true
+}
+
+// Set prerelease value.
+func (v *Version) SetPrelease(prerelease string) bool {
+	r := regexp.MustCompile("^([a-z]+)(.-)?([0-9]+)?")
+	if len(prerelease) > 0 && r.MatchString(prerelease) == false {
+		return false
+	}
+	v.pre = prerelease
+	return true
+}
+
 // LessThan tests if one version is less than another one.
 func (v *Version) LessThan(o *Version) bool {
 	return v.Compare(o) < 0
