@@ -281,3 +281,44 @@ func TestEqual(t *testing.T) {
 		}
 	}
 }
+
+func TestInc(t *testing.T) {
+	tests := []struct {
+		v1        string
+		expectedV string
+		how       string
+		expected  bool
+	}{
+		{"1.2.3", "1.2.4", "patch", true},
+		{"1.2.3", "1.3.0", "minor", true},
+		{"1.2.3", "2.0.0", "major", true},
+		{"1.2.3-beta", "1.2.3-beta1", "prerelease", true},
+		{"1.2.3-alpha", "1.2.3-alpha1", "prerelease", true},
+		{"1.2.3-alpha1", "1.2.3-alpha2", "prerelease", true},
+		{"1.2.3-alpha-1", "1.2.3-alpha-2", "prerelease", true},
+		{"1.2.3-alpha.1", "1.2.3-alpha.2", "prerelease", true},
+		{"1.2.3-alpha.1+build123", "1.2.3-alpha.2+build123", "prerelease", true},
+		{"1.2.3", "1.2.3", "prerelease", false},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		ok := v1.Inc(tc.how)
+		if ok != tc.expected {
+			t.Errorf("Expected to increment the version number but it failed")
+		}
+
+		a := v1.String()
+		e := tc.expectedV
+		if a != e {
+			t.Errorf(
+				"Inc %q failed. Expected %q got %q",
+				tc.how, tc.expectedV, a,
+			)
+		}
+	}
+}
