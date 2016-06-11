@@ -323,11 +323,12 @@ func TestSetPrerelease(t *testing.T) {
 	tests := []struct {
 		v1                 string
 		prerelease         string
+		expectedVersion    string
 		expectedPrerelease string
 		expectedResult     bool
 	}{
-		{"1.2.3", "beta", "", false},
-		{"1.2.3", "-beta", "-beta", true},
+		{"1.2.3", "**", "1.2.3", "", false},
+		{"1.2.3", "beta", "1.2.3-beta", "beta", true},
 	}
 
 	for _, tc := range tests {
@@ -346,6 +347,12 @@ func TestSetPrerelease(t *testing.T) {
 		if a != e {
 			t.Errorf("Expected %q got %q", e, a)
 		}
+
+		newV := v1.String()
+		eV := tc.expectedVersion
+		if newV != eV {
+			t.Errorf("Expected %q got %q", newV, eV)
+		}
 	}
 }
 
@@ -353,11 +360,12 @@ func TestSetMetadata(t *testing.T) {
 	tests := []struct {
 		v1               string
 		metadata         string
+		expectedVersion  string
 		expectedMetadata string
 		expectedResult   bool
 	}{
-		{"1.2.3", "meta", "", false},
-		{"1.2.3", "+meta", "+meta", true},
+		{"1.2.3", "**", "1.2.3", "", false},
+		{"1.2.3", "meta", "1.2.3+meta", "meta", true},
 	}
 
 	for _, tc := range tests {
@@ -375,6 +383,12 @@ func TestSetMetadata(t *testing.T) {
 		e := tc.expectedMetadata
 		if a != e {
 			t.Errorf("Expected %q got %q", e, a)
+		}
+
+		newV := v1.String()
+		eV := tc.expectedVersion
+		if newV != eV {
+			t.Errorf("Expected %q got %q", newV, eV)
 		}
 	}
 }

@@ -180,7 +180,7 @@ func (v *Version) IncMajor() bool {
 
 // SetPrelease sets pre-release value.
 func (v *Version) SetPrerelease(prerelease string) bool {
-	r := regexp.MustCompile(`^-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)`)
+	r := regexp.MustCompile(`^([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)`)
 	if len(prerelease) > 0 && r.MatchString(prerelease) == false {
 		return false
 	}
@@ -190,7 +190,7 @@ func (v *Version) SetPrerelease(prerelease string) bool {
 
 // SetMetadata sets metadata value.
 func (v *Version) SetMetadata(metadata string) bool {
-	r := regexp.MustCompile(`^\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)`)
+	r := regexp.MustCompile(`^([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)`)
 	if len(metadata) > 0 && r.MatchString(metadata) == false {
 		return false
 	}
