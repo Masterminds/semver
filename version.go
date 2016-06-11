@@ -129,6 +129,75 @@ func (v *Version) Metadata() string {
 	return v.metadata
 }
 
+// Increment version number,
+// How can be one of: patch, minor, major, prerelease
+func (v *Version) Inc(how string) bool {
+	if how == "patch" {
+		return v.IncPatch()
+	} else if how == "minor" {
+		return v.IncMinor()
+	} else if how == "major" {
+		return v.IncMajor()
+	}
+	return false
+}
+
+// Increment version number by the minor number.
+// Unsets prerelease status.
+// Add +1 to patch number.
+func (v *Version) IncPatch() bool {
+	v.pre = ""
+	v.metadata = ""
+	v.patch += 1
+	return true
+}
+
+// Increment version number by the minor number.
+// Unsets prerelease status.
+// Sets patch number to 0.
+// Add +1 to minor number.
+func (v *Version) IncMinor() bool {
+	v.pre = ""
+	v.metadata = ""
+	v.patch = 0
+	v.minor += 1
+	return true
+}
+
+// Increment version number by the major number.
+// Unsets prerelease status.
+// Sets patch number to 0.
+// Sets minor number to 0.
+// Add +1 to major number.
+func (v *Version) IncMajor() bool {
+	v.pre = ""
+	v.metadata = ""
+	v.patch = 0
+	v.minor = 0
+	v.major += 1
+	return true
+}
+
+// SetPrelease sets pre-release value.
+func (v *Version) SetPrerelease(prerelease string) bool {
+	r := regexp.MustCompile(`^-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)`)
+	if len(prerelease) > 0 && r.MatchString(prerelease) == false {
+		return false
+	}
+	v.pre = prerelease
+	return true
+}
+
+// SetMetadata sets metadata value.
+func (v *Version) SetMetadata(metadata string) bool {
+	r := regexp.MustCompile(`^\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)`)
+	if len(metadata) > 0 && r.MatchString(metadata) == false {
+		return false
+	}
+	v.metadata = metadata
+	return true
+}
+
 // LessThan tests if one version is less than another one.
 func (v *Version) LessThan(o *Version) bool {
 	return v.Compare(o) < 0

@@ -281,3 +281,100 @@ func TestEqual(t *testing.T) {
 		}
 	}
 }
+
+func TestInc(t *testing.T) {
+	tests := []struct {
+		v1        string
+		expectedV string
+		how       string
+		expected  bool
+	}{
+		{"1.2.3", "1.2.4", "patch", true},
+		{"1.2.3", "1.3.0", "minor", true},
+		{"1.2.3", "2.0.0", "major", true},
+		{"1.2.3-beta+meta", "1.2.4", "patch", true},
+		{"1.2.3-beta+meta", "1.3.0", "minor", true},
+		{"1.2.3-beta+meta", "2.0.0", "major", true},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		ok := v1.Inc(tc.how)
+		if ok != tc.expected {
+			t.Errorf("Expected to increment the version number but it failed")
+		}
+
+		a := v1.String()
+		e := tc.expectedV
+		if a != e {
+			t.Errorf(
+				"Inc %q failed. Expected %q got %q",
+				tc.how, tc.expectedV, a,
+			)
+		}
+	}
+}
+
+func TestSetPrerelease(t *testing.T) {
+	tests := []struct {
+		v1                 string
+		prerelease         string
+		expectedPrerelease string
+		expectedResult     bool
+	}{
+		{"1.2.3", "beta", "", false},
+		{"1.2.3", "-beta", "-beta", true},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		ok := v1.SetPrerelease(tc.prerelease)
+		if ok != tc.expectedResult {
+			t.Errorf("Expected to receive %s got %s", tc.expectedResult, ok)
+		}
+
+		a := v1.Prerelease()
+		e := tc.expectedPrerelease
+		if a != e {
+			t.Errorf("Expected %q got %q", e, a)
+		}
+	}
+}
+
+func TestSetMetadata(t *testing.T) {
+	tests := []struct {
+		v1               string
+		metadata         string
+		expectedMetadata string
+		expectedResult   bool
+	}{
+		{"1.2.3", "meta", "", false},
+		{"1.2.3", "+meta", "+meta", true},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		ok := v1.SetMetadata(tc.metadata)
+		if ok != tc.expectedResult {
+			t.Errorf("Expected to receive %s got %s", tc.expectedResult, ok)
+		}
+
+		a := v1.Metadata()
+		e := tc.expectedMetadata
+		if a != e {
+			t.Errorf("Expected %q got %q", e, a)
+		}
+	}
+}
