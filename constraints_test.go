@@ -177,6 +177,9 @@ func TestConstraintCheck(t *testing.T) {
 		{">2.x", "3.0.0", true},
 		{">2.x", "2.9.9", false},
 		{">2.x", "1.9.9", false},
+		// TODO these are all pending the changes in #10
+		//{"<=2.x-beta1", "3.0.0-alpha2", false},
+		//{">2.x-beta1", "3.0.0-alpha2", true},
 		//{"<2.0.0", "2.0.0-alpha1", false},
 		//{"<=2.0.0", "2.0.0-alpha1", true},
 	}

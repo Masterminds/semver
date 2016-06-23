@@ -160,6 +160,13 @@ func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
 
 func expandGreater(v *Version, wildMinor, wildPatch, eq bool) Constraint {
 	if (wildMinor || wildPatch) && !eq {
+		// wildcards negate the meaning of prerelease and other info
+		v = &Version{
+			major: v.major,
+			minor: v.minor,
+			patch: v.patch,
+		}
+
 		// Not equal but with wildcards is the weird case - we have to bump up
 		// the next version AND make it equal
 		if wildMinor {
@@ -181,6 +188,12 @@ func expandGreater(v *Version, wildMinor, wildPatch, eq bool) Constraint {
 
 func expandLess(v *Version, wildMinor, wildPatch, eq bool) Constraint {
 	if eq && (wildMinor || wildPatch) {
+		// wildcards negate the meaning of prerelease and other info
+		v = &Version{
+			major: v.major,
+			minor: v.minor,
+			patch: v.patch,
+		}
 		if wildMinor {
 			v.major++
 		} else if wildPatch {
