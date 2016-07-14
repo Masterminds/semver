@@ -35,7 +35,7 @@ var versionCache = make(map[string]vcache)
 var versionCacheLock sync.RWMutex
 
 type vcache struct {
-	v   *Version
+	v   Version
 	err error
 }
 
@@ -58,7 +58,7 @@ func init() {
 
 // NewVersion parses a given version and returns an instance of Version or
 // an error if unable to parse the version.
-func NewVersion(v string) (*Version, error) {
+func NewVersion(v string) (Version, error) {
 	if CacheVersions {
 		versionCacheLock.RLock()
 		if sv, exists := versionCache[v]; exists {
@@ -78,7 +78,7 @@ func NewVersion(v string) (*Version, error) {
 		return nil, ErrInvalidSemVer
 	}
 
-	sv := &Version{
+	sv := Version{
 		metadata: m[8],
 		pre:      m[5],
 		original: v,
@@ -146,7 +146,7 @@ func NewVersion(v string) (*Version, error) {
 // See the Original() method to retrieve the original value. Semantic Versions
 // don't contain a leading v per the spec. Instead it's optional on
 // impelementation.
-func (v *Version) String() string {
+func (v Version) String() string {
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf, "%d.%d.%d", v.major, v.minor, v.patch)
@@ -161,7 +161,7 @@ func (v *Version) String() string {
 }
 
 // Original returns the original value passed in to be parsed.
-func (v *Version) Original() string {
+func (v Version) Original() string {
 	return v.original
 }
 
@@ -181,17 +181,17 @@ func (v *Version) Patch() uint64 {
 }
 
 // Prerelease returns the pre-release version.
-func (v *Version) Prerelease() string {
+func (v Version) Prerelease() string {
 	return v.pre
 }
 
 // Metadata returns the metadata on the version.
-func (v *Version) Metadata() string {
+func (v Version) Metadata() string {
 	return v.metadata
 }
 
 // LessThan tests if one version is less than another one.
-func (v *Version) LessThan(o *Version) bool {
+func (v Version) LessThan(o Version) bool {
 	// If a nil version was passed, fail and bail out early.
 	if o == nil {
 		return false
@@ -201,7 +201,7 @@ func (v *Version) LessThan(o *Version) bool {
 }
 
 // GreaterThan tests if one version is greater than another one.
-func (v *Version) GreaterThan(o *Version) bool {
+func (v Version) GreaterThan(o Version) bool {
 	// If a nil version was passed, fail and bail out early.
 	if o == nil {
 		return false
@@ -213,7 +213,7 @@ func (v *Version) GreaterThan(o *Version) bool {
 // Equal tests if two versions are equal to each other.
 // Note, versions can be equal with different metadata since metadata
 // is not considered part of the comparable version.
-func (v *Version) Equal(o *Version) bool {
+func (v Version) Equal(o Version) bool {
 	// If a nil version was passed, fail and bail out early.
 	if o == nil {
 		return false
@@ -227,7 +227,7 @@ func (v *Version) Equal(o *Version) bool {
 //
 // Versions are compared by X.Y.Z. Build metadata is ignored. Prerelease is
 // lower than the version without a prerelease.
-func (v *Version) Compare(o *Version) int {
+func (v Version) Compare(o Version) int {
 	// Compare the major, minor, and patch version for differences. If a
 	// difference is found return the comparison.
 	if d := compareSegment(v.Major(), o.Major()); d != 0 {
@@ -257,7 +257,7 @@ func (v *Version) Compare(o *Version) int {
 	return comparePrerelease(ps, po)
 }
 
-func (v *Version) Matches(v2 *Version) error {
+func (v Version) Matches(v2 Version) error {
 	if v.Equal(v2) {
 		return nil
 	}
@@ -265,8 +265,8 @@ func (v *Version) Matches(v2 *Version) error {
 	return VersionMatchFailure{v: v, other: v2}
 }
 
-func (v *Version) MatchesAny(c Constraint) bool {
-	if v2, ok := c.(*Version); ok {
+func (v Version) MatchesAny(c Constraint) bool {
+	if v2, ok := c.(Version); ok {
 		return v.Equal(v2)
 	} else {
 		// The other implementations all have specific handling for this; fall
@@ -275,8 +275,8 @@ func (v *Version) MatchesAny(c Constraint) bool {
 	}
 }
 
-func (v *Version) Intersect(c Constraint) Constraint {
-	if v2, ok := c.(*Version); ok {
+func (v Version) Intersect(c Constraint) Constraint {
+	if v2, ok := c.(Version); ok {
 		if v.Equal(v2) {
 			return v
 		}
@@ -286,8 +286,8 @@ func (v *Version) Intersect(c Constraint) Constraint {
 	return c.Intersect(v)
 }
 
-func (v *Version) Union(c Constraint) Constraint {
-	if v2, ok := c.(*Version); ok && v.Equal(v2) {
+func (v Version) Union(c Constraint) Constraint {
+	if v2, ok := c.(Version); ok && v.Equal(v2) {
 		return v
 	} else {
 		return Union(v, c)

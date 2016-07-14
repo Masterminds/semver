@@ -81,8 +81,8 @@ func parseConstraint(c string) (Constraint, error) {
 	}
 }
 
-func expandCaret(v *Version) Constraint {
-	maxv := &Version{
+func expandCaret(v Version) Constraint {
+	maxv := Version{
 		major: v.major + 1,
 		minor: 0,
 		patch: 0,
@@ -96,13 +96,13 @@ func expandCaret(v *Version) Constraint {
 	}
 }
 
-func expandTilde(v *Version, wildMinor bool) Constraint {
+func expandTilde(v Version, wildMinor bool) Constraint {
 	if wildMinor {
 		// When minor is wild on a tilde, behavior is same as caret
 		return expandCaret(v)
 	}
 
-	maxv := &Version{
+	maxv := Version{
 		major: v.major,
 		minor: v.minor + 1,
 		patch: 0,
@@ -122,10 +122,10 @@ func expandTilde(v *Version, wildMinor bool) Constraint {
 // (which is how we represent a disjoint set). If there are no wildcards, it
 // will expand to a rangeConstraint with no min or max, but having the one
 // exception.
-func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
+func expandNeq(v Version, wildMinor, wildPatch bool) Constraint {
 	if !(wildMinor || wildPatch) {
 		return rangeConstraint{
-			excl: []*Version{v},
+			excl: []Version{v},
 		}
 	}
 
@@ -138,7 +138,7 @@ func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
 
 	// The high range uses the derived version (bumped depending on where the
 	// wildcards were) as the min, and is inclusive
-	minv := &Version{
+	minv := Version{
 		major: v.major,
 		minor: v.minor,
 		patch: v.patch,
@@ -158,10 +158,10 @@ func expandNeq(v *Version, wildMinor, wildPatch bool) Constraint {
 	return Union(lr, hr)
 }
 
-func expandGreater(v *Version, wildMinor, wildPatch, eq bool) Constraint {
+func expandGreater(v Version, wildMinor, wildPatch, eq bool) Constraint {
 	if (wildMinor || wildPatch) && !eq {
 		// wildcards negate the meaning of prerelease and other info
-		v = &Version{
+		v = Version{
 			major: v.major,
 			minor: v.minor,
 			patch: v.patch,
@@ -186,10 +186,10 @@ func expandGreater(v *Version, wildMinor, wildPatch, eq bool) Constraint {
 	}
 }
 
-func expandLess(v *Version, wildMinor, wildPatch, eq bool) Constraint {
+func expandLess(v Version, wildMinor, wildPatch, eq bool) Constraint {
 	if eq && (wildMinor || wildPatch) {
 		// wildcards negate the meaning of prerelease and other info
-		v = &Version{
+		v = Version{
 			major: v.major,
 			minor: v.minor,
 			patch: v.patch,

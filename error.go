@@ -23,11 +23,11 @@ const (
 
 type MatchFailure interface {
 	error
-	Pair() (v *Version, c Constraint)
+	Pair() (v Version, c Constraint)
 }
 
 type RangeMatchFailure struct {
-	v   *Version
+	v   Version
 	rc  rangeConstraint
 	typ int8
 }
@@ -36,19 +36,19 @@ func (rce RangeMatchFailure) Error() string {
 	return fmt.Sprintf(rangeErrs[rce.typ], rce.v, rce.rc)
 }
 
-func (rce RangeMatchFailure) Pair() (v *Version, r Constraint) {
+func (rce RangeMatchFailure) Pair() (v Version, r Constraint) {
 	return rce.v, rce.rc
 }
 
 type VersionMatchFailure struct {
-	v, other *Version
+	v, other Version
 }
 
 func (vce VersionMatchFailure) Error() string {
 	return fmt.Sprintf("%s is not equal to %s", vce.v, vce.other)
 }
 
-func (vce VersionMatchFailure) Pair() (v *Version, r Constraint) {
+func (vce VersionMatchFailure) Pair() (v Version, r Constraint) {
 	return vce.v, vce.other
 }
 

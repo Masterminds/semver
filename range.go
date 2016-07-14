@@ -7,12 +7,12 @@ import (
 )
 
 type rangeConstraint struct {
-	min, max               *Version
+	min, max               Version
 	includeMin, includeMax bool
-	excl                   []*Version
+	excl                   []Version
 }
 
-func (rc rangeConstraint) Matches(v *Version) error {
+func (rc rangeConstraint) Matches(v Version) error {
 	var fail bool
 
 	rce := RangeMatchFailure{
@@ -70,8 +70,8 @@ func (rc rangeConstraint) dup() rangeConstraint {
 		return rc
 	}
 
-	var excl []*Version
-	excl = make([]*Version, len(rc.excl))
+	var excl []Version
+	excl = make([]Version, len(rc.excl))
 	copy(excl, rc.excl)
 
 	return rangeConstraint{
@@ -99,7 +99,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 		return None()
 	case unionConstraint:
 		return oc.Intersect(rc)
-	case *Version:
+	case Version:
 		if err := rc.Matches(oc); err != nil {
 			return None()
 		} else {
@@ -174,7 +174,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 		return rc
 	case unionConstraint:
 		return Union(rc, oc)
-	case *Version:
+	case Version:
 		if err := rc.Matches(oc); err == nil {
 			return rc
 		} else if len(rc.excl) > 0 { // TODO (re)checking like this is wasteful
@@ -182,7 +182,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			// it and return that
 			for k, e := range rc.excl {
 				if e.Equal(oc) {
-					excl := make([]*Version, len(rc.excl)-1)
+					excl := make([]Version, len(rc.excl)-1)
 
 					if k == len(rc.excl)-1 {
 						copy(excl, rc.excl[:k])
@@ -472,10 +472,10 @@ func (rc rangeConstraint) MatchesAny(c Constraint) bool {
 	return true
 }
 
-func dedupeExcls(ex1, ex2 []*Version) []*Version {
+func dedupeExcls(ex1, ex2 []Version) []Version {
 	// TODO stupid inefficient, but these are really only ever going to be
 	// small, so not worth optimizing right now
-	var ret []*Version
+	var ret []Version
 oloop:
 	for _, e1 := range ex1 {
 		for _, e2 := range ex2 {
@@ -492,7 +492,7 @@ oloop:
 func (rangeConstraint) _private() {}
 func (rangeConstraint) _real()    {}
 
-func areEq(v1, v2 *Version) bool {
+func areEq(v1, v2 Version) bool {
 	if v1 == nil && v2 == nil {
 		return true
 	}

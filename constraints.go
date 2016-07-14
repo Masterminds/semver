@@ -54,7 +54,7 @@ type Constraint interface {
 
 	// Matches checks that a version satisfies the constraint. If it does not,
 	// an error is returned indcating the problem; if it does, the error is nil.
-	Matches(v *Version) error
+	Matches(v Version) error
 
 	// Intersect computes the intersection between the receiving Constraint and
 	// passed Constraint, and returns a new Constraint representing the result.
@@ -201,7 +201,7 @@ func Union(cg ...Constraint) Constraint {
 			return c
 		case none:
 			continue
-		case *Version:
+		case Version:
 			//if tc != nil {
 			//heap.Push(&real, tc)
 			//}
@@ -233,9 +233,9 @@ func Union(cg ...Constraint) Constraint {
 
 		last := nuc[len(nuc)-1]
 		switch lt := last.(type) {
-		case *Version:
+		case Version:
 			switch ct := c.(type) {
-			case *Version:
+			case Version:
 				// Two versions in a row; only append if they're not equal
 				if !lt.Equal(ct) {
 					nuc = append(nuc, ct)
@@ -257,7 +257,7 @@ func Union(cg ...Constraint) Constraint {
 			}
 		case rangeConstraint:
 			switch ct := c.(type) {
-			case *Version:
+			case Version:
 				// Last was range, current is version. constraintList sort invariants guarantee
 				// that the version will be greater than the min, so we have to
 				// determine if the version is less than the max. If it is, we
