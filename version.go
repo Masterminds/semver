@@ -80,6 +80,15 @@ func NewVersion(v string) (*Version, error) {
 	return sv, nil
 }
 
+// MustParse parses a given version and panics on error.
+func MustParse(v string) *Version {
+	sv, err := NewVersion(v)
+	if err != nil {
+		panic(err)
+	}
+	return sv
+}
+
 // String converts a Version object to a string.
 // Note, if the original version contained a leading v this version will not.
 // See the Original() method to retrieve the original value. Semantic Versions
