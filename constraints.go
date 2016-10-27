@@ -155,6 +155,14 @@ type constraint struct {
 
 // Check if a version meets the constraint
 func (c *constraint) check(v *Version) bool {
+
+	// If there is a pre-release on the version but the constraint isn't looking
+	// for them assume that pre-releases are not compatible. See issue 21 for
+	// more details.
+	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+		return false
+	}
+
 	return c.function(v, c)
 }
 
