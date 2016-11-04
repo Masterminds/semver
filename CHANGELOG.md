@@ -1,4 +1,8 @@
-# Release 1.1.2 (unreleased)
+# Release 1.2.0 (2016-11-04)
+
+## Added
+- #20: Added MustParse function for versions (thanks @adamreese)
+- #15: Added increment methods on versions (thanks @mh-cbon)
 
 ## Fixed
 - Issue #21: Per the SemVer spec (section 9) a pre-release is unstable and
