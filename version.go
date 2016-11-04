@@ -139,7 +139,9 @@ func (v *Version) Metadata() string {
 
 // originalVPrefix returns the original 'v' prefix if any.
 func (v *Version) originalVPrefix() string {
-	if v.original != "" && strings.ToLower(v.original[:1]) == "v" {
+
+	// Note, only lowercase v is supported as a prefix by the parser.
+	if v.original != "" && v.original[:1] == "v" {
 		return v.original[:1]
 	}
 	return ""
