@@ -1,3 +1,9 @@
+# Release 1.2.1 (unreleased)
+
+## Fixed:
+- #24: Fixed edge case issue where constraint "> 0" does not handle "0.0.1-alpha"
+  properly.
+
 # Release 1.2.0 (2016-11-04)
 
 ## Added
