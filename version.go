@@ -44,12 +44,21 @@ const SemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
+type specialVersion uint8
+
+const (
+	notSpecial specialVersion = iota
+	zeroVersion
+	infiniteVersion
+)
+
 // Version represents a single semantic version.
 type Version struct {
 	major, minor, patch uint64
 	pre                 string
 	metadata            string
 	original            string
+	special             specialVersion
 }
 
 func init() {
@@ -228,6 +237,26 @@ func (v Version) Equal(o Version) bool {
 // Versions are compared by X.Y.Z. Build metadata is ignored. Prerelease is
 // lower than the version without a prerelease.
 func (v Version) Compare(o Version) int {
+	// The special field supercedes all the other information. If it's not
+	// equal, we can skip out early
+	if v.special != o.special {
+		switch v.special {
+		case zeroVersion:
+			return -1
+		case notSpecial:
+			if o.special == zeroVersion {
+				return 1
+			}
+			return -1
+		case infiniteVersion:
+			return 1
+		}
+	} else if v.special != notSpecial {
+		// If special fields are equal and not notSpecial, then they're
+		// necessarily equal
+		return 0
+	}
+
 	// Compare the major, minor, and patch version for differences. If a
 	// difference is found return the comparison.
 	if d := compareSegment(v.Major(), o.Major()); d != 0 {
