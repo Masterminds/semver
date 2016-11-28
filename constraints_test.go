@@ -92,19 +92,19 @@ func constraintEq(c1, c2 Constraint) bool {
 				return false
 			}
 
-			if tc1.min != nil {
+			if !tc1.hasZeroMin() {
 				if !(tc1.includeMin == tc2.includeMin && tc1.min.Equal(tc2.min)) {
 					return false
 				}
-			} else if tc2.min != nil {
+			} else if !tc2.hasZeroMin() {
 				return false
 			}
 
-			if tc1.max != nil {
+			if !tc1.hasInfMax() {
 				if !(tc1.includeMax == tc2.includeMax && tc1.max.Equal(tc2.max)) {
 					return false
 				}
-			} else if tc2.max != nil {
+			} else if !tc2.hasInfMax() {
 				return false
 			}
 
