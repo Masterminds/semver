@@ -83,7 +83,7 @@ func TestRangeIntersection(t *testing.T) {
 	}
 
 	// now exclude just that version
-	rc1.excl = []*Version{v1}
+	rc1.excl = []Version{v1}
 	if actual = rc1.Intersect(v1); !IsNone(actual) {
 		t.Errorf("Intersection of version with range having specific exclude for that version should produce None; got %q", actual)
 	}
@@ -257,7 +257,7 @@ func TestRangeIntersection(t *testing.T) {
 	rc1 = rangeConstraint{
 		min: newV(1, 5, 0),
 		max: newV(2, 0, 0),
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 6, 0),
 		},
 	}
@@ -281,7 +281,7 @@ func TestRangeIntersection(t *testing.T) {
 	rc2 = rangeConstraint{
 		min: newV(1, 0, 0),
 		max: newV(3, 0, 0),
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 1, 0),
 		},
 	}
@@ -329,13 +329,13 @@ func TestRangeIntersection(t *testing.T) {
 
 	// Ensure pure excludes come through as they should
 	rc1 = rangeConstraint{
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 6, 0),
 		},
 	}
 
 	rc2 = rangeConstraint{
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 6, 0),
 			newV(1, 7, 0),
 		},
@@ -379,7 +379,7 @@ func TestRangeUnion(t *testing.T) {
 
 	// now exclude just that version
 	rc2 := rc1.dup()
-	rc2.excl = []*Version{v1}
+	rc2.excl = []Version{v1}
 	if actual = rc2.Union(v1); !constraintEq(actual, rc1) {
 		t.Errorf("Union of version with range having specific exclude for that version should produce the range without that exclude; got %q", actual)
 	}
@@ -479,7 +479,7 @@ func TestRangeUnion(t *testing.T) {
 		t.Errorf("Got constraint %q, but expected %q", actual, result)
 	}
 
-	rc1.max = nil
+	rc1.max = Version{special: infiniteVersion}
 	rc2.min = newV(1, 5, 0)
 	result = rangeConstraint{
 		min: newV(1, 0, 0),
@@ -582,7 +582,7 @@ func TestRangeUnion(t *testing.T) {
 	rc1 = rangeConstraint{
 		min: newV(1, 5, 0),
 		max: newV(2, 0, 0),
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 6, 0),
 		},
 	}
@@ -606,7 +606,7 @@ func TestRangeUnion(t *testing.T) {
 	rc2 = rangeConstraint{
 		min: newV(1, 0, 0),
 		max: newV(3, 0, 0),
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 1, 0),
 		},
 	}
@@ -620,13 +620,13 @@ func TestRangeUnion(t *testing.T) {
 
 	// Ensure pure excludes come through as they should
 	rc1 = rangeConstraint{
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 6, 0),
 		},
 	}
 
 	rc2 = rangeConstraint{
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 6, 0),
 			newV(1, 7, 0),
 		},
@@ -640,7 +640,7 @@ func TestRangeUnion(t *testing.T) {
 	}
 
 	rc1 = rangeConstraint{
-		excl: []*Version{
+		excl: []Version{
 			newV(1, 5, 0),
 		},
 	}
@@ -738,7 +738,7 @@ func TestUnionIntersection(t *testing.T) {
 	}
 
 	// Ensure excludes carry as they should
-	rc1.excl = []*Version{newV(1, 5, 5)}
+	rc1.excl = []Version{newV(1, 5, 5)}
 	u1 = unionConstraint{rc1, rc2}
 	ur = unionConstraint{rc1, rc4}
 

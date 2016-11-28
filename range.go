@@ -84,11 +84,11 @@ func (rc rangeConstraint) dup() rangeConstraint {
 }
 
 func (rc rangeConstraint) minIsZero() bool {
-	return rc.min == nil
+	return rc.min.special == zeroVersion
 }
 
 func (rc rangeConstraint) maxIsInf() bool {
-	return rc.max == nil
+	return rc.max.special == infiniteVersion
 }
 
 func (rc rangeConstraint) Intersect(c Constraint) Constraint {
@@ -204,12 +204,12 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 		if oc.LessThan(rc.min) {
 			return unionConstraint{oc, rc.dup()}
 		}
-		if areEq(oc, rc.min) {
+		if oc.Equal(rc.min) {
 			ret := rc.dup()
 			ret.includeMin = true
 			return ret
 		}
-		if areEq(oc, rc.max) {
+		if oc.Equal(rc.max) {
 			ret := rc.dup()
 			ret.includeMax = true
 			return ret
@@ -457,7 +457,7 @@ func areAdjacent(c1, c2 Constraint) bool {
 		return false
 	}
 
-	if !areEq(rc1.max, rc2.min) {
+	if !rc1.max.Equal(rc2.min) {
 		return false
 	}
 
@@ -491,14 +491,3 @@ oloop:
 
 func (rangeConstraint) _private() {}
 func (rangeConstraint) _real()    {}
-
-func areEq(v1, v2 Version) bool {
-	if v1 == nil && v2 == nil {
-		return true
-	}
-
-	if v1 != nil && v2 != nil {
-		return v1.Equal(v2)
-	}
-	return false
-}
