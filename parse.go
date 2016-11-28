@@ -125,6 +125,8 @@ func expandTilde(v Version, wildMinor bool) Constraint {
 func expandNeq(v Version, wildMinor, wildPatch bool) Constraint {
 	if !(wildMinor || wildPatch) {
 		return rangeConstraint{
+			min:  Version{special: zeroVersion},
+			max:  Version{special: infiniteVersion},
 			excl: []Version{v},
 		}
 	}
@@ -132,6 +134,7 @@ func expandNeq(v Version, wildMinor, wildPatch bool) Constraint {
 	// Create the low range with no min, and the max as the floor admitted by
 	// the wildcard
 	lr := rangeConstraint{
+		min:        Version{special: zeroVersion},
 		max:        v,
 		includeMax: false,
 	}
@@ -152,6 +155,7 @@ func expandNeq(v Version, wildMinor, wildPatch bool) Constraint {
 
 	hr := rangeConstraint{
 		min:        minv,
+		max:        Version{special: infiniteVersion},
 		includeMin: true,
 	}
 
@@ -176,12 +180,14 @@ func expandGreater(v Version, wildMinor, wildPatch, eq bool) Constraint {
 		}
 		return rangeConstraint{
 			min:        v,
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
 		}
 	}
 
 	return rangeConstraint{
 		min:        v,
+		max:        Version{special: infiniteVersion},
 		includeMin: eq,
 	}
 }
@@ -200,12 +206,14 @@ func expandLess(v Version, wildMinor, wildPatch, eq bool) Constraint {
 			v.minor++
 		}
 		return rangeConstraint{
+			min:        Version{special: zeroVersion},
 			max:        v,
 			includeMax: false,
 		}
 	}
 
 	return rangeConstraint{
+		min:        Version{special: zeroVersion},
 		max:        v,
 		includeMax: eq,
 	}

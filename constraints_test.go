@@ -11,28 +11,34 @@ func TestParseConstraint(t *testing.T) {
 		{"*", Any(), false},
 		{">= 1.2", rangeConstraint{
 			min:        newV(1, 2, 0),
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
 		}, false},
 		{"1.0", newV(1, 0, 0), false},
 		{"foo", nil, true},
 		{"<= 1.2", rangeConstraint{
+			min:        Version{special: zeroVersion},
 			max:        newV(1, 2, 0),
 			includeMax: true,
 		}, false},
 		{"=< 1.2", rangeConstraint{
+			min:        Version{special: zeroVersion},
 			max:        newV(1, 2, 0),
 			includeMax: true,
 		}, false},
 		{"=> 1.2", rangeConstraint{
 			min:        newV(1, 2, 0),
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
 		}, false},
 		{"v1.2", newV(1, 2, 0), false},
 		{"=1.5", newV(1, 5, 0), false},
 		{"> 1.3", rangeConstraint{
 			min: newV(1, 3, 0),
+			max: Version{special: infiniteVersion},
 		}, false},
 		{"< 1.4.1", rangeConstraint{
+			min: Version{special: zeroVersion},
 			max: newV(1, 4, 1),
 		}, false},
 		{"~1.1.0", rangeConstraint{
