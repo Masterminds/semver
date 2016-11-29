@@ -136,7 +136,7 @@ func constraintEq(c1, c2 Constraint) bool {
 }
 
 // newV is a helper to create a new Version object.
-func newV(major, minor, patch int64) *Version {
+func newV(major, minor, patch uint64) *Version {
 	return &Version{
 		major: major,
 		minor: minor,
