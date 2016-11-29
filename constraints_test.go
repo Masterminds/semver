@@ -72,6 +72,10 @@ func TestConstraintCheck(t *testing.T) {
 		{"<=1.1", "0.1.0", true},
 		{"<=1.1", "1.1.0", true},
 		{"<=1.1", "1.1.1", false},
+		{">0", "0.0.1-alpha", true},
+		{">=0", "0.0.1-alpha", true},
+		{">0", "0", false},
+		{">=0", "0", true},
 	}
 
 	for _, tc := range tests {
@@ -89,7 +93,7 @@ func TestConstraintCheck(t *testing.T) {
 
 		a := c.check(v)
 		if a != tc.check {
-			t.Errorf("Constraint '%s' failing", tc.constraint)
+			t.Errorf("Constraint %q failing with %q", tc.constraint, tc.version)
 		}
 	}
 }
