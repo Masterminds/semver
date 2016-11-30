@@ -364,7 +364,7 @@ func TestConstraintsValidate(t *testing.T) {
 		a, msgs := c.Validate(v)
 		if a != tc.check {
 			t.Errorf("Constraint '%s' failing with '%s'", tc.constraint, tc.version)
-		} else if a == false && len(msgs) == 0 {
+		} else if !a && len(msgs) == 0 {
 			t.Errorf("%q failed with %q but no errors returned", tc.constraint, tc.version)
 		}
 
