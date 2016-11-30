@@ -17,8 +17,12 @@ var validPrereleaseRegex *regexp.Regexp
 var (
 	// ErrInvalidSemVer is returned a version is found to be invalid when
 	// being parsed.
-	ErrInvalidSemVer     = errors.New("Invalid Semantic Version")
-	ErrInvalidMetadata   = errors.New("Invalid Metadata string")
+	ErrInvalidSemVer = errors.New("Invalid Semantic Version")
+
+	// ErrInvalidMetadata is returned when the metadata is an invalid format
+	ErrInvalidMetadata = errors.New("Invalid Metadata string")
+
+	// ErrInvalidPrerelease is returned when the pre-release is an invalid format
 	ErrInvalidPrerelease = errors.New("Invalid Prerelease string")
 )
 
@@ -211,11 +215,11 @@ func (v Version) IncMajor() Version {
 	return vNext
 }
 
-// SetPrelease defines the prerelease value.
+// SetPrerelease defines the prerelease value.
 // Value must not include the required 'hypen' prefix.
 func (v Version) SetPrerelease(prerelease string) (Version, error) {
 	vNext := v
-	if len(prerelease) > 0 && validPrereleaseRegex.MatchString(prerelease) == false {
+	if len(prerelease) > 0 && !validPrereleaseRegex.MatchString(prerelease) {
 		return vNext, ErrInvalidPrerelease
 	}
 	vNext.pre = prerelease
@@ -227,7 +231,7 @@ func (v Version) SetPrerelease(prerelease string) (Version, error) {
 // Value must not include the required 'plus' prefix.
 func (v Version) SetMetadata(metadata string) (Version, error) {
 	vNext := v
-	if len(metadata) > 0 && validPrereleaseRegex.MatchString(metadata) == false {
+	if len(metadata) > 0 && !validPrereleaseRegex.MatchString(metadata) {
 		return vNext, ErrInvalidMetadata
 	}
 	vNext.metadata = metadata
