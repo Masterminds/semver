@@ -20,7 +20,7 @@ func (rc rangeConstraint) Matches(v *Version) error {
 		rc: rc,
 	}
 
-	if !rc.hasZeroMin() {
+	if !rc.minIsZero() {
 		// TODO ensure sane handling of prerelease versions (which are strictly
 		// less than the normal version, but should be admitted in a geq range)
 		cmp := rc.min.Compare(v)
@@ -37,7 +37,7 @@ func (rc rangeConstraint) Matches(v *Version) error {
 		}
 	}
 
-	if !rc.hasInfMax() {
+	if !rc.maxIsInf() {
 		// TODO ensure sane handling of prerelease versions (which are strictly
 		// less than the normal version, but should be admitted in a geq range)
 		cmp := rc.max.Compare(v)
@@ -83,11 +83,11 @@ func (rc rangeConstraint) dup() rangeConstraint {
 	}
 }
 
-func (rc rangeConstraint) hasZeroMin() bool {
+func (rc rangeConstraint) minIsZero() bool {
 	return rc.min == nil
 }
 
-func (rc rangeConstraint) hasInfMax() bool {
+func (rc rangeConstraint) maxIsInf() bool {
 	return rc.max == nil
 }
 
@@ -113,8 +113,8 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 			includeMax: rc.includeMax,
 		}
 
-		if !oc.hasZeroMin() {
-			if nr.hasZeroMin() || nr.min.LessThan(oc.min) {
+		if !oc.minIsZero() {
+			if nr.minIsZero() || nr.min.LessThan(oc.min) {
 				nr.min = oc.min
 				nr.includeMin = oc.includeMin
 			} else if oc.min.Equal(nr.min) && !oc.includeMin {
@@ -123,8 +123,8 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 			}
 		}
 
-		if !oc.hasInfMax() {
-			if nr.hasInfMax() || nr.max.GreaterThan(oc.max) {
+		if !oc.maxIsInf() {
+			if nr.maxIsInf() || nr.max.GreaterThan(oc.max) {
 				nr.max = oc.max
 				nr.includeMax = oc.includeMax
 			} else if oc.max.Equal(nr.max) && !oc.includeMax {
@@ -140,7 +140,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 			}
 		}
 
-		if nr.hasZeroMin() || nr.hasInfMax() {
+		if nr.minIsZero() || nr.maxIsInf() {
 			return nr
 		}
 
@@ -217,7 +217,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 		// Only possibility left is gt
 		return unionConstraint{rc.dup(), oc}
 	case rangeConstraint:
-		if (rc.hasZeroMin() && oc.hasInfMax()) || (rc.hasInfMax() && oc.hasZeroMin()) {
+		if (rc.minIsZero() && oc.maxIsInf()) || (rc.maxIsInf() && oc.minIsZero()) {
 			rcl, ocl := len(rc.excl), len(oc.excl)
 			// Quick check for open case
 			if rcl == 0 && ocl == 0 {
@@ -281,8 +281,8 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			)
 
 			// Pick the min
-			if !rc.hasZeroMin() {
-				if oc.hasZeroMin() || rc.min.GreaterThan(oc.min) || (rc.min.Equal(oc.min) && !rc.includeMin && oc.includeMin) {
+			if !rc.minIsZero() {
+				if oc.minIsZero() || rc.min.GreaterThan(oc.min) || (rc.min.Equal(oc.min) && !rc.includeMin && oc.includeMin) {
 					info |= rminlt
 					nc.min = oc.min
 					nc.includeMin = oc.includeMin
@@ -291,15 +291,15 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 					nc.min = rc.min
 					nc.includeMin = rc.includeMin
 				}
-			} else if !oc.hasZeroMin() {
+			} else if !oc.minIsZero() {
 				info |= lminlt
 				nc.min = rc.min
 				nc.includeMin = rc.includeMin
 			}
 
 			// Pick the max
-			if !rc.hasInfMax() {
-				if oc.hasInfMax() || rc.max.LessThan(oc.max) || (rc.max.Equal(oc.max) && !rc.includeMax && oc.includeMax) {
+			if !rc.maxIsInf() {
+				if oc.maxIsInf() || rc.max.LessThan(oc.max) || (rc.max.Equal(oc.max) && !rc.includeMax && oc.includeMax) {
 					info |= rmaxgt
 					nc.max = oc.max
 					nc.includeMax = oc.includeMax
@@ -308,7 +308,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 					nc.max = rc.max
 					nc.includeMax = rc.includeMax
 				}
-			} else if oc.hasInfMax() {
+			} else if oc.maxIsInf() {
 				info |= lmaxgt
 				nc.max = rc.max
 				nc.includeMax = rc.includeMax
@@ -354,14 +354,14 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 // Note also that this does *not* compare excluded versions - it only compares
 // range endpoints.
 func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
-	if !rc.hasZeroMin() {
-		if rc2.hasZeroMin() || rc.min.GreaterThan(rc2.min) || (rc.min.Equal(rc2.min) && !rc.includeMin && rc2.includeMin) {
+	if !rc.minIsZero() {
+		if rc2.minIsZero() || rc.min.GreaterThan(rc2.min) || (rc.min.Equal(rc2.min) && !rc.includeMin && rc2.includeMin) {
 			return false
 		}
 	}
 
-	if !rc.hasInfMax() {
-		if rc2.hasInfMax() || rc.max.LessThan(rc2.max) || (rc.max.Equal(rc2.max) && !rc.includeMax && rc2.includeMax) {
+	if !rc.maxIsInf() {
+		if rc2.maxIsInf() || rc.max.LessThan(rc2.max) || (rc.max.Equal(rc2.max) && !rc.includeMax && rc2.includeMax) {
 			return false
 		}
 	}
@@ -372,7 +372,7 @@ func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
 func (rc rangeConstraint) String() string {
 	// TODO express using caret or tilde, where applicable
 	var pieces []string
-	if !rc.hasZeroMin() {
+	if !rc.minIsZero() {
 		if rc.includeMin {
 			pieces = append(pieces, fmt.Sprintf(">=%s", rc.min))
 		} else {
@@ -380,7 +380,7 @@ func (rc rangeConstraint) String() string {
 		}
 	}
 
-	if !rc.hasInfMax() {
+	if !rc.maxIsInf() {
 		if rc.includeMax {
 			pieces = append(pieces, fmt.Sprintf("<=%s", rc.max))
 		} else {
