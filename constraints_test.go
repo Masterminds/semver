@@ -405,12 +405,18 @@ func TestBidirectionalSerialization(t *testing.T) {
 		{"4.1.0", true},
 		{"!=4.1.0", true},
 		{">=1.1.0", true},
-		{">=1.1.0, <2.0.0", true},
 		{">1.0.0, <=1.1.0", true},
 		{"<=1.1.0", true},
-		{">=1.1.0, <2.0.0, !=1.2.3", true},
-		{">=1.1.0, <2.0.0, !=1.2.3 || >3.0.0", true},
-		{">=1.1.0, <2.0.0, !=1.2.3 || >=3.0.0", true},
+		{">=1.1.7, <1.3.0", true},  // tilde width
+		{">=1.1.0, <=2.0.0", true}, // no unary op on lte max
+		{">1.1.3, <2.0.0", true},   // no unary op on gt min
+		{">1.1.0, <=2.0.0", true},  // no unary op on gt min and lte max
+		{">=1.1.0, <=1.2.0", true}, // no unary op on lte max
+		{">1.1.1, <1.2.0", true},   // no unary op on gt min
+		{">1.1.7, <=2.0.0", true},  // no unary op on gt min and lte max
+		{">1.1.7, <=2.0.0", true},  // no unary op on gt min and lte max
+		{">=0.1.7, <1.0.0", true},  // carat shifting below 1.0.0
+		{">=0.1.7, <0.3.0", true},  // carat shifting width below 1.0.0
 	}
 
 	for _, fix := range tests {
@@ -426,6 +432,27 @@ func TestBidirectionalSerialization(t *testing.T) {
 			} else {
 				t.Errorf("Constraint should have reproduced input string %q, but instead produced %q", fix.io, c)
 			}
+		}
+	}
+}
+
+func TestPreferUnaryOpForm(t *testing.T) {
+	tests := []struct {
+		in, out string
+	}{
+		{">=0.1.7, <0.2.0", "^0.1.7"}, // carat shifting below 1.0.0
+		{">=1.1.0, <2.0.0", "^1.1.0"},
+		{">=1.1.0, <2.0.0, !=1.2.3", "^1.1.0, !=1.2.3"},
+	}
+
+	for _, fix := range tests {
+		c, err := NewConstraint(fix.in)
+		if err != nil {
+			t.Errorf("Valid constraint string produced unexpected error: %s", err)
+		}
+
+		if fix.out != c.String() {
+			t.Errorf("Constraint %q was not transformed into expected output string %q", fix.in, fix.out)
 		}
 	}
 }
@@ -484,7 +511,7 @@ func TestUnionErr(t *testing.T) {
 		},
 	)
 	fail := u1.Matches(newV(2, 5, 0))
-	failstr := `2.5.0 is greater than or equal to the maximum of >=1.0.0, <2.0.0
+	failstr := `2.5.0 is greater than or equal to the maximum of ^1.0.0
 2.5.0 is less than the minimum of >=3.0.0, <=4.0.0`
 	if fail.Error() != failstr {
 		t.Errorf("Did not get expected failure message from union, got %q", fail)
