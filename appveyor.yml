@@ -32,13 +32,13 @@ test_script:
     --tests \
     --vendor \
     --deadline 60s \
-    ./... || exit_code=1"
+    ./... || cmd /C EXIT 0"
   - "gometalinter.v1 \
     --disable-all \
     --enable golint \
     --vendor \
     --deadline 60s \
-    ./... || :"
+    ./... || cmd /C EXIT 0"
   - go test -v
 
 deploy: off
