@@ -370,22 +370,66 @@ func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
 }
 
 func (rc rangeConstraint) String() string {
-	// TODO express using caret or tilde, where applicable
 	var pieces []string
-	if !rc.minIsZero() {
-		if rc.includeMin {
-			pieces = append(pieces, fmt.Sprintf(">=%s", rc.min))
-		} else {
-			pieces = append(pieces, fmt.Sprintf(">%s", rc.min))
+
+	// We need to trigger the standard verbose handling from various points, so
+	// wrap it in a function.
+	noshort := func() {
+		if !rc.minIsZero() {
+			if rc.includeMin {
+				pieces = append(pieces, fmt.Sprintf(">=%s", rc.min))
+			} else {
+				pieces = append(pieces, fmt.Sprintf(">%s", rc.min))
+			}
+		}
+
+		if !rc.maxIsInf() {
+			if rc.includeMax {
+				pieces = append(pieces, fmt.Sprintf("<=%s", rc.max))
+			} else {
+				pieces = append(pieces, fmt.Sprintf("<%s", rc.max))
+			}
 		}
 	}
 
-	if !rc.maxIsInf() {
-		if rc.includeMax {
-			pieces = append(pieces, fmt.Sprintf("<=%s", rc.max))
-		} else {
-			pieces = append(pieces, fmt.Sprintf("<%s", rc.max))
+	// Handle the possibility that we might be able to express the range
+	// with a carat or tilde, as we prefer those forms.
+	switch {
+	case rc.minIsZero() && rc.maxIsInf():
+		// This if is internal because it's useful to know for the other cases
+		// that we don't have special values at both bounds
+		if len(rc.excl) == 0 {
+			// Shouldn't be possible to reach from anything that can be done
+			// outside the package, but best to cover it and be safe
+			return "*"
 		}
+	case rc.minIsZero(), rc.includeMax, !rc.includeMin:
+		// tilde and carat could never apply here
+		noshort()
+	case !rc.maxIsInf() && rc.max.Minor() == 0 && rc.max.Patch() == 0: // basic carat
+		if rc.min.Major() == rc.max.Major()-1 && rc.min.Major() != 0 {
+			pieces = append(pieces, fmt.Sprintf("^%s", rc.min))
+		} else {
+			// range is too wide for carat, need standard operators
+			noshort()
+		}
+	case !rc.maxIsInf() && rc.max.Major() != 0 && rc.max.Patch() == 0: // basic tilde
+		if rc.min.Minor() == rc.max.Minor()-1 && rc.min.Major() == rc.max.Major() {
+			pieces = append(pieces, fmt.Sprintf("~%s", rc.min))
+		} else {
+			// range is too wide for tilde, need standard operators
+			noshort()
+		}
+	case !rc.maxIsInf() && rc.max.Major() == 0 && rc.max.Patch() == 0 && rc.max.Minor() != 0:
+		// below 1.0.0, tilde is meaningless but carat is shifted to the
+		// right (so it basically behaves the same as tilde does above 1.0.0)
+		if rc.min.Minor() == rc.max.Minor()-1 {
+			pieces = append(pieces, fmt.Sprintf("^%s", rc.min))
+		} else {
+			noshort()
+		}
+	default:
+		noshort()
 	}
 
 	for _, e := range rc.excl {
