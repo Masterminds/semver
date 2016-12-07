@@ -63,14 +63,14 @@ func NewVersion(v string) (*Version, error) {
 	}
 
 	var temp int64
-	temp, err := strconv.ParseInt(m[1], 10, 32)
+	temp, err := strconv.ParseInt(m[1], 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing version segment: %s", err)
 	}
 	sv.major = temp
 
 	if m[2] != "" {
-		temp, err = strconv.ParseInt(strings.TrimPrefix(m[2], "."), 10, 32)
+		temp, err = strconv.ParseInt(strings.TrimPrefix(m[2], "."), 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing version segment: %s", err)
 		}
@@ -80,7 +80,7 @@ func NewVersion(v string) (*Version, error) {
 	}
 
 	if m[3] != "" {
-		temp, err = strconv.ParseInt(strings.TrimPrefix(m[3], "."), 10, 32)
+		temp, err = strconv.ParseInt(strings.TrimPrefix(m[3], "."), 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing version segment: %s", err)
 		}

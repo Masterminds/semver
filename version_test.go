@@ -32,6 +32,7 @@ func TestNewVersion(t *testing.T) {
 		{"v1.2.3-rc1-with-hypen", false},
 		{"1.2.3.4", true},
 		{"v1.2.3.4", true},
+		{"20161202202307-sha.e8fc5e5", false},
 	}
 
 	for _, tc := range tests {
