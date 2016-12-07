@@ -13,6 +13,7 @@ func TestParseConstraint(t *testing.T) {
 		err bool
 	}{
 		{">= 1.2", constraintGreaterThanEqual, "1.2.0", false},
+		{">= 2.3.5-20161202202307-sha.e8fc5e5", constraintGreaterThanEqual, "2.3.5-20161202202307-sha.e8fc5e5", false},
 		{"1.0", constraintTildeOrEqual, "1.0.0", false},
 		{"foo", nil, "", true},
 		{"<= 1.2", constraintLessThanEqual, "1.2.0", false},
@@ -108,7 +109,7 @@ func TestNewConstraint(t *testing.T) {
 		{">= 1.2.3, < 2.0 || => 3.0, < 4", 2, 2, false},
 
 		// The 3-4 should be broken into 2 by the range rewriting
-		{"3-4 || => 3.0, < 4", 2, 2, false},
+		{"3 - 4 || => 3.0, < 4", 2, 2, false},
 	}
 
 	for _, tc := range tests {
@@ -239,9 +240,9 @@ func TestRewriteRange(t *testing.T) {
 		c  string
 		nc string
 	}{
-		{"2-3", ">= 2, <= 3"},
-		{"2-3, 2-3", ">= 2, <= 3,>= 2, <= 3"},
-		{"2-3, 4.0.0-5.1", ">= 2, <= 3,>= 4.0.0, <= 5.1"},
+		{"2 - 3", ">= 2, <= 3"},
+		{"2 - 3, 2 - 3", ">= 2, <= 3,>= 2, <= 3"},
+		{"2 - 3, 4.0.0 - 5.1", ">= 2, <= 3,>= 4.0.0, <= 5.1"},
 	}
 
 	for _, tc := range tests {
@@ -414,7 +415,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{">=1.1, <2, !=1.2.3", "1.2.3", "1.2.3 is equal to 1.2.3"},
 		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", "3.0.0 is greater than or equal to 2"},
 		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", "1.2.3 is equal to 1.2.3"},
-		{"1.1-3", "4.3.2", "4.3.2 is greater than 3"},
+		{"1.1 - 3", "4.3.2", "4.3.2 is greater than 3"},
 		{"^1.1", "4.3.2", "4.3.2 does not have same major version as 1.1"},
 		{"^2.x", "1.1.1", "1.1.1 does not have same major version as 2.x"},
 		{"^1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
