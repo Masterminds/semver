@@ -91,7 +91,7 @@ func (cl constraintList) Less(i, j int) bool {
 		case Version:
 			return tic.LessThan(tjc)
 		case rangeConstraint:
-			if tjc.hasZeroMin() {
+			if tjc.minIsZero() {
 				return false
 			}
 
@@ -105,7 +105,7 @@ func (cl constraintList) Less(i, j int) bool {
 	case rangeConstraint:
 		switch tjc := jc.(type) {
 		case Version:
-			if tic.hasZeroMin() {
+			if tic.minIsZero() {
 				return true
 			}
 
@@ -116,10 +116,10 @@ func (cl constraintList) Less(i, j int) bool {
 			}
 			return tic.min.LessThan(tjc)
 		case rangeConstraint:
-			if tic.hasZeroMin() {
+			if tic.minIsZero() {
 				return true
 			}
-			if tjc.hasZeroMin() {
+			if tjc.minIsZero() {
 				return false
 			}
 			return tic.min.LessThan(tjc.min)
