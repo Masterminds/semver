@@ -1,6 +1,11 @@
+# Release 1.2.2 (2016-12-13)
+
+## Fixed
+- #34: Fixed issue where hyphen range was not working with pre-release parsing.
+
 # Release 1.2.1 (2016-11-28)
 
-## Fixed:
+## Fixed
 - #24: Fixed edge case issue where constraint "> 0" does not handle "0.0.1-alpha"
   properly.
 
