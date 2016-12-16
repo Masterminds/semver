@@ -225,6 +225,7 @@ func TestNewConstraint(t *testing.T) {
 	}{
 		{">= 1.1", rangeConstraint{
 			min:        newV(1, 1, 0),
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
 		}, false},
 		{"2.0", newV(2, 0, 0), false},
@@ -273,12 +274,15 @@ func TestNewConstraint(t *testing.T) {
 			includeMax: false,
 		}, false},
 		{"!=1.4.0", rangeConstraint{
+			min: Version{special: zeroVersion},
+			max: Version{special: infiniteVersion},
 			excl: []Version{
 				newV(1, 4, 0),
 			},
 		}, false},
 		{">=1.1.0, !=1.4.0", rangeConstraint{
 			min:        newV(1, 1, 0),
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
 			excl: []Version{
 				newV(1, 4, 0),
@@ -536,10 +540,12 @@ func TestIsSuperset(t *testing.T) {
 			max: newV(2, 1, 0),
 		},
 		rangeConstraint{
+			min: Version{special: zeroVersion},
 			max: newV(1, 10, 0),
 		},
 		rangeConstraint{
 			min: newV(2, 0, 0),
+			max: Version{special: infiniteVersion},
 		},
 		rangeConstraint{
 			min:        newV(1, 2, 0),

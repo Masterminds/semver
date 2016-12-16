@@ -133,8 +133,10 @@ func TestRangeIntersection(t *testing.T) {
 	// Overlaps with nils
 	rc1 = rangeConstraint{
 		min: newV(1, 0, 0),
+		max: Version{special: infiniteVersion},
 	}
 	rc2 = rangeConstraint{
+		min: Version{special: zeroVersion},
 		max: newV(2, 2, 0),
 	}
 	result = rangeConstraint{
@@ -296,9 +298,11 @@ func TestRangeIntersection(t *testing.T) {
 	// Test min, and greater min
 	rc1 = rangeConstraint{
 		min: newV(1, 0, 0),
+		max: Version{special: infiniteVersion},
 	}
 	rc2 = rangeConstraint{
 		min:        newV(1, 5, 0),
+		max:        Version{special: infiniteVersion},
 		includeMin: true,
 	}
 
@@ -329,12 +333,16 @@ func TestRangeIntersection(t *testing.T) {
 
 	// Ensure pure excludes come through as they should
 	rc1 = rangeConstraint{
+		min: Version{special: zeroVersion},
+		max: Version{special: infiniteVersion},
 		excl: []Version{
 			newV(1, 6, 0),
 		},
 	}
 
 	rc2 = rangeConstraint{
+		min: Version{special: zeroVersion},
+		max: Version{special: infiniteVersion},
 		excl: []Version{
 			newV(1, 6, 0),
 			newV(1, 7, 0),
@@ -454,8 +462,10 @@ func TestRangeUnion(t *testing.T) {
 	// Overlaps with nils
 	rc1 = rangeConstraint{
 		min: newV(1, 0, 0),
+		max: Version{special: infiniteVersion},
 	}
 	rc2 = rangeConstraint{
+		min: Version{special: zeroVersion},
 		max: newV(2, 2, 0),
 	}
 
@@ -469,6 +479,7 @@ func TestRangeUnion(t *testing.T) {
 	// Just one nil in overlap
 	rc1.max = newV(2, 0, 0)
 	result = rangeConstraint{
+		min: Version{special: zeroVersion},
 		max: newV(2, 2, 0),
 	}
 
@@ -483,6 +494,7 @@ func TestRangeUnion(t *testing.T) {
 	rc2.min = newV(1, 5, 0)
 	result = rangeConstraint{
 		min: newV(1, 0, 0),
+		max: Version{special: infiniteVersion},
 	}
 
 	if actual = rc1.Union(rc2); !constraintEq(actual, result) {
@@ -620,12 +632,16 @@ func TestRangeUnion(t *testing.T) {
 
 	// Ensure pure excludes come through as they should
 	rc1 = rangeConstraint{
+		min: Version{special: zeroVersion},
+		max: Version{special: infiniteVersion},
 		excl: []Version{
 			newV(1, 6, 0),
 		},
 	}
 
 	rc2 = rangeConstraint{
+		min: Version{special: zeroVersion},
+		max: Version{special: infiniteVersion},
 		excl: []Version{
 			newV(1, 6, 0),
 			newV(1, 7, 0),
@@ -640,6 +656,8 @@ func TestRangeUnion(t *testing.T) {
 	}
 
 	rc1 = rangeConstraint{
+		min: Version{special: zeroVersion},
+		max: Version{special: infiniteVersion},
 		excl: []Version{
 			newV(1, 5, 0),
 		},

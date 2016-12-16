@@ -233,7 +233,10 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			}
 
 			// There's at least some dupes, which are all we need to include
-			nc := rangeConstraint{}
+			nc := rangeConstraint{
+				min: Version{special: zeroVersion},
+				max: Version{special: infiniteVersion},
+			}
 			for _, e1 := range rc.excl {
 				for _, e2 := range oc.excl {
 					if e1.Equal(e2) {
@@ -264,7 +267,10 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 
 		} else if rc.MatchesAny(oc) {
 			// Receiver and input overlap; form a new range accordingly.
-			nc := rangeConstraint{}
+			nc := rangeConstraint{
+				min: Version{special: zeroVersion},
+				max: Version{special: infiniteVersion},
+			}
 
 			// For efficiency, we simultaneously determine if either of the
 			// ranges are supersets of the other, while also selecting the min
