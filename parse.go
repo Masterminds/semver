@@ -49,6 +49,10 @@ func parseConstraint(c string) (Constraint, error) {
 		return nil, errors.New("constraint Parser Error")
 	}
 
+	// We never want to keep the "original" data in a constraint, and keeping it
+	// around can disrupt simple equality comparisons. So, strip it out.
+	v.original = ""
+
 	switch m[1] {
 	case "^":
 		// Caret always expands to a range
