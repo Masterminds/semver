@@ -11,28 +11,34 @@ func TestParseConstraint(t *testing.T) {
 		{"*", Any(), false},
 		{">= 1.2", rangeConstraint{
 			min:        newV(1, 2, 0),
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
 		}, false},
 		{"1.0", newV(1, 0, 0), false},
 		{"foo", nil, true},
 		{"<= 1.2", rangeConstraint{
+			min:        Version{special: zeroVersion},
 			max:        newV(1, 2, 0),
 			includeMax: true,
 		}, false},
 		{"=< 1.2", rangeConstraint{
+			min:        Version{special: zeroVersion},
 			max:        newV(1, 2, 0),
 			includeMax: true,
 		}, false},
 		{"=> 1.2", rangeConstraint{
 			min:        newV(1, 2, 0),
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
 		}, false},
 		{"v1.2", newV(1, 2, 0), false},
 		{"=1.5", newV(1, 5, 0), false},
 		{"> 1.3", rangeConstraint{
 			min: newV(1, 3, 0),
+			max: Version{special: infiniteVersion},
 		}, false},
 		{"< 1.4.1", rangeConstraint{
+			min: Version{special: zeroVersion},
 			max: newV(1, 4, 1),
 		}, false},
 		{"~1.1.0", rangeConstraint{
@@ -81,8 +87,8 @@ func constraintEq(c1, c2 Constraint) bool {
 			return false
 		}
 		return true
-	case *Version:
-		if tc2, ok := c2.(*Version); ok {
+	case Version:
+		if tc2, ok := c2.(Version); ok {
 			return tc1.Equal(tc2)
 		}
 		return false
@@ -136,8 +142,8 @@ func constraintEq(c1, c2 Constraint) bool {
 }
 
 // newV is a helper to create a new Version object.
-func newV(major, minor, patch uint64) *Version {
-	return &Version{
+func newV(major, minor, patch uint64) Version {
+	return Version{
 		major: major,
 		minor: minor,
 		patch: patch,
@@ -219,6 +225,7 @@ func TestNewConstraint(t *testing.T) {
 	}{
 		{">= 1.1", rangeConstraint{
 			min:        newV(1, 1, 0),
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
 		}, false},
 		{"2.0", newV(2, 0, 0), false},
@@ -267,14 +274,17 @@ func TestNewConstraint(t *testing.T) {
 			includeMax: false,
 		}, false},
 		{"!=1.4.0", rangeConstraint{
-			excl: []*Version{
+			min: Version{special: zeroVersion},
+			max: Version{special: infiniteVersion},
+			excl: []Version{
 				newV(1, 4, 0),
 			},
 		}, false},
 		{">=1.1.0, !=1.4.0", rangeConstraint{
 			min:        newV(1, 1, 0),
+			max:        Version{special: infiniteVersion},
 			includeMin: true,
-			excl: []*Version{
+			excl: []Version{
 				newV(1, 4, 0),
 			},
 		}, false},
@@ -530,10 +540,12 @@ func TestIsSuperset(t *testing.T) {
 			max: newV(2, 1, 0),
 		},
 		rangeConstraint{
+			min: Version{special: zeroVersion},
 			max: newV(1, 10, 0),
 		},
 		rangeConstraint{
 			min: newV(2, 0, 0),
+			max: Version{special: infiniteVersion},
 		},
 		rangeConstraint{
 			min:        newV(1, 2, 0),
@@ -604,7 +616,7 @@ func TestIsSuperset(t *testing.T) {
 
 	// isSupersetOf ignores excludes, so even though this would make rc[1] not a
 	// superset of rc[0] anymore, it should still say it is.
-	rc[1].excl = []*Version{
+	rc[1].excl = []Version{
 		newV(1, 5, 0),
 	}
 

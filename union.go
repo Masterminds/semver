@@ -4,7 +4,7 @@ import "strings"
 
 type unionConstraint []realConstraint
 
-func (uc unionConstraint) Matches(v *Version) error {
+func (uc unionConstraint) Matches(v Version) error {
 	var uce MultiMatchFailure
 	for _, c := range uc {
 		if err := c.Matches(v); err == nil {
@@ -25,7 +25,7 @@ func (uc unionConstraint) Intersect(c2 Constraint) Constraint {
 		return None()
 	case any:
 		return uc
-	case *Version:
+	case Version:
 		return c2
 	case rangeConstraint:
 		other = append(other, tc2)
@@ -86,12 +86,12 @@ func (cl constraintList) Less(i, j int) bool {
 	ic, jc := cl[i], cl[j]
 
 	switch tic := ic.(type) {
-	case *Version:
+	case Version:
 		switch tjc := jc.(type) {
-		case *Version:
+		case Version:
 			return tic.LessThan(tjc)
 		case rangeConstraint:
-			if tjc.min == nil {
+			if tjc.minIsZero() {
 				return false
 			}
 
@@ -104,8 +104,8 @@ func (cl constraintList) Less(i, j int) bool {
 		}
 	case rangeConstraint:
 		switch tjc := jc.(type) {
-		case *Version:
-			if tic.min == nil {
+		case Version:
+			if tic.minIsZero() {
 				return true
 			}
 
@@ -116,10 +116,10 @@ func (cl constraintList) Less(i, j int) bool {
 			}
 			return tic.min.LessThan(tjc)
 		case rangeConstraint:
-			if tic.min == nil {
+			if tic.minIsZero() {
 				return true
 			}
-			if tjc.min == nil {
+			if tjc.minIsZero() {
 				return false
 			}
 			return tic.min.LessThan(tjc.min)

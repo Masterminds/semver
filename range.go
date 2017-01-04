@@ -7,12 +7,12 @@ import (
 )
 
 type rangeConstraint struct {
-	min, max               *Version
+	min, max               Version
 	includeMin, includeMax bool
-	excl                   []*Version
+	excl                   []Version
 }
 
-func (rc rangeConstraint) Matches(v *Version) error {
+func (rc rangeConstraint) Matches(v Version) error {
 	var fail bool
 
 	rce := RangeMatchFailure{
@@ -70,8 +70,8 @@ func (rc rangeConstraint) dup() rangeConstraint {
 		return rc
 	}
 
-	var excl []*Version
-	excl = make([]*Version, len(rc.excl))
+	var excl []Version
+	excl = make([]Version, len(rc.excl))
 	copy(excl, rc.excl)
 
 	return rangeConstraint{
@@ -84,11 +84,11 @@ func (rc rangeConstraint) dup() rangeConstraint {
 }
 
 func (rc rangeConstraint) minIsZero() bool {
-	return rc.min == nil
+	return rc.min.special == zeroVersion
 }
 
 func (rc rangeConstraint) maxIsInf() bool {
-	return rc.max == nil
+	return rc.max.special == infiniteVersion
 }
 
 func (rc rangeConstraint) Intersect(c Constraint) Constraint {
@@ -99,7 +99,7 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 		return None()
 	case unionConstraint:
 		return oc.Intersect(rc)
-	case *Version:
+	case Version:
 		if err := rc.Matches(oc); err != nil {
 			return None()
 		} else {
@@ -174,7 +174,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 		return rc
 	case unionConstraint:
 		return Union(rc, oc)
-	case *Version:
+	case Version:
 		if err := rc.Matches(oc); err == nil {
 			return rc
 		} else if len(rc.excl) > 0 { // TODO (re)checking like this is wasteful
@@ -182,7 +182,7 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			// it and return that
 			for k, e := range rc.excl {
 				if e.Equal(oc) {
-					excl := make([]*Version, len(rc.excl)-1)
+					excl := make([]Version, len(rc.excl)-1)
 
 					if k == len(rc.excl)-1 {
 						copy(excl, rc.excl[:k])
@@ -204,12 +204,12 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 		if oc.LessThan(rc.min) {
 			return unionConstraint{oc, rc.dup()}
 		}
-		if areEq(oc, rc.min) {
+		if oc.Equal(rc.min) {
 			ret := rc.dup()
 			ret.includeMin = true
 			return ret
 		}
-		if areEq(oc, rc.max) {
+		if oc.Equal(rc.max) {
 			ret := rc.dup()
 			ret.includeMax = true
 			return ret
@@ -233,7 +233,10 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 			}
 
 			// There's at least some dupes, which are all we need to include
-			nc := rangeConstraint{}
+			nc := rangeConstraint{
+				min: Version{special: zeroVersion},
+				max: Version{special: infiniteVersion},
+			}
 			for _, e1 := range rc.excl {
 				for _, e2 := range oc.excl {
 					if e1.Equal(e2) {
@@ -264,7 +267,10 @@ func (rc rangeConstraint) Union(c Constraint) Constraint {
 
 		} else if rc.MatchesAny(oc) {
 			// Receiver and input overlap; form a new range accordingly.
-			nc := rangeConstraint{}
+			nc := rangeConstraint{
+				min: Version{special: zeroVersion},
+				max: Version{special: infiniteVersion},
+			}
 
 			// For efficiency, we simultaneously determine if either of the
 			// ranges are supersets of the other, while also selecting the min
@@ -457,7 +463,7 @@ func areAdjacent(c1, c2 Constraint) bool {
 		return false
 	}
 
-	if !areEq(rc1.max, rc2.min) {
+	if !rc1.max.Equal(rc2.min) {
 		return false
 	}
 
@@ -472,10 +478,10 @@ func (rc rangeConstraint) MatchesAny(c Constraint) bool {
 	return true
 }
 
-func dedupeExcls(ex1, ex2 []*Version) []*Version {
+func dedupeExcls(ex1, ex2 []Version) []Version {
 	// TODO stupid inefficient, but these are really only ever going to be
 	// small, so not worth optimizing right now
-	var ret []*Version
+	var ret []Version
 oloop:
 	for _, e1 := range ex1 {
 		for _, e2 := range ex2 {
@@ -491,14 +497,3 @@ oloop:
 
 func (rangeConstraint) _private() {}
 func (rangeConstraint) _real()    {}
-
-func areEq(v1, v2 *Version) bool {
-	if v1 == nil && v2 == nil {
-		return true
-	}
-
-	if v1 != nil && v2 != nil {
-		return v1.Equal(v2)
-	}
-	return false
-}

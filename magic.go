@@ -18,7 +18,7 @@ func (any) String() string {
 
 // Matches checks that a version satisfies the constraint. As all versions
 // satisfy Any, this always returns nil.
-func (any) Matches(v *Version) error {
+func (any) Matches(v Version) error {
 	return nil
 }
 
@@ -61,7 +61,7 @@ func (none) String() string {
 
 // Matches checks that a version satisfies the constraint. As no version can
 // satisfy None, this always fails (returns an error).
-func (none) Matches(v *Version) error {
+func (none) Matches(v Version) error {
 	return noneErr
 }
 

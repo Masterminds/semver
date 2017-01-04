@@ -35,7 +35,7 @@ var versionCache = make(map[string]vcache)
 var versionCacheLock sync.RWMutex
 
 type vcache struct {
-	v   *Version
+	v   Version
 	err error
 }
 
@@ -44,12 +44,21 @@ const SemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
+type specialVersion uint8
+
+const (
+	notSpecial specialVersion = iota
+	zeroVersion
+	infiniteVersion
+)
+
 // Version represents a single semantic version.
 type Version struct {
 	major, minor, patch uint64
 	pre                 string
 	metadata            string
 	original            string
+	special             specialVersion
 }
 
 func init() {
@@ -58,7 +67,7 @@ func init() {
 
 // NewVersion parses a given version and returns an instance of Version or
 // an error if unable to parse the version.
-func NewVersion(v string) (*Version, error) {
+func NewVersion(v string) (Version, error) {
 	if CacheVersions {
 		versionCacheLock.RLock()
 		if sv, exists := versionCache[v]; exists {
@@ -75,10 +84,10 @@ func NewVersion(v string) (*Version, error) {
 			versionCache[v] = vcache{err: ErrInvalidSemVer}
 			versionCacheLock.Unlock()
 		}
-		return nil, ErrInvalidSemVer
+		return Version{}, ErrInvalidSemVer
 	}
 
-	sv := &Version{
+	sv := Version{
 		metadata: m[8],
 		pre:      m[5],
 		original: v,
@@ -94,7 +103,7 @@ func NewVersion(v string) (*Version, error) {
 			versionCacheLock.Unlock()
 		}
 
-		return nil, bvs
+		return Version{}, bvs
 	}
 	sv.major = temp
 
@@ -108,7 +117,7 @@ func NewVersion(v string) (*Version, error) {
 				versionCacheLock.Unlock()
 			}
 
-			return nil, bvs
+			return Version{}, bvs
 		}
 		sv.minor = temp
 	} else {
@@ -125,7 +134,7 @@ func NewVersion(v string) (*Version, error) {
 				versionCacheLock.Unlock()
 			}
 
-			return nil, bvs
+			return Version{}, bvs
 		}
 		sv.patch = temp
 	} else {
@@ -146,7 +155,7 @@ func NewVersion(v string) (*Version, error) {
 // See the Original() method to retrieve the original value. Semantic Versions
 // don't contain a leading v per the spec. Instead it's optional on
 // impelementation.
-func (v *Version) String() string {
+func (v Version) String() string {
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf, "%d.%d.%d", v.major, v.minor, v.patch)
@@ -161,7 +170,7 @@ func (v *Version) String() string {
 }
 
 // Original returns the original value passed in to be parsed.
-func (v *Version) Original() string {
+func (v Version) Original() string {
 	return v.original
 }
 
@@ -181,44 +190,29 @@ func (v *Version) Patch() uint64 {
 }
 
 // Prerelease returns the pre-release version.
-func (v *Version) Prerelease() string {
+func (v Version) Prerelease() string {
 	return v.pre
 }
 
 // Metadata returns the metadata on the version.
-func (v *Version) Metadata() string {
+func (v Version) Metadata() string {
 	return v.metadata
 }
 
 // LessThan tests if one version is less than another one.
-func (v *Version) LessThan(o *Version) bool {
-	// If a nil version was passed, fail and bail out early.
-	if o == nil {
-		return false
-	}
-
+func (v Version) LessThan(o Version) bool {
 	return v.Compare(o) < 0
 }
 
 // GreaterThan tests if one version is greater than another one.
-func (v *Version) GreaterThan(o *Version) bool {
-	// If a nil version was passed, fail and bail out early.
-	if o == nil {
-		return false
-	}
-
+func (v Version) GreaterThan(o Version) bool {
 	return v.Compare(o) > 0
 }
 
 // Equal tests if two versions are equal to each other.
 // Note, versions can be equal with different metadata since metadata
 // is not considered part of the comparable version.
-func (v *Version) Equal(o *Version) bool {
-	// If a nil version was passed, fail and bail out early.
-	if o == nil {
-		return false
-	}
-
+func (v Version) Equal(o Version) bool {
 	return v.Compare(o) == 0
 }
 
@@ -227,7 +221,27 @@ func (v *Version) Equal(o *Version) bool {
 //
 // Versions are compared by X.Y.Z. Build metadata is ignored. Prerelease is
 // lower than the version without a prerelease.
-func (v *Version) Compare(o *Version) int {
+func (v Version) Compare(o Version) int {
+	// The special field supercedes all the other information. If it's not
+	// equal, we can skip out early
+	if v.special != o.special {
+		switch v.special {
+		case zeroVersion:
+			return -1
+		case notSpecial:
+			if o.special == zeroVersion {
+				return 1
+			}
+			return -1
+		case infiniteVersion:
+			return 1
+		}
+	} else if v.special != notSpecial {
+		// If special fields are equal and not notSpecial, then they're
+		// necessarily equal
+		return 0
+	}
+
 	// Compare the major, minor, and patch version for differences. If a
 	// difference is found return the comparison.
 	if d := compareSegment(v.Major(), o.Major()); d != 0 {
@@ -257,7 +271,7 @@ func (v *Version) Compare(o *Version) int {
 	return comparePrerelease(ps, po)
 }
 
-func (v *Version) Matches(v2 *Version) error {
+func (v Version) Matches(v2 Version) error {
 	if v.Equal(v2) {
 		return nil
 	}
@@ -265,8 +279,8 @@ func (v *Version) Matches(v2 *Version) error {
 	return VersionMatchFailure{v: v, other: v2}
 }
 
-func (v *Version) MatchesAny(c Constraint) bool {
-	if v2, ok := c.(*Version); ok {
+func (v Version) MatchesAny(c Constraint) bool {
+	if v2, ok := c.(Version); ok {
 		return v.Equal(v2)
 	} else {
 		// The other implementations all have specific handling for this; fall
@@ -275,8 +289,8 @@ func (v *Version) MatchesAny(c Constraint) bool {
 	}
 }
 
-func (v *Version) Intersect(c Constraint) Constraint {
-	if v2, ok := c.(*Version); ok {
+func (v Version) Intersect(c Constraint) Constraint {
+	if v2, ok := c.(Version); ok {
 		if v.Equal(v2) {
 			return v
 		}
@@ -286,8 +300,8 @@ func (v *Version) Intersect(c Constraint) Constraint {
 	return c.Intersect(v)
 }
 
-func (v *Version) Union(c Constraint) Constraint {
-	if v2, ok := c.(*Version); ok && v.Equal(v2) {
+func (v Version) Union(c Constraint) Constraint {
+	if v2, ok := c.(Version); ok && v.Equal(v2) {
 		return v
 	} else {
 		return Union(v, c)
