@@ -2,7 +2,7 @@ package semver
 
 import "errors"
 
-var noneErr = errors.New("The 'None' constraint admits no versions.")
+var errNone = errors.New("The 'None' constraint admits no versions.")
 
 // Any is a constraint that is satisfied by any valid semantic version.
 type any struct{}
@@ -62,7 +62,7 @@ func (none) String() string {
 // Matches checks that a version satisfies the constraint. As no version can
 // satisfy None, this always fails (returns an error).
 func (none) Matches(v Version) error {
-	return noneErr
+	return errNone
 }
 
 // Intersect computes the intersection between two constraints.

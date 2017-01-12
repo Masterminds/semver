@@ -14,7 +14,7 @@ func TestIntersection(t *testing.T) {
 	}
 
 	if actual = Intersection(rc1); !constraintEq(actual, rc1) {
-		t.Errorf("Intersection of one item should always return that item; got %q")
+		t.Errorf("Intersection of one item should always return that item; got %q", actual)
 	}
 
 	if actual = Intersection(rc1, None()); !IsNone(actual) {

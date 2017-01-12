@@ -46,6 +46,8 @@ func init() {
 		cvRegex, cvRegex))
 }
 
+// Constraint is the interface that wraps checking a semantic version against
+// one or more constraints to find a match.
 type Constraint interface {
 	// Constraints compose the fmt.Stringer interface. Printing a constraint
 	// will yield a string that, if passed to NewConstraint(), will produce the
@@ -84,7 +86,7 @@ type realConstraint interface {
 	_real()
 }
 
-// Controls whether or not parsed constraints are cached
+// CacheConstraints controls whether or not parsed constraints are cached
 var CacheConstraints = true
 var constraintCache = make(map[string]ccache)
 var constraintCacheLock sync.RWMutex

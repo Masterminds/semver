@@ -7,11 +7,12 @@ type unionConstraint []realConstraint
 func (uc unionConstraint) Matches(v Version) error {
 	var uce MultiMatchFailure
 	for _, c := range uc {
-		if err := c.Matches(v); err == nil {
+		err := c.Matches(v)
+		if err == nil {
 			return nil
-		} else {
-			uce = append(uce, err.(MatchFailure))
 		}
+		uce = append(uce, err.(MatchFailure))
+
 	}
 
 	return uce

@@ -29,7 +29,8 @@ func (b badVersionSegment) Error() string {
 	return fmt.Sprintf("Error parsing version segment: %s", b.e)
 }
 
-// Controls whether or not parsed constraints are cached
+// CacheVersions controls whether or not parsed constraints are cached. Defaults
+// to true.
 var CacheVersions = true
 var versionCache = make(map[string]vcache)
 var versionCacheLock sync.RWMutex
@@ -271,6 +272,9 @@ func (v Version) Compare(o Version) int {
 	return comparePrerelease(ps, po)
 }
 
+// Matches checks that a verstions match. If they do not,
+// an error is returned indcating the problem; if it does, the error is nil.
+// This is part of the Constraint interface.
 func (v Version) Matches(v2 Version) error {
 	if v.Equal(v2) {
 		return nil
@@ -279,16 +283,21 @@ func (v Version) Matches(v2 Version) error {
 	return VersionMatchFailure{v: v, other: v2}
 }
 
+// MatchesAny checks if an instance of a version matches a constraint which can
+// include anything matching the Constraint interface.
 func (v Version) MatchesAny(c Constraint) bool {
 	if v2, ok := c.(Version); ok {
 		return v.Equal(v2)
-	} else {
-		// The other implementations all have specific handling for this; fall
-		// back on theirs.
-		return c.MatchesAny(v)
 	}
+
+	// The other implementations all have specific handling for this; fall
+	// back on theirs.
+	return c.MatchesAny(v)
 }
 
+// Intersect computes the intersection between the receiving Constraint and
+// passed Constraint, and returns a new Constraint representing the result.
+// This is part of the Constraint interface.
 func (v Version) Intersect(c Constraint) Constraint {
 	if v2, ok := c.(Version); ok {
 		if v.Equal(v2) {
@@ -300,12 +309,15 @@ func (v Version) Intersect(c Constraint) Constraint {
 	return c.Intersect(v)
 }
 
+// Union computes the union between the receiving Constraint and the passed
+// Constraint, and returns a new Constraint representing the result.
+// This is part of the Constraint interface.
 func (v Version) Union(c Constraint) Constraint {
 	if v2, ok := c.(Version); ok && v.Equal(v2) {
 		return v
-	} else {
-		return Union(v, c)
 	}
+
+	return Union(v, c)
 }
 
 func (Version) _private() {}
