@@ -102,9 +102,8 @@ func (rc rangeConstraint) Intersect(c Constraint) Constraint {
 	case Version:
 		if err := rc.Matches(oc); err != nil {
 			return None()
-		} else {
-			return c
 		}
+		return c
 	case rangeConstraint:
 		nr := rangeConstraint{
 			min:        rc.min,

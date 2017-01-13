@@ -21,11 +21,16 @@ const (
 	rerrNE
 )
 
+// MatchFailure is an interface for failures to find a Constraint match.
 type MatchFailure interface {
 	error
+
+	// Pair returns the version and constraint that did not match prompting
+	// the error.
 	Pair() (v Version, c Constraint)
 }
 
+// RangeMatchFailure occurs when a version is not within a constraint range.
 type RangeMatchFailure struct {
 	v   Version
 	rc  rangeConstraint
@@ -36,10 +41,13 @@ func (rce RangeMatchFailure) Error() string {
 	return fmt.Sprintf(rangeErrs[rce.typ], rce.v, rce.rc)
 }
 
+// Pair returns the version and constraint that did not match. Part of the
+// MatchFailure interface.
 func (rce RangeMatchFailure) Pair() (v Version, r Constraint) {
 	return rce.v, rce.rc
 }
 
+// VersionMatchFailure occurs when two versions do not match each other.
 type VersionMatchFailure struct {
 	v, other Version
 }
@@ -48,10 +56,14 @@ func (vce VersionMatchFailure) Error() string {
 	return fmt.Sprintf("%s is not equal to %s", vce.v, vce.other)
 }
 
+// Pair returns the two versions that did not match. Part of the
+// MatchFailure interface.
 func (vce VersionMatchFailure) Pair() (v Version, r Constraint) {
 	return vce.v, vce.other
 }
 
+// MultiMatchFailure errors occur when there are multiple constraints a version
+// is being checked against and there are failures.
 type MultiMatchFailure []MatchFailure
 
 func (mmf MultiMatchFailure) Error() string {
