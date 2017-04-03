@@ -1,4 +1,4 @@
-# Unreleased
+# 1.2.3 (2017-04-03)
 
 ## Fixed
 - #46: Fixed 0.x.x and 0.0.x in constraints being treated as *
