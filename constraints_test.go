@@ -56,7 +56,7 @@ func TestParseConstraint(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		c, err := parseConstraint(tc.in)
+		c, err := parseConstraint(tc.in, false)
 		if tc.err && err == nil {
 			t.Errorf("Expected error for %s didn't occur", tc.in)
 		} else if !tc.err && err != nil {
@@ -194,7 +194,7 @@ func TestConstraintCheck(t *testing.T) {
 		if testing.Verbose() {
 			t.Logf("Testing if %q allows %q", tc.constraint, tc.version)
 		}
-		c, err := parseConstraint(tc.constraint)
+		c, err := parseConstraint(tc.constraint, false)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
@@ -292,6 +292,45 @@ func TestNewConstraint(t *testing.T) {
 
 	for _, tc := range tests {
 		c, err := NewConstraint(tc.input)
+		if tc.err && err == nil {
+			t.Errorf("expected but did not get error for: %s", tc.input)
+			continue
+		} else if !tc.err && err != nil {
+			t.Errorf("unexpectederror for input %s: %s", tc.input, err)
+			continue
+		}
+		if tc.err {
+			continue
+		}
+
+		if !constraintEq(tc.c, c) {
+			t.Errorf("%q produced constraint %q, but expected %q", tc.input, c, tc.c)
+		}
+	}
+}
+
+func TestNewConstraintIC(t *testing.T) {
+	tests := []struct {
+		input string
+		c     Constraint
+		err   bool
+	}{
+		{"=2.0", newV(2, 0, 0), false},
+		{"= 2.0", newV(2, 0, 0), false},
+		{"1.1.0", rangeConstraint{
+			min:        newV(1, 1, 0),
+			max:        newV(2, 0, 0),
+			includeMin: true,
+		}, false},
+		{"1.1", rangeConstraint{
+			min:        newV(1, 1, 0),
+			max:        newV(2, 0, 0),
+			includeMin: true,
+		}, false},
+	}
+
+	for _, tc := range tests {
+		c, err := NewConstraintIC(tc.input)
 		if tc.err && err == nil {
 			t.Errorf("expected but did not get error for: %s", tc.input)
 			continue
@@ -408,7 +447,6 @@ func TestBidirectionalSerialization(t *testing.T) {
 	}{
 		{"*", true},         // any
 		{"~0.0.0", false},   // tildes expand into ranges
-		{"^2.0", false},     // carets expand into ranges
 		{"=2.0", false},     // abbreviated versions print as full
 		{"4.1.x", false},    // wildcards expand into ranges
 		{">= 1.1.0", false}, // does not produce spaces on ranges
@@ -425,8 +463,8 @@ func TestBidirectionalSerialization(t *testing.T) {
 		{">1.1.1, <1.2.0", true},   // no unary op on gt min
 		{">1.1.7, <=2.0.0", true},  // no unary op on gt min and lte max
 		{">1.1.7, <=2.0.0", true},  // no unary op on gt min and lte max
-		{">=0.1.7, <1.0.0", true},  // carat shifting below 1.0.0
-		{">=0.1.7, <0.3.0", true},  // carat shifting width below 1.0.0
+		{">=0.1.7, <1.0.0", true},  // caret shifting below 1.0.0
+		{">=0.1.7, <0.3.0", true},  // caret shifting width below 1.0.0
 	}
 
 	for _, fix := range tests {
@@ -446,11 +484,38 @@ func TestBidirectionalSerialization(t *testing.T) {
 	}
 }
 
+func TestBidirectionalSerializationIC(t *testing.T) {
+	tests := []struct {
+		io string
+		eq bool
+	}{
+		{"*", true},      // any
+		{"=2.0.0", true}, // versions retain leading =
+		{"2.0.0", true},  // (no) caret in, (no) caret out
+	}
+
+	for _, fix := range tests {
+		c, err := NewConstraintIC(fix.io)
+		if err != nil {
+			t.Errorf("Valid constraint string produced unexpected error: %s", err)
+		}
+
+		eq := fix.io == c.ImpliedCaretString()
+		if eq != fix.eq {
+			if eq {
+				t.Errorf("Constraint %q should not have reproduced input string %q, but did", c, fix.io)
+			} else {
+				t.Errorf("Constraint should have reproduced input string %q, but instead produced %q", fix.io, c)
+			}
+		}
+	}
+}
+
 func TestPreferUnaryOpForm(t *testing.T) {
 	tests := []struct {
 		in, out string
 	}{
-		{">=0.1.7, <0.2.0", "^0.1.7"}, // carat shifting below 1.0.0
+		{">=0.1.7, <0.2.0", "^0.1.7"}, // caret shifting below 1.0.0
 		{">=1.1.0, <2.0.0", "^1.1.0"},
 		{">=1.1.0, <2.0.0, !=1.2.3", "^1.1.0, !=1.2.3"},
 	}

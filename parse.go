@@ -20,7 +20,7 @@ func rewriteRange(i string) string {
 	return o
 }
 
-func parseConstraint(c string) (Constraint, error) {
+func parseConstraint(c string, cbd bool) (Constraint, error) {
 	m := constraintRegex.FindStringSubmatch(c)
 	if m == nil {
 		return nil, fmt.Errorf("Malformed constraint: %s", c)
@@ -52,6 +52,12 @@ func parseConstraint(c string) (Constraint, error) {
 	// We never want to keep the "original" data in a constraint, and keeping it
 	// around can disrupt simple equality comparisons. So, strip it out.
 	v.original = ""
+
+	// If caret-by-default flag is on and there's no operator, convert the
+	// operator to a caret.
+	if cbd && m[1] == "" {
+		m[1] = "^"
+	}
 
 	switch m[1] {
 	case "^":

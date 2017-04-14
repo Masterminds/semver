@@ -375,6 +375,14 @@ func (rc rangeConstraint) isSupersetOf(rc2 rangeConstraint) bool {
 }
 
 func (rc rangeConstraint) String() string {
+	return rc.toString(false)
+}
+
+func (rc rangeConstraint) ImpliedCaretString() string {
+	return rc.toString(true)
+}
+
+func (rc rangeConstraint) toString(impliedCaret bool) string {
 	var pieces []string
 
 	// We need to trigger the standard verbose handling from various points, so
@@ -398,7 +406,14 @@ func (rc rangeConstraint) String() string {
 	}
 
 	// Handle the possibility that we might be able to express the range
-	// with a carat or tilde, as we prefer those forms.
+	// with a caret or tilde, as we prefer those forms.
+	var caretstr string
+	if impliedCaret {
+		caretstr = "%s"
+	} else {
+		caretstr = "^%s"
+	}
+
 	switch {
 	case rc.minIsZero() && rc.maxIsInf():
 		// This if is internal because it's useful to know for the other cases
@@ -409,13 +424,13 @@ func (rc rangeConstraint) String() string {
 			return "*"
 		}
 	case rc.minIsZero(), rc.includeMax, !rc.includeMin:
-		// tilde and carat could never apply here
+		// tilde and caret could never apply here
 		noshort()
-	case !rc.maxIsInf() && rc.max.Minor() == 0 && rc.max.Patch() == 0: // basic carat
+	case !rc.maxIsInf() && rc.max.Minor() == 0 && rc.max.Patch() == 0: // basic caret
 		if rc.min.Major() == rc.max.Major()-1 && rc.min.Major() != 0 {
-			pieces = append(pieces, fmt.Sprintf("^%s", rc.min))
+			pieces = append(pieces, fmt.Sprintf(caretstr, rc.min))
 		} else {
-			// range is too wide for carat, need standard operators
+			// range is too wide for caret, need standard operators
 			noshort()
 		}
 	case !rc.maxIsInf() && rc.max.Major() != 0 && rc.max.Patch() == 0: // basic tilde
@@ -426,10 +441,10 @@ func (rc rangeConstraint) String() string {
 			noshort()
 		}
 	case !rc.maxIsInf() && rc.max.Major() == 0 && rc.max.Patch() == 0 && rc.max.Minor() != 0:
-		// below 1.0.0, tilde is meaningless but carat is shifted to the
+		// below 1.0.0, tilde is meaningless but caret is shifted to the
 		// right (so it basically behaves the same as tilde does above 1.0.0)
 		if rc.min.Minor() == rc.max.Minor()-1 {
-			pieces = append(pieces, fmt.Sprintf("^%s", rc.min))
+			pieces = append(pieces, fmt.Sprintf(caretstr, rc.min))
 		} else {
 			noshort()
 		}
