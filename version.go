@@ -353,7 +353,7 @@ func comparePrerelease(v, o string) int {
 
 	// Iterate over each part of the prereleases to compare the differences.
 	for i := 0; i < l; i++ {
-		// Since the lentgh of the parts can be different we need to create
+		// Since the length of the parts can be different we need to create
 		// a placeholder. This is to avoid out of bounds issues.
 		stemp := ""
 		if i < slen {
@@ -386,14 +386,14 @@ func comparePrePart(s, o string) int {
 	// When s or o are empty we can use the other in an attempt to determine
 	// the response.
 	if o == "" {
-		_, n := strconv.ParseInt(s, 10, 64)
+		_, n := strconv.ParseUint(s, 10, 64)
 		if n != nil {
 			return -1
 		}
 		return 1
 	}
 	if s == "" {
-		_, n := strconv.ParseInt(o, 10, 64)
+		_, n := strconv.ParseUint(o, 10, 64)
 		if n != nil {
 			return 1
 		}
@@ -404,4 +404,26 @@ func comparePrePart(s, o string) int {
 		return 1
 	}
 	return -1
+}
+
+func numPartsEq(v1, v2 Version) bool {
+	if v1.special != v2.special {
+		return false
+	}
+	if v1.special != notSpecial {
+		// If special fields are equal and not notSpecial, then the versions are
+		// necessarily equal, so their numeric parts are too.
+		return true
+	}
+
+	if v1.major != v2.major {
+		return false
+	}
+	if v1.minor != v2.minor {
+		return false
+	}
+	if v1.patch != v2.patch {
+		return false
+	}
+	return true
 }

@@ -11,6 +11,7 @@ var rangeErrs = [...]string{
 	"%s is greater than the maximum of %s",
 	"%s is greater than or equal to the maximum of %s",
 	"%s is specifically disallowed in %s",
+	"%s has prerelease data, so is omitted by the range %s",
 }
 
 const (
@@ -19,6 +20,7 @@ const (
 	rerrGT
 	rerrGTE
 	rerrNE
+	rerrPre
 )
 
 // MatchFailure is an interface for failures to find a Constraint match.
