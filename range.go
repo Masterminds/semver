@@ -14,6 +14,7 @@ type rangeConstraint struct {
 
 func (rc rangeConstraint) Matches(v Version) error {
 	var fail bool
+	ispre := v.Prerelease() != ""
 
 	rce := RangeMatchFailure{
 		v:  v,
@@ -21,8 +22,6 @@ func (rc rangeConstraint) Matches(v Version) error {
 	}
 
 	if !rc.minIsZero() {
-		// TODO ensure sane handling of prerelease versions (which are strictly
-		// less than the normal version, but should be admitted in a geq range)
 		cmp := rc.min.Compare(v)
 		if rc.includeMin {
 			rce.typ = rerrLT
@@ -38,8 +37,6 @@ func (rc rangeConstraint) Matches(v Version) error {
 	}
 
 	if !rc.maxIsInf() {
-		// TODO ensure sane handling of prerelease versions (which are strictly
-		// less than the normal version, but should be admitted in a geq range)
 		cmp := rc.max.Compare(v)
 		if rc.includeMax {
 			rce.typ = rerrGT
@@ -47,6 +44,7 @@ func (rc rangeConstraint) Matches(v Version) error {
 		} else {
 			rce.typ = rerrGTE
 			fail = cmp != 1
+
 		}
 
 		if fail {
@@ -59,6 +57,14 @@ func (rc rangeConstraint) Matches(v Version) error {
 			rce.typ = rerrNE
 			return rce
 		}
+	}
+
+	// If the incoming version has prerelease info, it's usually a match failure
+	// - unless all the numeric parts are equal between the incoming and the
+	// minimum.
+	if !fail && ispre && !numPartsEq(rc.min, v) {
+		rce.typ = rerrPre
+		return rce
 	}
 
 	return nil

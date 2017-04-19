@@ -204,9 +204,7 @@ func Union(cg ...Constraint) Constraint {
 		case none:
 			continue
 		case Version:
-			//if tc != nil {
 			//heap.Push(&real, tc)
-			//}
 			real = append(real, tc)
 		case rangeConstraint:
 			//heap.Push(&real, tc)

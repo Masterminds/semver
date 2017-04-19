@@ -183,11 +183,15 @@ func TestConstraintCheck(t *testing.T) {
 		{">2.x", "3.0.0", true},
 		{">2.x", "2.9.9", false},
 		{">2.x", "1.9.9", false},
-		// TODO these are all pending the changes in #10
-		//{"<=2.x-beta1", "3.0.0-alpha2", false},
-		//{">2.x-beta1", "3.0.0-alpha2", true},
-		//{"<2.0.0", "2.0.0-alpha1", false},
-		//{"<=2.0.0", "2.0.0-alpha1", true},
+		{"<=2.x-alpha2", "3.0.0-alpha3", false},
+		{"<=2.0.0", "2.0.0-alpha1", false},
+		{">2.x-beta1", "3.0.0-alpha2", false},
+		{"^2.0.0", "3.0.0-alpha2", false},
+		{"^2.0.0", "2.0.0-alpha1", false},
+		{"^2.1.0-alpha1", "2.1.0-alpha2", true},  // allow prerelease match within same major/minor/patch
+		{"^2.1.0-alpha1", "2.1.1-alpha2", false}, // but ONLY within same major/minor/patch
+		{"^2.1.0-alpha3", "2.1.0-alpha2", false}, // still respect prerelease ordering
+		{"^2.0.0", "2.0.0-alpha2", false},        // and only if the min has a prerelease
 	}
 
 	for _, tc := range tests {
