@@ -86,10 +86,12 @@ func parseConstraint(c string) (Constraint, error) {
 }
 
 func expandCaret(v Version) Constraint {
-	maxv := Version{
-		major: v.major + 1,
-		minor: 0,
-		patch: 0,
+	var maxv Version
+	// Caret behaves like tilde below 1.0.0
+	if v.major == 0 {
+		maxv.minor = v.minor + 1
+	} else {
+		maxv.major = v.major + 1
 	}
 
 	return rangeConstraint{
