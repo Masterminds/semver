@@ -44,4 +44,4 @@
 
 ## Select only non version
 
-#### $ {{shell "echo "0.0.4 1.2.3 tomate 0.3.2" | go run main.go -invalid" | color "sh"}}
+#### $ {{shell "echo '0.0.4 1.2.3 tomate 0.3.2' | go run main.go -invalid" | color "sh"}}

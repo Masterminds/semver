@@ -22,6 +22,8 @@ Package cmd implement a cli tool to manipulate Versions.
     - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -l](#-echo-'104-111-122-234'-|-go-run-maingo--s--d--l)
   - [Sort version descending, output to json](#sort-version-descending,-output-to-json)
     - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j](#-echo-'104-111-122-234'-|-go-run-maingo--s--d--j)
+  - [Select only non version](#select-only-non-version)
+    - [$ echo '0.0.4 1.2.3 tomate 0.3.2' | go run main.go -invalid](#-echo-'004-123-tomate-032'-|-go-run-maingo--invalid)
 
 # Install
 
@@ -57,10 +59,10 @@ Usage
 Example
 
 	semver -c 1.x 0.0.4 1.2.3
-	exho "0.0.4 1.2.3" | semver -j
-	exho "0.0.4 1.2.3" | semver -s
-	exho "0.0.4 1.2.3" | semver -s -d -j -f
-	exho "0.0.4 1.2.3 tomate" | semver -invalid
+	echo "0.0.4 1.2.3" | semver -j
+	echo "0.0.4 1.2.3" | semver -s
+	echo "0.0.4 1.2.3" | semver -s -d -j -f
+	echo "0.0.4 1.2.3 tomate" | semver -invalid
 ```
 
 # Example
@@ -109,5 +111,12 @@ Example
 
 #### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j
 ```sh
-2.3.41.2.21.1.11.0.4
+- ["2.3.4","1.2.2","1.1.1","1.0.4"]
+```
+
+## Select only non version
+
+#### $ echo '0.0.4 1.2.3 tomate 0.3.2' | go run main.go -invalid
+```sh
+- tomate
 ```
