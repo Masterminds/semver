@@ -16,10 +16,10 @@ Package cmd implement a cli tool to manipulate Versions.
     - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -c 2.x](#-echo-'104-111-122-234'-|-go-run-maingo--c-2x)
   - [Sort version](#sort-version)
     - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s](#-echo-'104-111-122-234'-|-go-run-maingo--s)
-  - [Sort version descending, take only the first](#sort-version-descending,-take-only-the-first)
-    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -f](#-echo-'104-111-122-234'-|-go-run-maingo--s--d--f)
-  - [Sort version descending, take only the last](#sort-version-descending,-take-only-the-last)
-    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -l](#-echo-'104-111-122-234'-|-go-run-maingo--s--d--l)
+  - [Sort version ascending, take only the first](#sort-version-ascending,-take-only-the-first)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -f](#-echo-'104-111-122-234'-|-go-run-maingo--s--f)
+  - [Sort version ascending, take only the last](#sort-version-ascending,-take-only-the-last)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -l](#-echo-'104-111-122-234'-|-go-run-maingo--s--l)
   - [Sort version descending, output to json](#sort-version-descending,-output-to-json)
     - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j](#-echo-'104-111-122-234'-|-go-run-maingo--s--d--j)
   - [Select only non version](#select-only-non-version)
@@ -93,18 +93,18 @@ Example
 - 2.3.4
 ```
 
-## Sort version descending, take only the first
+## Sort version ascending, take only the first
 
-#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -f
-```sh
-- 2.3.4
-```
-
-## Sort version descending, take only the last
-
-#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -l
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -f
 ```sh
 - 1.0.4
+```
+
+## Sort version ascending, take only the last
+
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -l
+```sh
+- 2.3.4
 ```
 
 ## Sort version descending, output to json

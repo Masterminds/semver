@@ -30,13 +30,13 @@
 
 #### $ {{shell "echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s" | color "sh"}}
 
-## Sort version descending, take only the first
+## Sort version ascending, take only the first
 
-#### $ {{shell "echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -f" | color "sh"}}
+#### $ {{shell "echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -f" | color "sh"}}
 
-## Sort version descending, take only the last
+## Sort version ascending, take only the last
 
-#### $ {{shell "echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -l" | color "sh"}}
+#### $ {{shell "echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -l" | color "sh"}}
 
 ## Sort version descending, output to json
 
