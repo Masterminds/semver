@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/Masterminds/semver"
-	"github.com/Masterminds/semver/cmd/stream"
+	"github.com/mh-cbon/semver/cmd/stream"
 )
 
 var version = "0.0.0"
@@ -20,6 +20,7 @@ type cliOpts struct {
 	version     bool
 	sort        bool
 	s           bool
+	valid       bool
 	showInvalid bool
 	desc        bool
 	d           bool
@@ -38,6 +39,7 @@ func main() {
 	flag.BoolVar(&opts.version, "version", false, "Show version")
 	flag.BoolVar(&opts.help, "help", false, "Show help")
 
+	flag.BoolVar(&opts.valid, "valid", false, "Emit error on invalid version")
 	flag.BoolVar(&opts.sort, "sort", false, "Sort input versions")
 	flag.BoolVar(&opts.s, "s", false, "Alias -s")
 	flag.BoolVar(&opts.desc, "desc", false, "Sort versions descending")
@@ -85,13 +87,20 @@ func main() {
 	pipeSrc := stream.NewByteReader(src)
 	pipe := pipeSrc.
 		Pipe(stream.NewBytesSplitter(' ', '\n')).
-		Pipe(&stream.BytesTrimer{}).
-		Pipe(&stream.VersionFromByte{})
+		Pipe(&stream.BytesTrimer{})
 
 	if opts.showInvalid {
 		pipe = pipe.Pipe(&stream.InvalidVersionFromByte{})
 
+		if opts.first || opts.f {
+			pipe = pipe.Pipe(&stream.FirstChunkOnly{})
+		} else if opts.last || opts.l {
+			pipe = pipe.Pipe(&stream.LastChunkOnly{})
+		}
+
 	} else {
+		pipe = pipe.Pipe(&stream.VersionFromByte{SkipInvalid: !opts.valid})
+
 		c := getConstraint(opts)
 		if c != nil {
 			pipe = pipe.Pipe(stream.NewVersionContraint(c))
@@ -101,18 +110,20 @@ func main() {
 			pipe = pipe.Pipe(&stream.VersionSorter{Asc: !(opts.desc || opts.d)})
 		}
 
-		pipe = pipe.Pipe(&stream.VersionToByte{})
+		if opts.first || opts.f {
+			pipe = pipe.Pipe(&stream.FirstVersionOnly{})
+		} else if opts.last || opts.l {
+			pipe = pipe.Pipe(&stream.LastVersionOnly{})
+		}
+
+		if opts.json || opts.j {
+			pipe = pipe.Pipe(&stream.VersionJsoner{})
+		} else {
+			pipe = pipe.Pipe(&stream.VersionToByte{})
+		}
 	}
 
-	if opts.first || opts.f {
-		pipe = pipe.Pipe(&stream.FirstChunkOnly{})
-	} else if opts.last || opts.l {
-		pipe = pipe.Pipe(&stream.LastChunkOnly{})
-	}
-
-	if !opts.showInvalid && (opts.json || opts.j) {
-		// tbd.
-	} else {
+	if !opts.json || opts.j {
 		pipe = pipe.Pipe(stream.NewBytesPrefixer("- ", "\n"))
 	}
 
@@ -163,9 +174,9 @@ Usage
 Example
 
 	semver -c 1.x 0.0.4 1.2.3
-	exho "0.0.4 1.2.3" | semver -j
-	exho "0.0.4 1.2.3" | semver -s
-	exho "0.0.4 1.2.3" | semver -s -d -j -f
-	exho "0.0.4 1.2.3 tomate" | semver -invalid
+	echo "0.0.4 1.2.3" | semver -j
+	echo "0.0.4 1.2.3" | semver -s
+	echo "0.0.4 1.2.3" | semver -s -d -j -f
+	echo "0.0.4 1.2.3 tomate" | semver -invalid
 `)
 }

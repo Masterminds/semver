@@ -115,7 +115,7 @@ func (p *ByteReader) Consume() error {
 		data = data[0:n]
 		// <-time.After(1 * time.Second) // blah.
 		if err2 := p.Write(data); err2 != nil {
-			p.closed = err2 == io.EOF
+			p.closed = p.closed || err2 == io.EOF || n == 0
 			err = err2
 		}
 		if p.closed {
@@ -135,64 +135,6 @@ func (p *ByteReader) Consume() error {
 
 	return err
 }
-
-// type ByteReaderCloser struct {
-// 	ByteStream
-// 	closed bool
-// 	a      *AsyncReader
-// }
-//
-// func NewByteReaderCloser(r io.Reader) *ByteReaderCloser {
-// 	return &ByteReaderCloser{a: NewAsyncReader(r)}
-// }
-//
-// func (p *ByteReaderCloser) Consume() error {
-// 	var err error
-// 	finished := false
-//
-// 	for {
-// 		if finished {
-// 			break
-// 		}
-// 		select {
-// 		case op := <-p.a.Read:
-// 			data := op.Data
-// 			// n := op.N
-// 			err = *op.Err
-// 			p.closed = err == io.EOF
-// 			if err2 := p.Write(data); err2 != nil {
-// 				err = err2
-// 				p.closed = err == io.EOF
-// 			}
-// 		default:
-// 			if p.closed {
-// 				err = p.Flush()
-// 				finished = true
-// 				if err3 := p.a.Close(); err3 != nil {
-// 					return err3
-// 				}
-// 			} else {
-// 				// <-time.After(1 * time.Microsecond) // blah.
-// 			}
-// 		}
-// 	}
-//
-// 	return err
-// }
-// func (p *ByteReaderCloser) Close() error {
-// 	if p.closed {
-// 		return ErrAlreadyClosed
-// 	}
-// 	p.closed = true
-// 	return nil
-// }
-// func (p *ByteReaderCloser) CloseOn(f func()) Piper {
-// 	go func() {
-// 		f()
-// 		p.Close()
-// 	}()
-// 	return p
-// }
 
 // ByteSink consumes an io.Writer.
 type ByteSink struct {
@@ -254,8 +196,10 @@ func (p *BytesSplitter) Write(d []byte) error {
 					if err := p.ByteStream.Write(data); err != nil {
 						return err
 					}
+					p.buf = p.buf[i+1:]
+					q = false
+					break
 				}
-				p.buf = p.buf[i+1:]
 			} else {
 				q = true
 			}
@@ -278,8 +222,10 @@ func (p *BytesSplitter) Flush() error {
 					if err := p.ByteStream.Write(data); err != nil {
 						return err
 					}
+					p.buf = p.buf[i+1:]
+					q = false
+					break
 				}
-				p.buf = p.buf[i+1:]
 			} else {
 				q = true
 			}

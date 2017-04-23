@@ -41,3 +41,7 @@
 ## Sort version descending, output to json
 
 #### $ {{shell "echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j" | color "sh"}}
+
+## Select only non version
+
+#### $ {{shell "echo "0.0.4 1.2.3 tomate 0.3.2" | go run main.go -invalid" | color "sh"}}
