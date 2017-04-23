@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mh-cbon/semver"
+	"github.com/Masterminds/semver"
 )
 
 // VersionPipeWriter receives *Version
