@@ -1,10 +1,11 @@
 package stream
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 
-	"github.com/mh-cbon/semver"
+	"github.com/Masterminds/semver"
 )
 
 // VersionPipeWriter receives *Version
@@ -64,13 +65,18 @@ func (p *VersionStream) Write(d *semver.Version) error {
 // VersionFromByte receives bytes encoded *Version, pushes *Version
 type VersionFromByte struct {
 	VersionStream
+	SkipInvalid bool
 }
 
 // Write receive a chunk of []byte, writes a *Version on the connected Pipes.
 func (p *VersionFromByte) Write(d []byte) error {
 	s, err := semver.NewVersion(string(d))
 	if err != nil {
-		return fmt.Errorf("Invalid version %q", string(d))
+		err := fmt.Errorf("Invalid version %q", string(d))
+		if p.SkipInvalid {
+			err = nil
+		}
+		return err
 	}
 	return p.VersionStream.Write(s)
 }
@@ -121,6 +127,31 @@ func (p *VersionSorter) Flush() error {
 	return p.VersionStream.Flush()
 }
 
+// VersionJsoner receives *Version, buffer them until flush, json encode *Versions, writes bytes to the connected Pipes.
+type VersionJsoner struct {
+	ByteStream
+	all []*semver.Version
+}
+
+// Write *Version to the buffer.
+func (p *VersionJsoner) Write(v *semver.Version) error {
+	p.all = append(p.all, v)
+	return nil
+}
+
+// Flush sorts all buffered *Version, writes all *Version to the connected Pipes.
+func (p *VersionJsoner) Flush() error {
+	blob, err := json.Marshal(p.all)
+	if err != nil {
+		return err
+	}
+	err = p.ByteStream.Write(blob)
+	if err != nil {
+		return err
+	}
+	return p.ByteStream.Flush()
+}
+
 // InvalidVersionFromByte receives bytes chunks of *Version, when it fails to decode it as a *Version, writes the chunk on the connected Pipes.
 type InvalidVersionFromByte struct {
 	ByteStream
@@ -143,4 +174,43 @@ type VersionToByte struct {
 // Write encode *Version to a byte chunk, writes the chunk to the connected Pipes.
 func (p *VersionToByte) Write(d *semver.Version) error {
 	return p.ByteStream.Write([]byte(d.String()))
+}
+
+// FirstVersionOnly receives Version, writes only the first Version on the connected Pipes.
+type FirstVersionOnly struct {
+	VersionStream
+	d bool
+}
+
+// Write only the first Version on the connected Pipes.
+func (p *FirstVersionOnly) Write(d *semver.Version) error {
+	if !p.d {
+		p.d = true
+		return p.VersionStream.Write(d)
+	}
+	return nil
+}
+
+// LastVersionOnly receives Version, writes only the last Version to the conencted Pipes.
+type LastVersionOnly struct {
+	VersionStream
+	d     bool
+	chunk *semver.Version
+}
+
+// Write buffer given Version.
+func (p *LastVersionOnly) Write(d *semver.Version) error {
+	p.d = true
+	p.chunk = d
+	return nil
+}
+
+// Flush writes the last Version on the conncted Pipes.
+func (p *LastVersionOnly) Flush() error {
+	if p.d {
+		if err := p.VersionStream.Write(p.chunk); err != nil {
+			return err
+		}
+	}
+	return p.VersionStream.Flush()
 }

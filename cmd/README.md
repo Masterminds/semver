@@ -1,4 +1,4 @@
-# cmd
+# semver
 
 Package cmd implement a cli tool to manipulate Versions.
 
@@ -13,22 +13,24 @@ Package cmd implement a cli tool to manipulate Versions.
   - [Filter versions](#filter-versions)
     - [$ go run main.go -c 1.x 1.0.4 1.1.1 1.2.2 2.3.4](#-go-run-maingo--c-1x-104-111-122-234)
   - [Use stdin](#use-stdin)
-    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -c 2.x](#-echo-'104-111-122-234'-|-go-run-maingo--c-2x)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -c 2.x](#-echo-104-111-122-234--go-run-maingo--c-2x)
   - [Sort version](#sort-version)
-    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s](#-echo-'104-111-122-234'-|-go-run-maingo--s)
-  - [Sort version descending, take only the first](#sort-version-descending,-take-only-the-first)
-    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -f](#-echo-'104-111-122-234'-|-go-run-maingo--s--d--f)
-  - [Sort version descending, take only the last](#sort-version-descending,-take-only-the-last)
-    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -l](#-echo-'104-111-122-234'-|-go-run-maingo--s--d--l)
-  - [Sort version descending, output to json](#sort-version-descending,-output-to-json)
-    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j](#-echo-'104-111-122-234'-|-go-run-maingo--s--d--j)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s](#-echo-104-111-122-234--go-run-maingo--s)
+  - [Sort version ascending, take only the first](#sort-version-ascending-take-only-the-first)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -f](#-echo-104-111-122-234--go-run-maingo--s--f)
+  - [Sort version ascending, take only the last](#sort-version-ascending-take-only-the-last)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -l](#-echo-104-111-122-234--go-run-maingo--s--l)
+  - [Sort version descending, output to json](#sort-version-descending-output-to-json)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j](#-echo-104-111-122-234--go-run-maingo--s--d--j)
+  - [Select only non version](#select-only-non-version)
+    - [$ echo '0.0.4 1.2.3 tomate 0.3.2' | go run main.go -invalid](#-echo-004-123-tomate-032--go-run-maingo--invalid)
 
 # Install
 
 ## go
 
 ```sh
-go get github.com/semver/cmd
+go get github.com/Masterminds/semver
 ```
 
 # Cli
@@ -57,10 +59,10 @@ Usage
 Example
 
 	semver -c 1.x 0.0.4 1.2.3
-	exho "0.0.4 1.2.3" | semver -j
-	exho "0.0.4 1.2.3" | semver -s
-	exho "0.0.4 1.2.3" | semver -s -d -j -f
-	exho "0.0.4 1.2.3 tomate" | semver -invalid
+	echo "0.0.4 1.2.3" | semver -j
+	echo "0.0.4 1.2.3" | semver -s
+	echo "0.0.4 1.2.3" | semver -s -d -j -f
+	echo "0.0.4 1.2.3 tomate" | semver -invalid
 ```
 
 # Example
@@ -91,23 +93,30 @@ Example
 - 2.3.4
 ```
 
-## Sort version descending, take only the first
+## Sort version ascending, take only the first
 
-#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -f
-```sh
-- 2.3.4
-```
-
-## Sort version descending, take only the last
-
-#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -l
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -f
 ```sh
 - 1.0.4
+```
+
+## Sort version ascending, take only the last
+
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -l
+```sh
+- 2.3.4
 ```
 
 ## Sort version descending, output to json
 
 #### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j
 ```sh
-2.3.41.2.21.1.11.0.4
+["2.3.4","1.2.2","1.1.1","1.0.4"]
+```
+
+## Select only non version
+
+#### $ echo '0.0.4 1.2.3 tomate 0.3.2' | go run main.go -invalid
+```sh
+- tomate
 ```
