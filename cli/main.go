@@ -4,29 +4,42 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
-	"log"
 	"os"
 
-	"github.com/mh-cbon/semver/cli/cmd"
+	"github.com/mh-cbon/semver/cmd/stream"
 )
 
 var version = "0.0.0"
 
-func main() {
-	doVersion := false
+type cliOpts struct {
+	version     bool
+	sort        bool
+	showInvalid bool
+	desc        bool
+	constraint  string
+	first       bool
+	last        bool
+	json        bool
+}
 
-	cmd := cmd.CliCmd{}
-	flag.BoolVar(&doVersion, "version", false, "Show version")
-	flag.BoolVar(&cmd.Sort, "sort", false, "Sort input versions")
-	flag.BoolVar(&cmd.Desc, "desc", false, "Sort versions descending")
-	flag.BoolVar(&cmd.ShowInvalid, "invalid", false, "Show only invalid versions")
-	flag.StringVar(&cmd.Constraint, "filter", "", "Filter versions matching given semver constraint")
+func main() {
+	opts := cliOpts{}
+	flag.BoolVar(&opts.version, "version", false, "Show version")
+	flag.BoolVar(&opts.sort, "sort", false, "Sort input versions")
+	flag.BoolVar(&opts.desc, "desc", false, "Sort versions descending")
+	flag.BoolVar(&opts.showInvalid, "invalid", false, "Show only invalid versions")
+	flag.StringVar(&opts.constraint, "filter", "", "Filter versions matching given semver constraint")
+	flag.BoolVar(&opts.json, "json", false, "JSON output")
 
 	flag.Parse()
 
-	dest := os.Stdout
+	fmt.Printf("%#v\n", opts)
+
 	var src io.Reader
+	dest := os.Stdout
+
 	if flag.NArg() > 0 {
 		// expect input versions in the arguments.
 		b := bytes.NewBuffer([]byte{})
@@ -38,9 +51,33 @@ func main() {
 		src = os.Stdin
 	}
 
-	if err := cmd.Exec(dest, src); err != nil {
-		log.Printf("An error has occurred: %v", err)
-		os.Exit(1)
+	pipeSrc := stream.NewByteReader(src)
+	pipe := pipeSrc.
+		Pipe(stream.NewBytesSplitter(' ', '\n')).
+		Pipe(&stream.VersionFromByte{})
+
+	if opts.sort {
+		pipe = pipe.Pipe(&stream.VersionSorter{Asc: !opts.desc}).Pipe(&stream.VersionToByte{})
+	} else if opts.showInvalid {
+		pipe = pipe.Pipe(&stream.InvalidVersionFromByte{})
 	}
-	os.Exit(0)
+
+	if opts.first {
+		pipe = pipe.Pipe(&stream.FirstChunkOnly{})
+	} else if opts.last {
+		pipe = pipe.Pipe(&stream.LastChunkOnly{})
+	}
+
+	if opts.json {
+		// tbd.
+	} else {
+		pipe = pipe.Pipe(stream.NewBytesPrefixer("- ", "\n"))
+	}
+
+	pipe.Sink(stream.NewByteSink(dest))
+
+	if err := pipeSrc.Consume(); err != nil {
+		panic(err)
+	}
+
 }
