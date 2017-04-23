@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/mh-cbon/semver"
-	"github.com/mh-cbon/semver/cmd/stream"
+	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/cmd/stream"
 )
 
 var version = "0.0.0"
