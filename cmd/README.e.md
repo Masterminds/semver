@@ -1,4 +1,4 @@
-# {{.Name}}
+# semver
 
 {{pkgdoc}}
 
