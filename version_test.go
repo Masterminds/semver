@@ -284,17 +284,24 @@ func TestEqual(t *testing.T) {
 
 func TestInc(t *testing.T) {
 	tests := []struct {
-		v1        string
-		expectedV string
-		how       string
-		expected  bool
+		v1               string
+		expected         string
+		how              string
+		expectedOriginal string
 	}{
-		{"1.2.3", "1.2.4", "patch", true},
-		{"1.2.3", "1.3.0", "minor", true},
-		{"1.2.3", "2.0.0", "major", true},
-		{"1.2.3-beta+meta", "1.2.4", "patch", true},
-		{"1.2.3-beta+meta", "1.3.0", "minor", true},
-		{"1.2.3-beta+meta", "2.0.0", "major", true},
+		{"1.2.3", "1.2.4", "patch", "1.2.4"},
+		{"v1.2.4", "1.2.5", "patch", "v1.2.5"},
+		{"1.2.3", "1.3.0", "minor", "1.3.0"},
+		{"v1.2.4", "1.3.0", "minor", "v1.3.0"},
+		{"1.2.3", "2.0.0", "major", "2.0.0"},
+		{"v1.2.4", "2.0.0", "major", "v2.0.0"},
+		{"1.2.3+meta", "1.2.4", "patch", "1.2.4"},
+		{"1.2.3-beta+meta", "1.2.3", "patch", "1.2.3"},
+		{"v1.2.4-beta+meta", "1.2.4", "patch", "v1.2.4"},
+		{"1.2.3-beta+meta", "1.3.0", "minor", "1.3.0"},
+		{"v1.2.4-beta+meta", "1.3.0", "minor", "v1.3.0"},
+		{"1.2.3-beta+meta", "2.0.0", "major", "2.0.0"},
+		{"v1.2.4-beta+meta", "2.0.0", "major", "v2.0.0"},
 	}
 
 	for _, tc := range tests {
@@ -302,18 +309,31 @@ func TestInc(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
-
-		ok := v1.Inc(tc.how)
-		if ok != tc.expected {
-			t.Errorf("Expected to increment the version number but it failed")
+		var v2 Version
+		switch tc.how {
+		case "patch":
+			v2 = v1.IncPatch()
+		case "minor":
+			v2 = v1.IncMinor()
+		case "major":
+			v2 = v1.IncMajor()
 		}
 
-		a := v1.String()
-		e := tc.expectedV
+		a := v2.String()
+		e := tc.expected
 		if a != e {
 			t.Errorf(
 				"Inc %q failed. Expected %q got %q",
-				tc.how, tc.expectedV, a,
+				tc.how, e, a,
+			)
+		}
+
+		a = v2.Original()
+		e = tc.expectedOriginal
+		if a != e {
+			t.Errorf(
+				"Inc %q failed. Expected original %q got %q",
+				tc.how, e, a,
 			)
 		}
 	}
@@ -325,10 +345,12 @@ func TestSetPrerelease(t *testing.T) {
 		prerelease         string
 		expectedVersion    string
 		expectedPrerelease string
-		expectedResult     bool
+		expectedOriginal   string
+		expectedErr        error
 	}{
-		{"1.2.3", "**", "1.2.3", "", false},
-		{"1.2.3", "beta", "1.2.3-beta", "beta", true},
+		{"1.2.3", "**", "1.2.3", "", "1.2.3", ErrInvalidPrerelease},
+		{"1.2.3", "beta", "1.2.3-beta", "beta", "1.2.3-beta", nil},
+		{"v1.2.4", "beta", "1.2.4-beta", "beta", "v1.2.4-beta", nil},
 	}
 
 	for _, tc := range tests {
@@ -337,21 +359,27 @@ func TestSetPrerelease(t *testing.T) {
 			t.Errorf("Error parsing version: %s", err)
 		}
 
-		ok := v1.SetPrerelease(tc.prerelease)
-		if ok != tc.expectedResult {
-			t.Errorf("Expected to receive %s got %s", tc.expectedResult, ok)
+		v2, err := v1.SetPrerelease(tc.prerelease)
+		if err != tc.expectedErr {
+			t.Errorf("Expected to get err=%s, but got err=%s", tc.expectedErr, err)
 		}
 
-		a := v1.Prerelease()
+		a := v2.Prerelease()
 		e := tc.expectedPrerelease
 		if a != e {
-			t.Errorf("Expected %q got %q", e, a)
+			t.Errorf("Expected prerelease value=%q, but got %q", e, a)
 		}
 
-		newV := v1.String()
-		eV := tc.expectedVersion
-		if newV != eV {
-			t.Errorf("Expected %q got %q", newV, eV)
+		a = v2.String()
+		e = tc.expectedVersion
+		if a != e {
+			t.Errorf("Expected version string=%q, but got %q", e, a)
+		}
+
+		a = v2.Original()
+		e = tc.expectedOriginal
+		if a != e {
+			t.Errorf("Expected version original=%q, but got %q", e, a)
 		}
 	}
 }
@@ -362,10 +390,12 @@ func TestSetMetadata(t *testing.T) {
 		metadata         string
 		expectedVersion  string
 		expectedMetadata string
-		expectedResult   bool
+		expectedOriginal string
+		expectedErr      error
 	}{
-		{"1.2.3", "**", "1.2.3", "", false},
-		{"1.2.3", "meta", "1.2.3+meta", "meta", true},
+		{"1.2.3", "**", "1.2.3", "", "1.2.3", ErrInvalidMetadata},
+		{"1.2.3", "meta", "1.2.3+meta", "meta", "1.2.3+meta", nil},
+		{"v1.2.4", "meta", "1.2.4+meta", "meta", "v1.2.4+meta", nil},
 	}
 
 	for _, tc := range tests {
@@ -374,21 +404,46 @@ func TestSetMetadata(t *testing.T) {
 			t.Errorf("Error parsing version: %s", err)
 		}
 
-		ok := v1.SetMetadata(tc.metadata)
-		if ok != tc.expectedResult {
-			t.Errorf("Expected to receive %s got %s", tc.expectedResult, ok)
+		v2, err := v1.SetMetadata(tc.metadata)
+		if err != tc.expectedErr {
+			t.Errorf("Expected to get err=%s, but got err=%s", tc.expectedErr, err)
 		}
 
-		a := v1.Metadata()
+		a := v2.Metadata()
 		e := tc.expectedMetadata
 		if a != e {
-			t.Errorf("Expected %q got %q", e, a)
+			t.Errorf("Expected metadata value=%q, but got %q", e, a)
 		}
 
-		newV := v1.String()
-		eV := tc.expectedVersion
-		if newV != eV {
-			t.Errorf("Expected %q got %q", newV, eV)
+		a = v2.String()
+		e = tc.expectedVersion
+		if e != a {
+			t.Errorf("Expected version string=%q, but got %q", e, a)
+		}
+
+		a = v2.Original()
+		e = tc.expectedOriginal
+		if a != e {
+			t.Errorf("Expected version original=%q, but got %q", e, a)
+		}
+	}
+}
+
+func TestOriginalVPrefix(t *testing.T) {
+	tests := []struct {
+		version string
+		vprefix string
+	}{
+		{"1.2.3", ""},
+		{"v1.2.4", "v"},
+	}
+
+	for _, tc := range tests {
+		v1, _ := NewVersion(tc.version)
+		a := v1.originalVPrefix()
+		e := tc.vprefix
+		if a != e {
+			t.Errorf("Expected vprefix=%q, but got %q", e, a)
 		}
 	}
 }
