@@ -1,4 +1,4 @@
-# cmd
+# semver
 
 Package cmd implement a cli tool to manipulate Versions.
 
