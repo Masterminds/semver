@@ -1,4 +1,7 @@
-# semver
+---
+User: Masterminds
+---
+# {{.Name}}
 
 {{pkgdoc}}
 
