@@ -71,6 +71,16 @@ func (uc unionConstraint) String() string {
 
 	return strings.Join(pieces, " || ")
 }
+
+func (uc unionConstraint) ImpliedCaretString() string {
+	var pieces []string
+	for _, c := range uc {
+		pieces = append(pieces, c.ImpliedCaretString())
+	}
+
+	return strings.Join(pieces, " || ")
+}
+
 func (unionConstraint) _private() {}
 
 type constraintList []realConstraint

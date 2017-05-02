@@ -16,6 +16,10 @@ func (any) String() string {
 	return "*"
 }
 
+func (any) ImpliedCaretString() string {
+	return "*"
+}
+
 // Matches checks that a version satisfies the constraint. As all versions
 // satisfy Any, this always returns nil.
 func (any) Matches(v Version) error {
@@ -56,6 +60,10 @@ func None() Constraint {
 }
 
 func (none) String() string {
+	return ""
+}
+
+func (none) ImpliedCaretString() string {
 	return ""
 }
 

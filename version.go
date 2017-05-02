@@ -157,9 +157,27 @@ func NewVersion(v string) (Version, error) {
 // don't contain a leading v per the spec. Instead it's optional on
 // impelementation.
 func (v Version) String() string {
+	return v.toString(false)
+}
+
+// ImpliedCaretString follows the same rules as String(), but in accordance with
+// the Constraint interface will always print a leading "=", as all Versions,
+// when acting as a Constraint, act as exact matches.
+func (v Version) ImpliedCaretString() string {
+	return v.toString(true)
+}
+
+func (v Version) toString(ic bool) string {
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "%d.%d.%d", v.major, v.minor, v.patch)
+	var base string
+	if ic {
+		base = "=%d.%d.%d"
+	} else {
+		base = "%d.%d.%d"
+	}
+
+	fmt.Fprintf(&buf, base, v.major, v.minor, v.patch)
 	if v.pre != "" {
 		fmt.Fprintf(&buf, "-%s", v.pre)
 	}
