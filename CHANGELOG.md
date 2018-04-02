@@ -1,3 +1,8 @@
+# 1.4.1 (2018-04-02)
+
+## Fixed
+- Fixed #64: Fix pre-release precedence issue (thanks @uudashr)
+
 # 1.4.0 (2017-10-04)
 
 ## Changed
