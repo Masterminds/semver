@@ -70,7 +70,7 @@ func TestParseConstraint(t *testing.T) {
 		}
 
 		if !constraintEq(tc.c, c) {
-			t.Errorf("Incorrect version found on %s", tc.in)
+			t.Errorf("%q produced constraint %q, but expected %q", tc.in, c, tc.c)
 		}
 	}
 }
@@ -292,6 +292,17 @@ func TestNewConstraint(t *testing.T) {
 				newV(1, 4, 0),
 			},
 		}, false},
+		{"1.1.0 - 12-abc123", rangeConstraint{
+			min:        newV(1,1,0),
+			max:        Version{major: 12, minor: 0, patch: 0, pre: "abc123"},
+			includeMin: true,
+			includeMax: true,
+		}, false},
+		{"1.1.0-12-abc123", Version{
+			major: 1,
+			minor: 1,
+			patch: 0,
+			pre: "12-abc123"}, false},
 	}
 
 	for _, tc := range tests {
