@@ -70,7 +70,7 @@ func TestParseConstraint(t *testing.T) {
 		}
 
 		if !constraintEq(tc.c, c) {
-			t.Errorf("Incorrect version found on %s", tc.in)
+			t.Errorf("%q produced constraint %q, but expected %q", tc.in, c, tc.c)
 		}
 	}
 }
@@ -251,7 +251,7 @@ func TestNewConstraint(t *testing.T) {
 				includeMin: true,
 			},
 		}, false},
-		{"3-4 || => 1.0, < 2", Union(
+		{"3 - 4 || => 1.0, < 2", Union(
 			rangeConstraint{
 				min:        newV(3, 0, 0),
 				max:        newV(4, 0, 0),
@@ -265,7 +265,7 @@ func TestNewConstraint(t *testing.T) {
 			},
 		), false},
 		// demonstrates union compression
-		{"3-4 || => 3.0, < 4", rangeConstraint{
+		{"3 - 4 || => 3.0, < 4", rangeConstraint{
 			min:        newV(3, 0, 0),
 			max:        newV(4, 0, 0),
 			includeMin: true,
@@ -292,6 +292,17 @@ func TestNewConstraint(t *testing.T) {
 				newV(1, 4, 0),
 			},
 		}, false},
+		{"1.1.0 - 12-abc123", rangeConstraint{
+			min:        newV(1,1,0),
+			max:        Version{major: 12, minor: 0, patch: 0, pre: "abc123"},
+			includeMin: true,
+			includeMax: true,
+		}, false},
+		{"1.1.0-12-abc123", Version{
+			major: 1,
+			minor: 1,
+			patch: 0,
+			pre: "12-abc123"}, false},
 	}
 
 	for _, tc := range tests {
@@ -545,9 +556,30 @@ func TestRewriteRange(t *testing.T) {
 		c  string
 		nc string
 	}{
-		{"2-3", ">= 2, <= 3"},
-		{"2-3, 2-3", ">= 2, <= 3,>= 2, <= 3"},
-		{"2-3, 4.0.0-5.1", ">= 2, <= 3,>= 4.0.0, <= 5.1"},
+		{"2 - 3", ">= 2, <= 3"},
+		{"2 - 3, 2 - 3", ">= 2, <= 3,>= 2, <= 3"},
+		{"2 - 3, 4.0.0 - 5.1", ">= 2, <= 3,>= 4.0.0, <= 5.1"},
+	}
+
+	for _, tc := range tests {
+		o := rewriteRange(tc.c)
+
+		if o != tc.nc {
+			t.Errorf("Range %s rewritten incorrectly as '%s'", tc.c, o)
+		}
+	}
+}
+
+func TestRewriteRange_InvalidRange(t *testing.T) {
+	// Ranges require a space to be recognized
+
+	tests := []struct {
+		c  string
+		nc string
+	}{
+		{"2-3", "2-3"},
+		{"2-3, 2 - 3","2-3,>= 2, <= 3"},
+		{"2-3, 4.0.0 - 5.1", "2-3,>= 4.0.0, <= 5.1"},
 	}
 
 	for _, tc := range tests {
