@@ -82,13 +82,20 @@ The basic comparisons are:
 
 ## Working With Pre-release Versions
 
+Pre-releases, for those not familiar with them, are used for software releases
+prior to stable or generally available releases. Examples of pre-releases include
+development, alpha, beta, and release candidate releases. A pre-release may be
+a version such as `1.2.3-beta.1` while the stable release would be `1.2.3`. In the
+order of precidence, pre-releases come before their associated releases. In this
+example `1.2.3-beta.1 < 1.2.3`.
+
 According to the Semantic Version specification pre-releases may not be
 API compliant with their release counterpart. It says,
 
 > A pre-release version indicates that the version is unstable and might not satisfy the intended compatibility requirements as denoted by its associated normal version.
 
-SemVer comparisons without a pre-release value will skip pre-release versions.
-For example, `>=1.2.3` will skip pre-releases when looking at a list of values
+SemVer comparisons without a pre-release comparator will skip pre-release versions.
+For example, `>=1.2.3` will skip pre-releases when looking at a list of releases
 while `>=1.2.3-0` will evaluate and find pre-releases.
 
 The reason for the `0` as a pre-release version in the example comparison is
