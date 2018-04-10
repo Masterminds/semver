@@ -1,0 +1,122 @@
+# semver
+
+Package cmd implement a cli tool to manipulate Versions.
+
+
+# TOC
+- [Install](#install)
+  - [go](#go)
+- [Cli](#cli)
+  - [Help](#help)
+    - [$ go run main.go -help](#-go-run-maingo--help)
+- [Example](#example)
+  - [Filter versions](#filter-versions)
+    - [$ go run main.go -c 1.x 1.0.4 1.1.1 1.2.2 2.3.4](#-go-run-maingo--c-1x-104-111-122-234)
+  - [Use stdin](#use-stdin)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -c 2.x](#-echo-104-111-122-234--go-run-maingo--c-2x)
+  - [Sort version](#sort-version)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s](#-echo-104-111-122-234--go-run-maingo--s)
+  - [Sort version ascending, take only the first](#sort-version-ascending-take-only-the-first)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -f](#-echo-104-111-122-234--go-run-maingo--s--f)
+  - [Sort version ascending, take only the last](#sort-version-ascending-take-only-the-last)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -l](#-echo-104-111-122-234--go-run-maingo--s--l)
+  - [Sort version descending, output to json](#sort-version-descending-output-to-json)
+    - [$ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j](#-echo-104-111-122-234--go-run-maingo--s--d--j)
+  - [Select only non version](#select-only-non-version)
+    - [$ echo '0.0.4 1.2.3 tomate 0.3.2' | go run main.go -invalid](#-echo-004-123-tomate-032--go-run-maingo--invalid)
+
+# Install
+
+## go
+
+```sh
+go get github.com/Masterminds/semver
+```
+
+# Cli
+
+## Help
+
+#### $ go run main.go -help
+```sh
+semver - 0.0.0
+
+Usage
+
+	-filter|-c  string  Filter versions matching given semver constraint
+	-invalid    bool    Show only invalid versions
+
+	-sort|-s    bool    Sort input versions
+	-desc|-d    bool    Sort versions descending
+
+	-first|-f   bool    Only first version
+	-last|-l    bool    Only last version
+
+	-json|-j    bool    JSON output
+
+	-version    bool    Show version
+
+Example
+
+	semver -c 1.x 0.0.4 1.2.3
+	echo "0.0.4 1.2.3" | semver -j
+	echo "0.0.4 1.2.3" | semver -s
+	echo "0.0.4 1.2.3" | semver -s -d -j -f
+	echo "0.0.4 1.2.3 tomate" | semver -invalid
+```
+
+# Example
+
+## Filter versions
+
+#### $ go run main.go -c 1.x 1.0.4 1.1.1 1.2.2 2.3.4
+```sh
+- 1.0.4
+- 1.1.1
+- 1.2.2
+```
+
+## Use stdin
+
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -c 2.x
+```sh
+- 2.3.4
+```
+
+## Sort version
+
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s
+```sh
+- 1.0.4
+- 1.1.1
+- 1.2.2
+- 2.3.4
+```
+
+## Sort version ascending, take only the first
+
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -f
+```sh
+- 1.0.4
+```
+
+## Sort version ascending, take only the last
+
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -l
+```sh
+- 2.3.4
+```
+
+## Sort version descending, output to json
+
+#### $ echo '1.0.4 1.1.1 1.2.2 2.3.4' | go run main.go -s -d -j
+```sh
+["2.3.4","1.2.2","1.1.1","1.0.4"]
+```
+
+## Select only non version
+
+#### $ echo '0.0.4 1.2.3 tomate 0.3.2' | go run main.go -invalid
+```sh
+- tomate
+```
