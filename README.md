@@ -11,6 +11,9 @@ The `semver` package provides the ability to work with [Semantic Versions](http:
 Active](https://masterminds.github.io/stability/active.svg)](https://masterminds.github.io/stability/active.html)
 [![Build Status](https://travis-ci.org/Masterminds/semver.svg)](https://travis-ci.org/Masterminds/semver) [![Build status](https://ci.appveyor.com/api/projects/status/jfk66lib7hb985k8/branch/master?svg=true&passingText=windows%20build%20passing&failingText=windows%20build%20failing)](https://ci.appveyor.com/project/mattfarina/semver/branch/master) [![GoDoc](https://godoc.org/github.com/Masterminds/semver?status.svg)](https://godoc.org/github.com/Masterminds/semver) [![Go Report Card](https://goreportcard.com/badge/github.com/Masterminds/semver)](https://goreportcard.com/report/github.com/Masterminds/semver)
 
+If you are looking for a command line tool for version comparisons please see
+[vert](https://github.com/Masterminds/vert) which uses this library.
+
 ## Parsing Semantic Versions
 
 To parse a semantic version use the `NewVersion` function. For example,
