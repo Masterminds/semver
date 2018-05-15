@@ -172,7 +172,7 @@ func TestConstraintCheck(t *testing.T) {
 		{"<=1.1", "0.1.0", true},
 		{"<=1.1", "1.1.0", true},
 		{"<=1.1", "1.1.1", false},
-		{"<=1.1-alpha1", "1.1", false},
+		{"<=1.1-alpha1", "1.1.0", false},
 		{"<=2.x", "3.0.0", false},
 		{"<=2.x", "2.9.9", true},
 		{"<2.x", "2.0.0", false},
@@ -293,7 +293,7 @@ func TestNewConstraint(t *testing.T) {
 			},
 		}, false},
 		{"1.1.0 - 12-abc123", rangeConstraint{
-			min:        newV(1,1,0),
+			min:        newV(1, 1, 0),
 			max:        Version{major: 12, minor: 0, patch: 0, pre: "abc123"},
 			includeMin: true,
 			includeMax: true,
@@ -302,7 +302,7 @@ func TestNewConstraint(t *testing.T) {
 			major: 1,
 			minor: 1,
 			patch: 0,
-			pre: "12-abc123"}, false},
+			pre:   "12-abc123"}, false},
 	}
 
 	for _, tc := range tests {
@@ -381,7 +381,7 @@ func TestConstraintsCheck(t *testing.T) {
 		{"= 2.0", "2.0.0", true},
 		{"4.1", "4.1.0", true},
 		{"4.1.x", "4.1.3", true},
-		{"1.x", "1.4", true},
+		{"1.x", "1.4.0", true},
 		{"!=4.1", "4.1.0", false},
 		{"!=4.1", "5.1.0", true},
 		{"!=4.x", "5.1.0", true},
@@ -426,7 +426,7 @@ func TestConstraintsCheck(t *testing.T) {
 		{"~*", "2.1.1", true},
 		{"~1.x", "2.1.1", false},
 		{"~1.x", "1.3.5", true},
-		{"~1.x", "1.4", true},
+		{"~1.x", "1.4.0", true},
 		{"~1.1", "1.1.1", true},
 		{"~1.2.3", "1.2.5", true},
 		{"~1.2.3", "1.2.2", false},
@@ -444,7 +444,7 @@ func TestConstraintsCheck(t *testing.T) {
 
 		v, err := NewVersion(tc.version)
 		if err != nil {
-			t.Errorf("err: %s", err)
+			t.Errorf("err: %s (%s)", err, tc.version)
 			continue
 		}
 
@@ -578,7 +578,7 @@ func TestRewriteRange_InvalidRange(t *testing.T) {
 		nc string
 	}{
 		{"2-3", "2-3"},
-		{"2-3, 2 - 3","2-3,>= 2, <= 3"},
+		{"2-3, 2 - 3", "2-3,>= 2, <= 3"},
 		{"2-3, 4.0.0 - 5.1", "2-3,>= 4.0.0, <= 5.1"},
 	}
 

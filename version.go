@@ -13,6 +13,7 @@ import (
 // The compiled version of the regex created at init() is cached here so it
 // only needs to be created once.
 var versionRegex *regexp.Regexp
+var verRegex *regexp.Regexp
 
 var (
 	// ErrInvalidSemVer is returned a version is found to be invalid when
@@ -40,8 +41,12 @@ type vcache struct {
 	err error
 }
 
+const verRegexRaw = `v?([0-9]|[1-9][0-9]+)(\.([[0-9]|[1-9][0-9]+))?(\.([0-9]|[1-9][0-9]+))?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
+
 // SemVerRegex id the regular expression used to parse a semantic version.
-const SemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
+const SemVerRegex string = `v?([0-9]|[1-9][0-9]+)\.([[0-9]|[1-9][0-9]+)\.([0-9]|[1-9][0-9]+)` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
@@ -63,6 +68,7 @@ type Version struct {
 }
 
 func init() {
+	verRegex = regexp.MustCompile("^" + verRegexRaw + "$")
 	versionRegex = regexp.MustCompile("^" + SemVerRegex + "$")
 }
 
@@ -149,6 +155,47 @@ func NewVersion(v string) (Version, error) {
 	}
 
 	return sv, nil
+}
+
+// Format fills a missing minor or patch field with ZERO.
+// The returned values is formated as X.Y.Z-PRERELEASE+METADATA
+func Format(v string) (string, error) {
+	m := verRegex.FindStringSubmatch(v)
+	if m == nil {
+		return "", ErrInvalidSemVer
+	}
+
+	var major uint64
+	major, err := strconv.ParseUint(m[1], 10, 32)
+	if err != nil {
+		return "", badVersionSegment{e: err}
+	}
+
+	var minor uint64
+	if m[3] != "" {
+		minor, err = strconv.ParseUint(m[3], 10, 32)
+		if err != nil {
+			return "", badVersionSegment{e: err}
+		}
+	}
+
+	var patch uint64
+	if m[5] != "" {
+		patch, err = strconv.ParseUint(m[5], 10, 32)
+		if err != nil {
+
+			return "", badVersionSegment{e: err}
+		}
+	}
+	return Version{
+		major:    major,
+		minor:    minor,
+		patch:    patch,
+		metadata: m[10],
+		pre:      m[7],
+		original: v,
+	}.toString(false), nil
+
 }
 
 // String converts a Version object to a string.

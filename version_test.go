@@ -11,19 +11,23 @@ func TestNewVersion(t *testing.T) {
 	}{
 		{"1.2.3", false},
 		{"v1.2.3", false},
-		{"1.0", false},
-		{"v1.0", false},
-		{"1", false},
-		{"v1", false},
+		{"1.0", true},
+		{"v1.0", true},
+		{"1", true},
+		{"v1", true},
 		{"1.2.beta", true},
 		{"v1.2.beta", true},
 		{"foo", true},
-		{"1.2-5", false},
-		{"v1.2-5", false},
-		{"1.2-beta.5", false},
-		{"v1.2-beta.5", false},
-		{"\n1.2", true},
-		{"\nv1.2", true},
+		{"1.2-5", true},
+		{"v1.2-5", true},
+		{"1.2-beta.5", true},
+		{"v1.2-beta.5", true},
+		{"1.2.0-5", false},
+		{"v1.2.0-5", false},
+		{"1.2.0-beta.5", false},
+		{"v1.2.0-beta.5", false},
+		{"\n1.2.0", true},
+		{"\nv1.2.0", true},
 		{"1.2.0-x.Y.0+metadata", false},
 		{"v1.2.0-x.Y.0+metadata", false},
 		{"1.2.0-x.Y.0+metadata-width-hypen", false},
@@ -32,14 +36,21 @@ func TestNewVersion(t *testing.T) {
 		{"v1.2.3-rc1-with-hypen", false},
 		{"1.2.3.4", true},
 		{"v1.2.3.4", true},
+		{"1.00.0", true},
+		{"1.100.0", false},
+		{"1.0.00", true},
+		{"1.0.010", true},
+		{"01.0.0", true},
+		{"1.0.", true},
+		{"1.0.0.", true},
 	}
 
-	for _, tc := range tests {
+	for idx, tc := range tests {
 		_, err := NewVersion(tc.version)
 		if tc.err && err == nil {
-			t.Fatalf("expected error for version: %s", tc.version)
+			t.Fatalf("test-case-%02d ~ expected error for version: %s", idx, tc.version)
 		} else if !tc.err && err != nil {
-			t.Fatalf("error for version %s: %s", tc.version, err)
+			t.Fatalf("test-case-%02d ~ error for version %s: %s", idx, tc.version, err)
 		}
 	}
 }
@@ -48,14 +59,10 @@ func TestOriginal(t *testing.T) {
 	tests := []string{
 		"1.2.3",
 		"v1.2.3",
-		"1.0",
-		"v1.0",
-		"1",
-		"v1",
-		"1.2-5",
-		"v1.2-5",
-		"1.2-beta.5",
-		"v1.2-beta.5",
+		"1.2.3-5",
+		"v1.2.3-5",
+		"1.2.3-beta.5",
+		"v1.2.3-beta.5",
 		"1.2.0-x.Y.0+metadata",
 		"v1.2.0-x.Y.0+metadata",
 		"1.2.0-x.Y.0+metadata-width-hypen",
@@ -107,14 +114,10 @@ func TestString(t *testing.T) {
 	}{
 		{"1.2.3", "1.2.3"},
 		{"v1.2.3", "1.2.3"},
-		{"1.0", "1.0.0"},
-		{"v1.0", "1.0.0"},
-		{"1", "1.0.0"},
-		{"v1", "1.0.0"},
-		{"1.2-5", "1.2.0-5"},
-		{"v1.2-5", "1.2.0-5"},
-		{"1.2-beta.5", "1.2.0-beta.5"},
-		{"v1.2-beta.5", "1.2.0-beta.5"},
+		{"1.2.0-5", "1.2.0-5"},
+		{"v1.2.0-5", "1.2.0-5"},
+		{"1.2.0-beta.5", "1.2.0-beta.5"},
+		{"v1.2.0-beta.5", "1.2.0-beta.5"},
 		{"1.2.0-x.Y.0+metadata", "1.2.0-x.Y.0+metadata"},
 		{"v1.2.0-x.Y.0+metadata", "1.2.0-x.Y.0+metadata"},
 		{"1.2.0-x.Y.0+metadata-width-hypen", "1.2.0-x.Y.0+metadata-width-hypen"},
@@ -136,6 +139,40 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestFormat(t *testing.T) {
+	tests := []struct {
+		version  string
+		expected string
+	}{
+		{"1.2.3", "1.2.3"},
+		{"v1.2.3", "1.2.3"},
+		{"1.0", "1.0.0"},
+		{"v1.0", "1.0.0"},
+		{"1", "1.0.0"},
+		{"v1", "1.0.0"},
+		{"1.2-5", "1.2.0-5"},
+		{"v1.2-5", "1.2.0-5"},
+		{"1.2-beta.5", "1.2.0-beta.5"},
+		{"v1.2-beta.5", "1.2.0-beta.5"},
+		{"1.2.0-x.Y.0+metadata", "1.2.0-x.Y.0+metadata"},
+		{"v1.2.0-x.Y.0+metadata", "1.2.0-x.Y.0+metadata"},
+		{"1.2.0-x.Y.0+metadata-with-hypen", "1.2.0-x.Y.0+metadata-with-hypen"},
+		{"v1.2.0-x.Y.0+metadata-with-hypen", "1.2.0-x.Y.0+metadata-with-hypen"},
+		{"1.2.3-rc1-with-hypen", "1.2.3-rc1-with-hypen"},
+		{"v1.2.3-rc1-with-hypen", "1.2.3-rc1-with-hypen"},
+	}
+
+	for idx, tc := range tests {
+		v, err := Format(tc.version)
+		if err != nil {
+			t.Errorf("test-case-%02d: Error parsing version %s", idx, tc.version)
+		}
+
+		if v != tc.expected {
+			t.Errorf("test-case-%02d: Error generating string. Expected '%s' but got '%s'", idx, tc.expected, v)
+		}
+	}
+}
 func TestCompare(t *testing.T) {
 	tests := []struct {
 		v1       string
@@ -145,19 +182,19 @@ func TestCompare(t *testing.T) {
 		{"1.2.3", "1.5.1", -1},
 		{"2.2.3", "1.5.1", 1},
 		{"2.2.3", "2.2.2", 1},
-		{"3.2-beta", "3.2-beta", 0},
-		{"1.3", "1.1.4", 1},
-		{"4.2", "4.2-beta", 1},
-		{"4.2-beta", "4.2", -1},
-		{"4.2-alpha", "4.2-beta", -1},
-		{"4.2-alpha", "4.2-alpha", 0},
-		{"4.2-beta.2", "4.2-beta.1", 1},
-		{"4.2-beta2", "4.2-beta1", 1},
-		{"4.2-beta", "4.2-beta.2", -1},
-		{"4.2-beta", "4.2-beta.foo", 1},
-		{"4.2-beta.2", "4.2-beta", 1},
-		{"4.2-beta.foo", "4.2-beta", -1},
-		{"1.2+bar", "1.2+baz", 0},
+		{"3.2.0-beta", "3.2.0-beta", 0},
+		{"1.3.0", "1.1.4", 1},
+		{"4.2.0", "4.2.0-beta", 1},
+		{"4.2.0-alpha", "4.2.0-beta", -1},
+		{"4.2.0-beta", "4.2.0", -1},
+		{"4.2.0-alpha", "4.2.0-alpha", 0},
+		{"4.2.0-beta.2", "4.2.0-beta.1", 1},
+		{"4.2.0-beta2", "4.2.0-beta1", 1},
+		{"4.2.0-beta", "4.2.0-beta.2", -1},
+		{"4.2.0-beta", "4.2.0-beta.foo", 1},
+		{"4.2.0-beta.2", "4.2.0-beta", 1},
+		{"4.2.0-beta.foo", "4.2.0-beta", -1},
+		{"1.2.0+bar", "1.2.0+baz", 0},
 	}
 
 	for _, tc := range tests {
@@ -217,7 +254,7 @@ func TestLessThan(t *testing.T) {
 	}{
 		{"1.2.3", "1.5.1", true},
 		{"2.2.3", "1.5.1", false},
-		{"3.2-beta", "3.2-beta", false},
+		{"3.2.0-beta", "3.2.0-beta", false},
 	}
 
 	for _, tc := range tests {
@@ -250,7 +287,7 @@ func TestGreaterThan(t *testing.T) {
 	}{
 		{"1.2.3", "1.5.1", false},
 		{"2.2.3", "1.5.1", true},
-		{"3.2-beta", "3.2-beta", false},
+		{"3.2.0-beta", "3.2.0-beta", false},
 	}
 
 	for _, tc := range tests {
@@ -283,8 +320,8 @@ func TestEqual(t *testing.T) {
 	}{
 		{"1.2.3", "1.5.1", false},
 		{"2.2.3", "1.5.1", false},
-		{"3.2-beta", "3.2-beta", true},
-		{"3.2-beta+foo", "3.2-beta+bar", true},
+		{"3.2.0-beta", "3.2.0-beta", true},
+		{"3.2.0-beta+foo", "3.2.0-beta+bar", true},
 	}
 
 	for _, tc := range tests {

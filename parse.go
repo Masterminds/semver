@@ -42,7 +42,11 @@ func parseConstraint(c string, cbd bool) (Constraint, error) {
 		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
 	}
 
-	v, err := NewVersion(ver)
+	str, err := Format(ver)
+	if err != nil {
+		return nil, errors.New("constraint Parser Error")
+	}
+	v, err := NewVersion(str)
 	if err != nil {
 		// The constraintRegex should catch any regex parsing errors. So,
 		// we should never get here.
