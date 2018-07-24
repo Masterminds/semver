@@ -147,6 +147,7 @@ The caret (`^`) comparison operator is for major level changes. This is useful
 when comparisons of API versions as a major change is API breaking. For example,
 
 * `^1.2.3` is equivalent to `>= 1.2.3, < 2.0.0`
+* `^0.0.1` is equivalent to `>= 0.0.1, < 1.0.0`
 * `^1.2.x` is equivalent to `>= 1.2.0, < 2.0.0`
 * `^2.3` is equivalent to `>= 2.3, < 3`
 * `^2.x` is equivalent to `>= 2.0.0, < 3`

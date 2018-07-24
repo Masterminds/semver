@@ -354,6 +354,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{"^1.x", "1.1.1", true},
 		{"^2.x", "1.1.1", false},
 		{"^1.x", "2.1.1", false},
+		{"^0.0.1", "0.1.3", true},
 		{"~*", "2.1.1", true},
 		{"~1", "2.1.1", false},
 		{"~1", "1.3.5", true},
