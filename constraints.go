@@ -20,7 +20,8 @@ func NewConstraint(c string) (*Constraints, error) {
 	// Rewrite - ranges into a comparison operation.
 	c = rewriteRange(c)
 
-	ors := strings.Split(c, "||")
+	c = strings.Replace(c, "||", "|", -1)
+	ors := strings.Split(c, "|")
 	or := make([][]*constraint, len(ors))
 	for k, v := range ors {
 		cs := strings.Split(v, ",")

@@ -124,6 +124,8 @@ func TestNewConstraint(t *testing.T) {
 		{">= bar", 0, 0, true},
 		{">= 1.2.3, < 2.0", 1, 2, false},
 		{">= 1.2.3, < 2.0 || => 3.0, < 4", 2, 2, false},
+		{"<1 || =2 | >3", 3, 1, false},
+		{"<1 | | >3", 0, 0, true},
 
 		// The 3 - 4 should be broken into 2 by the range rewriting
 		{"3 - 4 || => 3.0, < 4", 2, 2, false},
