@@ -371,6 +371,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{"~1.2.3", "1.3.2", false},
 		{"~1.1", "1.2.3", false},
 		{"~1.3", "2.4.5", false},
+		{"<11", "11.1.0", false},
 	}
 
 	for _, tc := range tests {
