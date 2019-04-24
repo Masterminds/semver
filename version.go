@@ -34,7 +34,7 @@ const SemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 
 // ValidPrerelease is the regular expression which validates
 // both prerelease and metadata values.
-const ValidPrerelease string = `^([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)`
+const ValidPrerelease string = `^([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)$`
 
 // Version represents a single semantic version.
 type Version struct {
