@@ -180,6 +180,13 @@ version didn't meet the constraint is returned. For example,
     }
 ```
 
+# Fuzzing
+
+ [dvyukov/go-fuzz](https://github.com/dvyukov/go-fuzz) is used for fuzzing.
+
+1. `go-fuzz-build`
+2. `go-fuzz -workdir=fuzz`
+
 # Contribute
 
 If you find an issue or want to contribute please file an [issue](https://github.com/Masterminds/semver/issues)
