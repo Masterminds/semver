@@ -1,36 +1,23 @@
-.PHONY: setup
-setup:
-	go get -u gopkg.in/alecthomas/gometalinter.v1
-	gometalinter.v1 --install
-
-.PHONY: test
-test: validate lint
-	@echo "==> Running tests"
-	go test -v
-
-.PHONY: validate
-validate:
-	@echo "==> Running static validations"
-	@gometalinter.v1 \
-	  --disable-all \
-	  --enable deadcode \
-	  --severity deadcode:error \
-	  --enable gofmt \
-	  --enable gosimple \
-	  --enable ineffassign \
-	  --enable misspell \
-	  --enable vet \
-	  --tests \
-	  --vendor \
-	  --deadline 60s \
-	  ./... || exit_code=1
+GOPATH=$(shell go env GOPATH)
+GOLANGCI_LINT=$(GOPATH)/bin/golangci-lint
 
 .PHONY: lint
-lint:
-	@echo "==> Running linters"
-	@gometalinter.v1 \
-	  --disable-all \
-	  --enable golint \
-	  --vendor \
-	  --deadline 60s \
-	  ./... || :
+lint: $(GOLANGCI_LINT)
+	@echo "==> Linting codebase"
+	@$(GOLANGCI_LINT) run
+
+.PHONY: test
+test:
+	@echo "==> Running tests"
+	GO111MODULE=on go test -v
+
+.PHONY: test-cover
+test-cover:
+	@echo "==> Running Tests with coverage"
+	GO111MODULE=on go test -cover .
+
+$(GOLANGCI_LINT):
+	# Install golangci-lint. The configuration for it is in the .golangci.yml
+	# file in the root of the repository
+	echo ${GOPATH}
+	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(GOPATH)/bin v1.17.1

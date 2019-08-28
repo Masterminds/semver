@@ -165,7 +165,7 @@ func (v *Version) originalVPrefix() string {
 // If the current version does not have prerelease/metadata information,
 // it unsets metadata and prerelease values, increments patch number.
 // If the current version has any of prerelease or metadata information,
-// it unsets both values and keeps curent patch value
+// it unsets both values and keeps current patch value
 func (v Version) IncPatch() Version {
 	vNext := v
 	// according to http://semver.org/#spec-item-9

@@ -10,7 +10,7 @@ import (
 
 func benchNewConstraint(c string, b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		semver.NewConstraint(c)
+		_, _ = semver.NewConstraint(c)
 	}
 }
 
@@ -136,7 +136,7 @@ func BenchmarkValidateVersionUnionFail(b *testing.B) {
 
 func benchNewVersion(v string, b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		semver.NewVersion(v)
+		_, _ = semver.NewVersion(v)
 	}
 }
 
