@@ -1,4 +1,5 @@
-GOLANGCI_LINT = $(GOPATH)/bin/golangci-lint
+GOPATH=$(shell go env GOPATH)
+GOLANGCI_LINT=$(GOPATH)/bin/golangci-lint
 
 .PHONY: lint
 lint: $(GOLANGCI_LINT)
@@ -16,8 +17,7 @@ test-cover:
 	GO111MODULE=on go test -cover .
 
 $(GOLANGCI_LINT):
-	# If the command is run in the current directory it will be added  to the
-	# modules along with all of its dependencies. Changing directory to skip
-	# that. go modules must be enabled to set to specific version. Forcing to
-	# be on with env var.
-	cd / && GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.17.1
+	# Install golangci-lint. The configuration for it is in the .golangci.yml
+	# file in the root of the repository
+	echo ${GOPATH}
+	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(GOPATH)/bin v1.17.1

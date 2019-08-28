@@ -1,7 +1,8 @@
 language: go
 
+# Testing and linting occuring via go modules does not really work well prior
+# to Go 1.12. This is what can happen with experiments.
 go:
-  - 1.10.x
   - 1.11.x
   - 1.12.x
   - tip
