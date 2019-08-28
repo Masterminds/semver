@@ -14,6 +14,19 @@ Active](https://masterminds.github.io/stability/active.svg)](https://masterminds
 If you are looking for a command line tool for version comparisons please see
 [vert](https://github.com/Masterminds/vert) which uses this library.
 
+## Package Versions
+
+There are three major versions fo the `semver` package.
+
+* 3.x.x which is currently under development. This version is focused on compatibility
+  SemVer handling in other tools from other language. It will have a similar API
+  to the 1.x.x releases. The development of this version is on the master branch.
+* 2.x was developed primarily for [dep](https://github.com/golang/dep). There are
+  no tagged releases and the development was performed by [@sdboyer](https://github.com/sdboyer).
+  This version lives on the 2.x branch.
+* 1.x.x is the most widely used version with numerous tagged releases. This is the
+  current stable. The development, to fix bugs, occurs on the release-1 branch.
+
 ## Parsing Semantic Versions
 
 To parse a semantic version use the `NewVersion` function. For example,
