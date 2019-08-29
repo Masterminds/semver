@@ -163,6 +163,9 @@ func TestCompare(t *testing.T) {
 		{"4.2-beta.2", "4.2-beta", 1},
 		{"4.2-beta.foo", "4.2-beta", 1},
 		{"1.2+bar", "1.2+baz", 0},
+		{"1.0.0-beta.4", "1.0.0-beta.-2", -1},
+		{"1.0.0-beta.-2", "1.0.0-beta.-3", -1},
+		{"1.0.0-beta.-3", "1.0.0-beta.5", 1},
 	}
 
 	for _, tc := range tests {
