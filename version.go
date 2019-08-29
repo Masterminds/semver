@@ -187,29 +187,26 @@ func CoerceNewVersion(v string) (Version, error) {
 		original: v,
 	}
 
-	var temp uint64
-	temp, err := strconv.ParseUint(m[1], 10, 64)
+	var err error
+	sv.major, err = strconv.ParseUint(m[1], 10, 64)
 	if err != nil {
 		return Version{}, fmt.Errorf("Error parsing version segment: %s", err)
 	}
-	sv.major = temp
 
 	if m[2] != "" {
-		temp, err = strconv.ParseUint(strings.TrimPrefix(m[2], "."), 10, 64)
+		sv.minor, err = strconv.ParseUint(strings.TrimPrefix(m[2], "."), 10, 64)
 		if err != nil {
 			return Version{}, fmt.Errorf("Error parsing version segment: %s", err)
 		}
-		sv.minor = temp
 	} else {
 		sv.minor = 0
 	}
 
 	if m[3] != "" {
-		temp, err = strconv.ParseUint(strings.TrimPrefix(m[3], "."), 10, 64)
+		sv.patch, err = strconv.ParseUint(strings.TrimPrefix(m[3], "."), 10, 64)
 		if err != nil {
 			return Version{}, fmt.Errorf("Error parsing version segment: %s", err)
 		}
-		sv.patch = temp
 	} else {
 		sv.patch = 0
 	}
