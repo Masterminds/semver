@@ -453,6 +453,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{"~1.2.3", "1.3.2", "1.3.2 does not have same major and minor version as 1.2.3"},
 		{"~1.1", "1.2.3", "1.2.3 does not have same major and minor version as 1.1"},
 		{"~1.3", "2.4.5", "2.4.5 does not have same major and minor version as 1.3"},
+		{"> 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is a prerelease version and the constraint is only looking for release versions"},
 	}
 
 	for _, tc := range tests2 {
