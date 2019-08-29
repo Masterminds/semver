@@ -14,6 +14,7 @@ func TestNewVersion(t *testing.T) {
 		{"1.2.3", false},
 		{"1.2.3-alpha.01", true},
 		{"1.2.3+test.01", false},
+		{"1.2.3-alpha.-1", false},
 		{"v1.2.3", true},
 		{"1.0", true},
 		{"v1.0", true},
@@ -59,6 +60,7 @@ func TestCoerceNewVersion(t *testing.T) {
 		{"1.2.3", false},
 		{"1.2.3-alpha.01", true},
 		{"1.2.3+test.01", false},
+		{"1.2.3-alpha.-1", false},
 		{"v1.2.3", false},
 		{"1.0", false},
 		{"v1.0", false},
@@ -210,6 +212,9 @@ func TestCompare(t *testing.T) {
 		{"4.2-beta.2", "4.2-beta", 1},
 		{"4.2-beta.foo", "4.2-beta", 1},
 		{"1.2+bar", "1.2+baz", 0},
+		{"1.0.0-beta.4", "1.0.0-beta.-2", -1},
+		{"1.0.0-beta.-2", "1.0.0-beta.-3", -1},
+		{"1.0.0-beta.-3", "1.0.0-beta.5", 1},
 	}
 
 	for _, tc := range tests {
