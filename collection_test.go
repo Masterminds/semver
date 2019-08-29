@@ -15,9 +15,9 @@ func TestCollection(t *testing.T) {
 		"0.4.2",
 	}
 
-	vs := make([]*Version, len(raw))
+	vs := make([]Version, len(raw))
 	for i, r := range raw {
-		v, err := NewVersion(r)
+		v, err := CoerceNewVersion(r)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}

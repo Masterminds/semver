@@ -12,6 +12,53 @@ func TestNewVersion(t *testing.T) {
 		err     bool
 	}{
 		{"1.2.3", false},
+		{"1.2.3-alpha.01", true},
+		{"1.2.3+test.01", false},
+		{"v1.2.3", true},
+		{"1.0", true},
+		{"v1.0", true},
+		{"1", true},
+		{"v1", true},
+		{"1.2.beta", true},
+		{"v1.2.beta", true},
+		{"foo", true},
+		{"1.2-5", true},
+		{"v1.2-5", true},
+		{"1.2-beta.5", true},
+		{"v1.2-beta.5", true},
+		{"\n1.2", true},
+		{"\nv1.2", true},
+		{"1.2.0-x.Y.0+metadata", false},
+		{"v1.2.0-x.Y.0+metadata", true},
+		{"1.2.0-x.Y.0+metadata-width-hypen", false},
+		{"v1.2.0-x.Y.0+metadata-width-hypen", true},
+		{"1.2.3-rc1-with-hypen", false},
+		{"v1.2.3-rc1-with-hypen", true},
+		{"1.2.3.4", true},
+		{"v1.2.3.4", true},
+		{"1.2.2147483648", false},
+		{"1.2147483648.3", false},
+		{"2147483648.3.0", false},
+	}
+
+	for _, tc := range tests {
+		_, err := NewVersion(tc.version)
+		if tc.err && err == nil {
+			t.Fatalf("expected error for version: %s", tc.version)
+		} else if !tc.err && err != nil {
+			t.Fatalf("error for version %s: %s", tc.version, err)
+		}
+	}
+}
+
+func TestCoerceNewVersion(t *testing.T) {
+	tests := []struct {
+		version string
+		err     bool
+	}{
+		{"1.2.3", false},
+		{"1.2.3-alpha.01", true},
+		{"1.2.3+test.01", false},
 		{"v1.2.3", false},
 		{"1.0", false},
 		{"v1.0", false},
@@ -40,7 +87,7 @@ func TestNewVersion(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		_, err := NewVersion(tc.version)
+		_, err := CoerceNewVersion(tc.version)
 		if tc.err && err == nil {
 			t.Fatalf("expected error for version: %s", tc.version)
 		} else if !tc.err && err != nil {
@@ -70,20 +117,20 @@ func TestOriginal(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v, err := NewVersion(tc)
+		v, err := CoerceNewVersion(tc)
 		if err != nil {
 			t.Errorf("Error parsing version %s", tc)
 		}
 
 		o := v.Original()
 		if o != tc {
-			t.Errorf("Error retrieving originl. Expected '%s' but got '%s'", tc, v)
+			t.Errorf("Error retrieving original. Expected '%s' but got '%v'", tc, v)
 		}
 	}
 }
 
 func TestParts(t *testing.T) {
-	v, err := NewVersion("1.2.3-beta.1+build.123")
+	v, err := CoerceNewVersion("1.2.3-beta.1+build.123")
 	if err != nil {
 		t.Error("Error parsing version 1.2.3-beta.1+build.123")
 	}
@@ -105,7 +152,7 @@ func TestParts(t *testing.T) {
 	}
 }
 
-func TestString(t *testing.T) {
+func TestCoerceString(t *testing.T) {
 	tests := []struct {
 		version  string
 		expected string
@@ -129,7 +176,7 @@ func TestString(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v, err := NewVersion(tc.version)
+		v, err := CoerceNewVersion(tc.version)
 		if err != nil {
 			t.Errorf("Error parsing version %s", tc)
 		}
@@ -166,12 +213,12 @@ func TestCompare(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v1, err := NewVersion(tc.v1)
+		v1, err := CoerceNewVersion(tc.v1)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
 
-		v2, err := NewVersion(tc.v2)
+		v2, err := CoerceNewVersion(tc.v2)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
@@ -199,12 +246,12 @@ func TestLessThan(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v1, err := NewVersion(tc.v1)
+		v1, err := CoerceNewVersion(tc.v1)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
 
-		v2, err := NewVersion(tc.v2)
+		v2, err := CoerceNewVersion(tc.v2)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
@@ -237,12 +284,12 @@ func TestGreaterThan(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v1, err := NewVersion(tc.v1)
+		v1, err := CoerceNewVersion(tc.v1)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
 
-		v2, err := NewVersion(tc.v2)
+		v2, err := CoerceNewVersion(tc.v2)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
@@ -271,12 +318,12 @@ func TestEqual(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v1, err := NewVersion(tc.v1)
+		v1, err := CoerceNewVersion(tc.v1)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
 
-		v2, err := NewVersion(tc.v2)
+		v2, err := CoerceNewVersion(tc.v2)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
@@ -315,7 +362,7 @@ func TestInc(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v1, err := NewVersion(tc.v1)
+		v1, err := CoerceNewVersion(tc.v1)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
@@ -364,7 +411,7 @@ func TestSetPrerelease(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v1, err := NewVersion(tc.v1)
+		v1, err := CoerceNewVersion(tc.v1)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
@@ -409,7 +456,7 @@ func TestSetMetadata(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v1, err := NewVersion(tc.v1)
+		v1, err := CoerceNewVersion(tc.v1)
 		if err != nil {
 			t.Errorf("Error parsing version: %s", err)
 		}
@@ -449,7 +496,7 @@ func TestOriginalVPrefix(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		v1, _ := NewVersion(tc.version)
+		v1, _ := CoerceNewVersion(tc.version)
 		a := v1.originalVPrefix()
 		e := tc.vprefix
 		if a != e {
