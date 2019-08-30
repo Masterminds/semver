@@ -189,14 +189,14 @@ func parseConstraint(c string) (*constraint, error) {
 	minorDirty := false
 	patchDirty := false
 	dirty := false
-	if isX(m[3]) {
+	if isX(m[3]) || m[3] == "" {
 		ver = "0.0.0"
 		dirty = true
 	} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
 		minorDirty = true
 		dirty = true
 		ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
-	} else if isX(strings.TrimPrefix(m[5], ".")) {
+	} else if isX(strings.TrimPrefix(m[5], ".")) || m[5] == "" {
 		dirty = true
 		patchDirty = true
 		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
@@ -240,9 +240,15 @@ func constraintNotEqual(v Version, c *constraint) bool {
 			return true
 		} else if c.minorDirty {
 			return false
+		} else if c.con.Patch() != v.Patch() && !c.patchDirty {
+			return true
+		} else if c.patchDirty {
+			// Need to handle prereleases if present
+			if v.Prerelease() != "" || c.con.Prerelease() != "" {
+				return comparePrerelease(v.Prerelease(), c.con.Prerelease()) != 0
+			}
+			return false
 		}
-
-		return false
 	}
 
 	return !v.Equal(c.con)
@@ -257,6 +263,26 @@ func constraintGreaterThan(v Version, c *constraint) bool {
 		return false
 	}
 
+	if !c.dirty {
+		return v.Compare(c.con) == 1
+	}
+
+	if v.Major() > c.con.Major() {
+		return true
+	} else if v.Major() < c.con.Major() {
+		return false
+	} else if c.minorDirty {
+		// This is a range case such as >11. When the version is something like
+		// 11.1.0 is it not > 11. For that we would need 12 or higher
+		return false
+	} else if c.patchDirty {
+		// This is for ranges such as >11.1. A version of 11.1.1 is not greater
+		// which one of 11.2.1 is greater
+		return v.Minor() > c.con.Minor()
+	}
+
+	// If we have gotten here we are not comparing pre-preleases and can use the
+	// Compare function to accomplish that.
 	return v.Compare(c.con) == 1
 }
 
@@ -268,17 +294,7 @@ func constraintLessThan(v Version, c *constraint) bool {
 		return false
 	}
 
-	if !c.dirty {
-		return v.Compare(c.con) < 0
-	}
-
-	if v.Major() > c.con.Major() {
-		return false
-	} else if v.Minor() > c.con.Minor() && !c.minorDirty {
-		return false
-	}
-
-	return true
+	return v.Compare(c.con) < 0
 }
 
 func constraintGreaterThanEqual(v Version, c *constraint) bool {
@@ -361,7 +377,6 @@ func constraintTildeOrEqual(v Version, c *constraint) bool {
 	}
 
 	if c.dirty {
-		c.msg = constraintMsg["~"]
 		return constraintTilde(v, c)
 	}
 
@@ -395,7 +410,7 @@ func constraintCaret(v Version, c *constraint) bool {
 
 var constraintRangeRegex *regexp.Regexp
 
-const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
+const cvRegex string = `v?([0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
