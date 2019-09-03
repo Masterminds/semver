@@ -194,9 +194,9 @@ func benchNewVersion(v string, b *testing.B) {
 	}
 }
 
-func benchCoerceNewVersion(v string, b *testing.B) {
+func benchStrictNewVersion(v string, b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = semver.CoerceNewVersion(v)
+		_, _ = semver.StrictNewVersion(v)
 	}
 }
 
@@ -209,7 +209,7 @@ func BenchmarkNewVersionSimple(b *testing.B) {
 func BenchmarkCoerceNewVersionSimple(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
-	benchCoerceNewVersion("1.0.0", b)
+	benchStrictNewVersion("1.0.0", b)
 }
 
 func BenchmarkNewVersionPre(b *testing.B) {
@@ -218,10 +218,10 @@ func BenchmarkNewVersionPre(b *testing.B) {
 	benchNewVersion("1.0.0-alpha", b)
 }
 
-func BenchmarkCoerceNewVersionPre(b *testing.B) {
+func BenchmarkStrictNewVersionPre(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
-	benchCoerceNewVersion("1.0.0-alpha", b)
+	benchStrictNewVersion("1.0.0-alpha", b)
 }
 
 func BenchmarkNewVersionMeta(b *testing.B) {
@@ -230,10 +230,10 @@ func BenchmarkNewVersionMeta(b *testing.B) {
 	benchNewVersion("1.0.0+metadata", b)
 }
 
-func BenchmarkCoerceNewVersionMeta(b *testing.B) {
+func BenchmarkStrictNewVersionMeta(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
-	benchCoerceNewVersion("1.0.0+metadata", b)
+	benchStrictNewVersion("1.0.0+metadata", b)
 }
 
 func BenchmarkNewVersionMetaDash(b *testing.B) {
@@ -242,8 +242,8 @@ func BenchmarkNewVersionMetaDash(b *testing.B) {
 	benchNewVersion("1.0.0-alpha.1+meta.data", b)
 }
 
-func BenchmarkCoerceNewVersionMetaDash(b *testing.B) {
+func BenchmarkStrictNewVersionMetaDash(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
-	benchCoerceNewVersion("1.0.0-alpha.1+meta.data", b)
+	benchStrictNewVersion("1.0.0-alpha.1+meta.data", b)
 }

@@ -41,7 +41,7 @@ func NewConstraint(c string) (*Constraints, error) {
 }
 
 // Check tests if a version satisfies the constraints.
-func (cs Constraints) Check(v Version) bool {
+func (cs Constraints) Check(v *Version) bool {
 	// loop over the ORs and check the inner ANDs
 	for _, o := range cs.constraints {
 		joy := true
@@ -62,7 +62,7 @@ func (cs Constraints) Check(v Version) bool {
 
 // Validate checks if a version satisfies a constraint. If not a slice of
 // reasons for the failure are returned in addition to a bool.
-func (cs Constraints) Validate(v Version) (bool, []error) {
+func (cs Constraints) Validate(v *Version) (bool, []error) {
 	// loop over the ORs and check the inner ANDs
 	var e []error
 
@@ -160,7 +160,7 @@ type constraint struct {
 
 	// The version used in the constraint check. For example, if a constraint
 	// is '<= 2.0.0' the con a version instance representing 2.0.0.
-	con Version
+	con *Version
 
 	// The original parsed version (e.g., 4.x from != 4.x)
 	orig string
@@ -172,11 +172,11 @@ type constraint struct {
 }
 
 // Check if a version meets the constraint
-func (c *constraint) check(v Version) bool {
+func (c *constraint) check(v *Version) bool {
 	return c.function(v, c)
 }
 
-type cfunc func(v Version, c *constraint) bool
+type cfunc func(v *Version, c *constraint) bool
 
 func parseConstraint(c string) (*constraint, error) {
 	m := constraintRegex.FindStringSubmatch(c)
@@ -202,7 +202,7 @@ func parseConstraint(c string) (*constraint, error) {
 		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
 	}
 
-	con, err := CoerceNewVersion(ver)
+	con, err := NewVersion(ver)
 	if err != nil {
 
 		// The constraintRegex should catch any regex parsing errors. So,
@@ -223,7 +223,7 @@ func parseConstraint(c string) (*constraint, error) {
 }
 
 // Constraint functions
-func constraintNotEqual(v Version, c *constraint) bool {
+func constraintNotEqual(v *Version, c *constraint) bool {
 	if c.dirty {
 
 		// If there is a pre-release on the version but the constraint isn't looking
@@ -254,7 +254,7 @@ func constraintNotEqual(v Version, c *constraint) bool {
 	return !v.Equal(c.con)
 }
 
-func constraintGreaterThan(v Version, c *constraint) bool {
+func constraintGreaterThan(v *Version, c *constraint) bool {
 
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
@@ -286,7 +286,7 @@ func constraintGreaterThan(v Version, c *constraint) bool {
 	return v.Compare(c.con) == 1
 }
 
-func constraintLessThan(v Version, c *constraint) bool {
+func constraintLessThan(v *Version, c *constraint) bool {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
@@ -297,7 +297,7 @@ func constraintLessThan(v Version, c *constraint) bool {
 	return v.Compare(c.con) < 0
 }
 
-func constraintGreaterThanEqual(v Version, c *constraint) bool {
+func constraintGreaterThanEqual(v *Version, c *constraint) bool {
 
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
@@ -309,7 +309,7 @@ func constraintGreaterThanEqual(v Version, c *constraint) bool {
 	return v.Compare(c.con) >= 0
 }
 
-func constraintLessThanEqual(v Version, c *constraint) bool {
+func constraintLessThanEqual(v *Version, c *constraint) bool {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
@@ -336,7 +336,7 @@ func constraintLessThanEqual(v Version, c *constraint) bool {
 // ~1.2, ~1.2.x, ~>1.2, ~>1.2.x --> >=1.2.0, <1.3.0
 // ~1.2.3, ~>1.2.3 --> >=1.2.3, <1.3.0
 // ~1.2.0, ~>1.2.0 --> >=1.2.0, <1.3.0
-func constraintTilde(v Version, c *constraint) bool {
+func constraintTilde(v *Version, c *constraint) bool {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
@@ -368,7 +368,7 @@ func constraintTilde(v Version, c *constraint) bool {
 
 // When there is a .x (dirty) status it automatically opts in to ~. Otherwise
 // it's a straight =
-func constraintTildeOrEqual(v Version, c *constraint) bool {
+func constraintTildeOrEqual(v *Version, c *constraint) bool {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
@@ -389,7 +389,7 @@ func constraintTildeOrEqual(v Version, c *constraint) bool {
 // ^1.2, ^1.2.x --> >=1.2.0, <2.0.0
 // ^1.2.3 --> >=1.2.3, <2.0.0
 // ^1.2.0 --> >=1.2.0, <2.0.0
-func constraintCaret(v Version, c *constraint) bool {
+func constraintCaret(v *Version, c *constraint) bool {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
