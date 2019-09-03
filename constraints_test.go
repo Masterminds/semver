@@ -142,7 +142,7 @@ func TestConstraintCheck(t *testing.T) {
 			continue
 		}
 
-		v, err := CoerceNewVersion(tc.version)
+		v, err := NewVersion(tc.version)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
@@ -296,7 +296,7 @@ func TestConstraintsCheck(t *testing.T) {
 			continue
 		}
 
-		v, err := CoerceNewVersion(tc.version)
+		v, err := NewVersion(tc.version)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
@@ -432,7 +432,7 @@ func TestConstraintsValidate(t *testing.T) {
 			continue
 		}
 
-		v, err := CoerceNewVersion(tc.version)
+		v, err := NewVersion(tc.version)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
@@ -452,7 +452,7 @@ func TestConstraintsValidate(t *testing.T) {
 		// }
 	}
 
-	v, err := NewVersion("1.2.3")
+	v, err := StrictNewVersion("1.2.3")
 	if err != nil {
 		t.Errorf("err: %s", err)
 	}
@@ -517,7 +517,7 @@ func TestConstraintsValidate(t *testing.T) {
 			continue
 		}
 
-		v, err := NewVersion(tc.version)
+		v, err := StrictNewVersion(tc.version)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
