@@ -13,7 +13,6 @@ import (
 // The compiled version of the regex created at init() is cached here so it
 // only needs to be created once.
 var versionRegex *regexp.Regexp
-var validPrereleaseRegex *regexp.Regexp
 
 var (
 	// ErrInvalidSemVer is returned a version is found to be invalid when
@@ -43,10 +42,6 @@ const semVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
-// ValidPrerelease is the regular expression which validates
-// both prerelease and metadata values.
-const validPrerelease string = `^([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)$`
-
 // Version represents a single semantic version.
 type Version struct {
 	major, minor, patch uint64
@@ -57,7 +52,6 @@ type Version struct {
 
 func init() {
 	versionRegex = regexp.MustCompile("^" + semVerRegex + "$")
-	validPrereleaseRegex = regexp.MustCompile(validPrerelease)
 }
 
 const num string = "0123456789"
@@ -139,33 +133,15 @@ func StrictNewVersion(v string) (*Version, error) {
 		return sv, nil
 	}
 
-	// A prerelease was found. From the spec, "Identifiers MUST comprise only
-	// ASCII alphanumerics and hyphen [0-9A-Za-z-]. Identifiers MUST NOT be empty.
-	// Numeric identifiers MUST NOT include leading zeroes.". These segments can
-	// be dot separated.
 	if sv.pre != "" {
-		eparts := strings.Split(sv.pre, ".")
-		for _, p := range eparts {
-			if containsOnly(p, num) {
-				if len(p) > 1 && p[0] == '0' {
-					return nil, ErrSegmentStartsZero
-				}
-			} else if !containsOnly(p, allowed) {
-				return nil, ErrInvalidCharacters
-			}
+		if err = validatePrerelease(sv.pre); err != nil {
+			return nil, err
 		}
 	}
 
-	// Build metadata was found. From the spec, "Build metadata MAY be denoted by
-	// appending a plus sign and a series of dot separated identifiers immediately
-	// following the patch or pre-release version. Identifiers MUST comprise only
-	// ASCII alphanumerics and hyphen [0-9A-Za-z-]. Identifiers MUST NOT be empty."
 	if sv.metadata != "" {
-		eparts := strings.Split(sv.metadata, ".")
-		for _, p := range eparts {
-			if !containsOnly(p, allowed) {
-				return nil, ErrInvalidCharacters
-			}
+		if err = validateMetadata(sv.metadata); err != nil {
+			return nil, err
 		}
 	}
 
@@ -215,33 +191,15 @@ func NewVersion(v string) (*Version, error) {
 	// Perform some basic due diligence on the extra parts to ensure they are
 	// valid.
 
-	// A prerelease was found. From the spec, "Identifiers MUST comprise only
-	// ASCII alphanumerics and hyphen [0-9A-Za-z-]. Identifiers MUST NOT be empty.
-	// Numeric identifiers MUST NOT include leading zeroes.". These segments can
-	// be dot separated.
 	if sv.pre != "" {
-		eparts := strings.Split(sv.pre, ".")
-		for _, p := range eparts {
-			if containsOnly(p, num) {
-				if len(p) > 1 && p[0] == '0' {
-					return nil, ErrSegmentStartsZero
-				}
-			} else if !containsOnly(p, allowed) {
-				return nil, ErrInvalidCharacters
-			}
+		if err = validatePrerelease(sv.pre); err != nil {
+			return nil, err
 		}
 	}
 
-	// Build metadata was found. From the spec, "Build metadata MAY be denoted by
-	// appending a plus sign and a series of dot separated identifiers immediately
-	// following the patch or pre-release version. Identifiers MUST comprise only
-	// ASCII alphanumerics and hyphen [0-9A-Za-z-]. Identifiers MUST NOT be empty."
 	if sv.metadata != "" {
-		eparts := strings.Split(sv.metadata, ".")
-		for _, p := range eparts {
-			if !containsOnly(p, allowed) {
-				return nil, ErrInvalidCharacters
-			}
+		if err = validateMetadata(sv.metadata); err != nil {
+			return nil, err
 		}
 	}
 
@@ -375,8 +333,10 @@ func (v Version) IncMajor() Version {
 // Value must not include the required 'hyphen' prefix.
 func (v Version) SetPrerelease(prerelease string) (Version, error) {
 	vNext := v
-	if len(prerelease) > 0 && !validPrereleaseRegex.MatchString(prerelease) {
-		return vNext, ErrInvalidPrerelease
+	if len(prerelease) > 0 {
+		if err := validatePrerelease(prerelease); err != nil {
+			return vNext, err
+		}
 	}
 	vNext.pre = prerelease
 	vNext.original = v.originalVPrefix() + "" + vNext.String()
@@ -387,8 +347,10 @@ func (v Version) SetPrerelease(prerelease string) (Version, error) {
 // Value must not include the required 'plus' prefix.
 func (v Version) SetMetadata(metadata string) (Version, error) {
 	vNext := v
-	if len(metadata) > 0 && !validPrereleaseRegex.MatchString(metadata) {
-		return vNext, ErrInvalidMetadata
+	if len(metadata) > 0 {
+		if err := validateMetadata(metadata); err != nil {
+			return vNext, err
+		}
 	}
 	vNext.metadata = metadata
 	vNext.original = v.originalVPrefix() + "" + vNext.String()
@@ -583,4 +545,37 @@ func containsOnly(s string, comp string) bool {
 	return strings.IndexFunc(s, func(r rune) bool {
 		return !strings.ContainsRune(comp, r)
 	}) == -1
+}
+
+// From the spec, "Identifiers MUST comprise only
+// ASCII alphanumerics and hyphen [0-9A-Za-z-]. Identifiers MUST NOT be empty.
+// Numeric identifiers MUST NOT include leading zeroes.". These segments can
+// be dot separated.
+func validatePrerelease(p string) error {
+	eparts := strings.Split(p, ".")
+	for _, p := range eparts {
+		if containsOnly(p, num) {
+			if len(p) > 1 && p[0] == '0' {
+				return ErrSegmentStartsZero
+			}
+		} else if !containsOnly(p, allowed) {
+			return ErrInvalidPrerelease
+		}
+	}
+
+	return nil
+}
+
+// From the spec, "Build metadata MAY be denoted by
+// appending a plus sign and a series of dot separated identifiers immediately
+// following the patch or pre-release version. Identifiers MUST comprise only
+// ASCII alphanumerics and hyphen [0-9A-Za-z-]. Identifiers MUST NOT be empty."
+func validateMetadata(m string) error {
+	eparts := strings.Split(m, ".")
+	for _, p := range eparts {
+		if !containsOnly(p, allowed) {
+			return ErrInvalidMetadata
+		}
+	}
+	return nil
 }
