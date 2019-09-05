@@ -540,3 +540,42 @@ func TestJsonUnmarshal(t *testing.T) {
 		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
 	}
 }
+
+func TestValidatePrerelease(t *testing.T) {
+	tests := []struct {
+		pre      string
+		expected error
+	}{
+		{"foo", nil},
+		{"alpha.1", nil},
+		{"alpha.01", ErrSegmentStartsZero},
+		{"foo☃︎", ErrInvalidPrerelease},
+		{"alpha.0-1", nil},
+	}
+
+	for _, tc := range tests {
+		if err := validatePrerelease(tc.pre); err != tc.expected {
+			t.Errorf("Unexpected error %q for prerelease %q", err, tc.pre)
+		}
+	}
+}
+
+func TestValidateMetadata(t *testing.T) {
+	tests := []struct {
+		meta     string
+		expected error
+	}{
+		{"foo", nil},
+		{"alpha.1", nil},
+		{"alpha.01", nil},
+		{"foo☃︎", ErrInvalidMetadata},
+		{"alpha.0-1", nil},
+		{"al-pha.1Phe70CgWe050H9K1mJwRUqTNQXZRERwLOEg37wpXUb4JgzgaD5YkL52ABnoyiE", nil},
+	}
+
+	for _, tc := range tests {
+		if err := validateMetadata(tc.meta); err != tc.expected {
+			t.Errorf("Unexpected error %q for metadata %q", err, tc.meta)
+		}
+	}
+}
