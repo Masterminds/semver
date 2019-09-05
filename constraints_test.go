@@ -133,6 +133,46 @@ func TestConstraintCheck(t *testing.T) {
 		{"2", "2.1.1", true},
 		{"2.1", "2.1.1", true},
 		{"2.1", "2.2.1", false},
+		{"~1.2.3", "1.2.4", true},
+		{"~1.2.3", "1.3.4", false},
+		{"~1.2", "1.2.4", true},
+		{"~1.2", "1.3.4", false},
+		{"~1", "1.2.4", true},
+		{"~1", "2.3.4", false},
+		{"~0.2.3", "0.2.5", true},
+		{"~0.2.3", "0.3.5", false},
+		{"~1.2.3-beta.2", "1.2.3-beta.4", true},
+
+		// This next test is a case that is different from npm/js semver handling.
+		// Their prereleases are only range scoped to patch releases. This is
+		// technically not following semver as docs note. In our case we are
+		// following semver.
+		{"~1.2.3-beta.2", "1.2.4-beta.2", true},
+		{"~1.2.3-beta.2", "1.3.4-beta.2", false},
+		{"^1.2.3", "1.8.9", true},
+		{"^1.2.3", "2.8.9", false},
+		{"^1.2", "1.8.9", true},
+		{"^1.2", "2.8.9", false},
+		{"^1", "1.8.9", true},
+		{"^1", "2.8.9", false},
+		{"^0.2.3", "0.2.5", true},
+		{"^0.2.3", "0.5.6", false},
+		{"^0.2", "0.2.5", true},
+		{"^0.2", "0.5.6", false},
+		{"^0.0.3", "0.0.3", true},
+		{"^0.0.3", "0.0.4", false},
+		{"^0.0", "0.0.3", true},
+		{"^0.0", "0.1.4", false},
+		{"^0", "0.2.3", true},
+		{"^0", "1.1.4", false},
+		{"^0.2.3-beta.2", "0.2.3-beta.4", true},
+
+		// This next test is a case that is different from npm/js semver handling.
+		// Their prereleases are only range scoped to patch releases. This is
+		// technically not following semver as docs note. In our case we are
+		// following semver.
+		{"^0.2.3-beta.2", "0.2.4-beta.2", true},
+		{"^0.2.3-beta.2", "0.3.4-beta.2", false},
 	}
 
 	for _, tc := range tests {
@@ -406,7 +446,8 @@ func TestConstraintsValidate(t *testing.T) {
 		{"^1.x", "1.1.1", true},
 		{"^2.x", "1.1.1", false},
 		{"^1.x", "2.1.1", false},
-		{"^0.0.1", "0.1.3", true},
+		{"^0.0.1", "0.1.3", false},
+		{"^0.0.1", "0.0.1", true},
 		{"~*", "2.1.1", true},
 		{"~1", "2.1.1", false},
 		{"~1", "1.3.5", true},

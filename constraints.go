@@ -383,12 +383,15 @@ func constraintTildeOrEqual(v *Version, c *constraint) bool {
 	return v.Equal(c.con)
 }
 
-// ^* --> (any)
-// ^2, ^2.x, ^2.x.x --> >=2.0.0, <3.0.0
-// ^2.0, ^2.0.x --> >=2.0.0, <3.0.0
-// ^1.2, ^1.2.x --> >=1.2.0, <2.0.0
-// ^1.2.3 --> >=1.2.3, <2.0.0
-// ^1.2.0 --> >=1.2.0, <2.0.0
+// ^*      -->  (any)
+// ^1.2.3  -->  >=1.2.3 <2.0.0
+// ^1.2    -->  >=1.2.0 <2.0.0
+// ^1      -->  >=1.0.0 <2.0.0
+// ^0.2.3  -->  >=0.2.3 <0.3.0
+// ^0.2    -->  >=0.2.0 <0.3.0
+// ^0.0.3  -->  >=0.0.3 <0.0.4
+// ^0.0    -->  >=0.0.0 <0.1.0
+// ^0      -->  >=0.0.0 <1.0.0
 func constraintCaret(v *Version, c *constraint) bool {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
@@ -401,11 +404,15 @@ func constraintCaret(v *Version, c *constraint) bool {
 		return false
 	}
 
-	if v.Major() != c.con.Major() {
-		return false
+	if (c.con.Major() > 0 || c.minorDirty) && v.Major() == c.con.Major() {
+		return true
+	} else if (c.con.Minor() > 0 || c.patchDirty) && v.Minor() == c.con.Minor() {
+		return true
+	} else if v.Patch() == c.con.Patch() {
+		return true
 	}
 
-	return true
+	return false
 }
 
 var constraintRangeRegex *regexp.Regexp
