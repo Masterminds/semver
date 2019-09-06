@@ -23,7 +23,18 @@ func NewConstraint(c string) (*Constraints, error) {
 	ors := strings.Split(c, "||")
 	or := make([][]*constraint, len(ors))
 	for k, v := range ors {
-		cs := strings.Split(v, ",")
+
+		// TODO: Find a way to validate and fetch all the constraints in a simpler form
+
+		// Validate the segment
+		if !validConstraintRegex.MatchString(v) {
+			return nil, fmt.Errorf("improper constraint: %s", v)
+		}
+
+		cs := findConstraintRegex.FindAllString(v, -1)
+		if cs == nil {
+			cs = append(cs, v)
+		}
 		result := make([]*constraint, len(cs))
 		for i, s := range cs {
 			pc, err := parseConstraint(s)
@@ -103,6 +114,17 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 var constraintOps map[string]cfunc
 var constraintMsg map[string]string
 var constraintRegex *regexp.Regexp
+var constraintRangeRegex *regexp.Regexp
+
+// Used to find individual constraints within a multi-constraint string
+var findConstraintRegex *regexp.Regexp
+
+// Used to validate an segment of ANDs is valid
+var validConstraintRegex *regexp.Regexp
+
+const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 func init() {
 	constraintOps = map[string]cfunc{
@@ -148,6 +170,16 @@ func init() {
 	constraintRangeRegex = regexp.MustCompile(fmt.Sprintf(
 		`\s*(%s)\s+-\s+(%s)\s*`,
 		cvRegex, cvRegex))
+
+	findConstraintRegex = regexp.MustCompile(fmt.Sprintf(
+		`(%s)\s*(%s)`,
+		strings.Join(ops, "|"),
+		cvRegex))
+
+	validConstraintRegex = regexp.MustCompile(fmt.Sprintf(
+		`^(\s*(%s)\s*(%s)\s*\,?)+$`,
+		strings.Join(ops, "|"),
+		cvRegex))
 }
 
 // An individual constraint
@@ -179,30 +211,53 @@ func (c *constraint) check(v *Version) bool {
 type cfunc func(v *Version, c *constraint) bool
 
 func parseConstraint(c string) (*constraint, error) {
-	m := constraintRegex.FindStringSubmatch(c)
-	if m == nil {
-		return nil, fmt.Errorf("improper constraint: %s", c)
+	if len(c) > 0 {
+		m := constraintRegex.FindStringSubmatch(c)
+		if m == nil {
+			return nil, fmt.Errorf("improper constraint: %s", c)
+		}
+
+		ver := m[2]
+		orig := ver
+		minorDirty := false
+		patchDirty := false
+		dirty := false
+		if isX(m[3]) || m[3] == "" {
+			ver = "0.0.0"
+			dirty = true
+		} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
+			minorDirty = true
+			dirty = true
+			ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
+		} else if isX(strings.TrimPrefix(m[5], ".")) || m[5] == "" {
+			dirty = true
+			patchDirty = true
+			ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
+		}
+
+		con, err := NewVersion(ver)
+		if err != nil {
+
+			// The constraintRegex should catch any regex parsing errors. So,
+			// we should never get here.
+			return nil, errors.New("constraint Parser Error")
+		}
+
+		cs := &constraint{
+			function:   constraintOps[m[1]],
+			msg:        constraintMsg[m[1]],
+			con:        con,
+			orig:       orig,
+			minorDirty: minorDirty,
+			patchDirty: patchDirty,
+			dirty:      dirty,
+		}
+		return cs, nil
 	}
 
-	ver := m[2]
-	orig := ver
-	minorDirty := false
-	patchDirty := false
-	dirty := false
-	if isX(m[3]) || m[3] == "" {
-		ver = "0.0.0"
-		dirty = true
-	} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
-		minorDirty = true
-		dirty = true
-		ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
-	} else if isX(strings.TrimPrefix(m[5], ".")) || m[5] == "" {
-		dirty = true
-		patchDirty = true
-		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
-	}
-
-	con, err := NewVersion(ver)
+	// The rest is the special case where an empty string was passed in which
+	// is equivalent to * or >=0.0.0
+	con, err := StrictNewVersion("0.0.0")
 	if err != nil {
 
 		// The constraintRegex should catch any regex parsing errors. So,
@@ -211,13 +266,13 @@ func parseConstraint(c string) (*constraint, error) {
 	}
 
 	cs := &constraint{
-		function:   constraintOps[m[1]],
-		msg:        constraintMsg[m[1]],
+		function:   constraintOps[""],
+		msg:        constraintMsg[""],
 		con:        con,
-		orig:       orig,
-		minorDirty: minorDirty,
-		patchDirty: patchDirty,
-		dirty:      dirty,
+		orig:       c,
+		minorDirty: false,
+		patchDirty: false,
+		dirty:      true,
 	}
 	return cs, nil
 }
@@ -414,12 +469,6 @@ func constraintCaret(v *Version, c *constraint) bool {
 
 	return false
 }
-
-var constraintRangeRegex *regexp.Regexp
-
-const cvRegex string = `v?([0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
-	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
-	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 func isX(x string) bool {
 	switch x {
