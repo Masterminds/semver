@@ -378,7 +378,9 @@ func (v *Version) Equal(o *Version) bool {
 // the version smaller, equal, or larger than the other version.
 //
 // Versions are compared by X.Y.Z. Build metadata is ignored. Prerelease is
-// lower than the version without a prerelease.
+// lower than the version without a prerelease. Compare always takes into account
+// prereleases. If you want to work with ranges using typical range syntaxes that
+// skip prereleases if the range is not looking for them use constraints.
 func (v *Version) Compare(o *Version) int {
 	// Compare the major, minor, and patch version for differences. If a
 	// difference is found return the comparison.
