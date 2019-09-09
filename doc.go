@@ -91,10 +91,11 @@ parts of the package.
 Basic Comparisons
 
 There are two elements to the comparisons. First, a comparison string is a list
-of comma separated AND comparisons. These are then separated by || (OR)
-comparisons. For example, `">= 1.2, < 3.0.0 || >= 4.2.3"` is looking for a
+of comma or space separated AND comparisons. These are then separated by || (OR)
+comparisons. For example, `">= 1.2 < 3.0.0 || >= 4.2.3"` is looking for a
 comparison that's greater than or equal to 1.2 and less than 3.0.0 or is
-greater than or equal to 4.2.3.
+greater than or equal to 4.2.3. This can also be written as
+`">= 1.2, < 3.0.0 || >= 4.2.3"`
 
 The basic comparisons are:
 
@@ -111,7 +112,7 @@ There are multiple methods to handle ranges and the first is hyphens ranges.
 These look like:
 
     * `1.2 - 1.4.5` which is equivalent to `>= 1.2, <= 1.4.5`
-    * `2.3.4 - 4.5` which is equivalent to `>= 2.3.4, <= 4.5`
+    * `2.3.4 - 4.5` which is equivalent to `>= 2.3.4 <= 4.5`
 
 Wildcards In Comparisons
 
@@ -119,7 +120,7 @@ The `x`, `X`, and `*` characters can be used as a wildcard character. This works
 for all comparison operators. When used on the `=` operator it falls
 back to the tilde operation. For example,
 
-    * `1.2.x` is equivalent to `>= 1.2.0, < 1.3.0`
+    * `1.2.x` is equivalent to `>= 1.2.0 < 1.3.0`
     * `>= 1.2.x` is equivalent to `>= 1.2.0`
     * `<= 2.x` is equivalent to `<= 3`
     * `*` is equivalent to `>= 0.0.0`
@@ -130,11 +131,11 @@ The tilde (`~`) comparison operator is for patch level ranges when a minor
 version is specified and major level changes when the minor number is missing.
 For example,
 
-    * `~1.2.3` is equivalent to `>= 1.2.3, < 1.3.0`
+    * `~1.2.3` is equivalent to `>= 1.2.3 < 1.3.0`
     * `~1` is equivalent to `>= 1, < 2`
-    * `~2.3` is equivalent to `>= 2.3, < 2.4`
-    * `~1.2.x` is equivalent to `>= 1.2.0, < 1.3.0`
-    * `~1.x` is equivalent to `>= 1, < 2`
+    * `~2.3` is equivalent to `>= 2.3 < 2.4`
+    * `~1.2.x` is equivalent to `>= 1.2.0 < 1.3.0`
+    * `~1.x` is equivalent to `>= 1 < 2`
 
 Caret Range Comparisons (Major)
 
