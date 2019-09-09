@@ -1,6 +1,7 @@
 package semver
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"regexp"
@@ -96,7 +97,7 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 			} else {
 
 				if !c.check(v) {
-					em := fmt.Errorf(c.msg, v, c.orig)
+					em := fmt.Errorf(constraintMsg[c.origfunc], v, c.orig)
 					e = append(e, em)
 					joy = false
 				}
@@ -109,6 +110,27 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 	}
 
 	return false, e
+}
+
+func (cs Constraints) String() string {
+	buf := make([]string, len(cs.constraints))
+	var tmp bytes.Buffer
+
+	for k, v := range cs.constraints {
+		tmp.Reset()
+		vlen := len(v)
+		for kk, c := range v {
+			tmp.WriteString(c.string())
+
+			// Space separate the AND conditions
+			if vlen > 1 && kk < vlen-1 {
+				tmp.WriteString(" ")
+			}
+		}
+		buf[k] = tmp.String()
+	}
+
+	return strings.Join(buf, " || ")
 }
 
 var constraintOps map[string]cfunc
@@ -184,18 +206,15 @@ func init() {
 
 // An individual constraint
 type constraint struct {
-	// The callback function for the restraint. It performs the logic for
-	// the constraint.
-	function cfunc
-
-	msg string
-
 	// The version used in the constraint check. For example, if a constraint
 	// is '<= 2.0.0' the con a version instance representing 2.0.0.
 	con *Version
 
 	// The original parsed version (e.g., 4.x from != 4.x)
 	orig string
+
+	// The original operator for the constraint
+	origfunc string
 
 	// When an x is used as part of the version (e.g., 1.x)
 	minorDirty bool
@@ -205,7 +224,12 @@ type constraint struct {
 
 // Check if a version meets the constraint
 func (c *constraint) check(v *Version) bool {
-	return c.function(v, c)
+	return constraintOps[c.origfunc](v, c)
+}
+
+// String prints an individual constraint into a string
+func (c *constraint) string() string {
+	return c.origfunc + c.orig
 }
 
 type cfunc func(v *Version, c *constraint) bool
@@ -217,8 +241,12 @@ func parseConstraint(c string) (*constraint, error) {
 			return nil, fmt.Errorf("improper constraint: %s", c)
 		}
 
+		cs := &constraint{
+			orig:     m[2],
+			origfunc: m[1],
+		}
+
 		ver := m[2]
-		orig := ver
 		minorDirty := false
 		patchDirty := false
 		dirty := false
@@ -243,15 +271,11 @@ func parseConstraint(c string) (*constraint, error) {
 			return nil, errors.New("constraint Parser Error")
 		}
 
-		cs := &constraint{
-			function:   constraintOps[m[1]],
-			msg:        constraintMsg[m[1]],
-			con:        con,
-			orig:       orig,
-			minorDirty: minorDirty,
-			patchDirty: patchDirty,
-			dirty:      dirty,
-		}
+		cs.con = con
+		cs.minorDirty = minorDirty
+		cs.patchDirty = patchDirty
+		cs.dirty = dirty
+
 		return cs, nil
 	}
 
@@ -266,10 +290,9 @@ func parseConstraint(c string) (*constraint, error) {
 	}
 
 	cs := &constraint{
-		function:   constraintOps[""],
-		msg:        constraintMsg[""],
 		con:        con,
 		orig:       c,
+		origfunc:   "",
 		minorDirty: false,
 		patchDirty: false,
 		dirty:      true,
