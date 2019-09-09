@@ -22,6 +22,7 @@ func TestParseConstraint(t *testing.T) {
 		{"=1.5", constraintTildeOrEqual, "1.5.0", false},
 		{"> 1.3", constraintGreaterThan, "1.3.0", false},
 		{"< 1.4.1", constraintLessThan, "1.4.1", false},
+		{"< 40.50.10", constraintLessThan, "40.50.10", false},
 	}
 
 	for _, tc := range tests {
@@ -43,7 +44,7 @@ func TestParseConstraint(t *testing.T) {
 		}
 
 		f1 := reflect.ValueOf(tc.f)
-		f2 := reflect.ValueOf(c.function)
+		f2 := reflect.ValueOf(constraintOps[c.origfunc])
 		if f1 != f2 {
 			t.Errorf("Wrong constraint found for %s", tc.in)
 		}
@@ -203,6 +204,7 @@ func TestNewConstraint(t *testing.T) {
 		err   bool
 	}{
 		{">= 1.1", 1, 1, false},
+		{">40.50.60, < 50.70", 1, 2, false},
 		{"2.0", 1, 1, false},
 		{"v2.3.5-20161202202307-sha.e8fc5e5", 1, 1, false},
 		{">= bar", 0, 0, true},
@@ -610,6 +612,32 @@ func TestConstraintsValidate(t *testing.T) {
 			if e != tc.msg {
 				t.Errorf("Did not get expected message %q: %s", tc.msg, e)
 			}
+		}
+	}
+}
+
+func TestConstraintString(t *testing.T) {
+	tests := []struct {
+		constraint string
+		st         string
+	}{
+		{"*", "*"},
+		{">=1.2.3", ">=1.2.3"},
+		{">= 1.2.3", ">=1.2.3"},
+		{"2.x,   >=1.2.3 || >4.5.6, < 5.7", "2.x >=1.2.3 || >4.5.6 <5.7"},
+		{"2.x,   >=1.2.3 || >4.5.6, < 5.7 || >40.50.60, < 50.70", "2.x >=1.2.3 || >4.5.6 <5.7 || >40.50.60 <50.70"},
+		{"1.2", "1.2"},
+	}
+
+	for _, tc := range tests {
+		c, err := NewConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("cannot create constraint for %q, err: %s", tc.constraint, err)
+			continue
+		}
+
+		if c.String() != tc.st {
+			t.Errorf("expected constraint from %q to be a string as %q but got %q", tc.constraint, tc.st, c.String())
 		}
 	}
 }
