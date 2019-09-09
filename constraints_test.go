@@ -639,5 +639,9 @@ func TestConstraintString(t *testing.T) {
 		if c.String() != tc.st {
 			t.Errorf("expected constraint from %q to be a string as %q but got %q", tc.constraint, tc.st, c.String())
 		}
+
+		if _, err = NewConstraint(c.String()); err != nil {
+			t.Errorf("expected string from constrint %q to parse as valid but got err: %s", tc.constraint, err)
+		}
 	}
 }
