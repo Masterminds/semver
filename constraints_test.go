@@ -152,6 +152,13 @@ func TestConstraintCheck(t *testing.T) {
 		{"~1.2.3-beta.2", "1.3.4-beta.2", false},
 		{"^1.2.3", "1.8.9", true},
 		{"^1.2.3", "2.8.9", false},
+		{"^1.2.3", "1.2.1", false},
+		{"^1.1.0", "2.1.0", false},
+		{"^1.2.0", "2.2.1", false},
+		{"^1.2.0", "1.2.1-alpha.1", false},
+		{"^1.2.0-alpha.0", "1.2.1-alpha.1", true},
+		{"^1.2.0-alpha.0", "1.2.1-alpha.0", true},
+		{"^1.2.0-alpha.2", "1.2.0-alpha.1", false},
 		{"^1.2", "1.8.9", true},
 		{"^1.2", "2.8.9", false},
 		{"^1", "1.8.9", true},
@@ -174,6 +181,7 @@ func TestConstraintCheck(t *testing.T) {
 		// following semver.
 		{"^0.2.3-beta.2", "0.2.4-beta.2", true},
 		{"^0.2.3-beta.2", "0.3.4-beta.2", false},
+		{"^0.2.3-beta.2", "0.2.3-beta.2", true},
 	}
 
 	for _, tc := range tests {
