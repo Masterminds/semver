@@ -478,19 +478,29 @@ func constraintCaret(v *Version, c *constraint) bool {
 		return false
 	}
 
+	// This less than handles prereleases
 	if v.LessThan(c.con) {
 		return false
 	}
 
-	if (c.con.Major() > 0 || c.minorDirty) && v.Major() == c.con.Major() {
-		return true
-	} else if (c.con.Minor() > 0 || c.patchDirty) && v.Minor() == c.con.Minor() {
-		return true
-	} else if v.Patch() == c.con.Patch() {
-		return true
+	// ^ when the major > 0 is >=x.y.z < x+1
+	if c.con.Major() > 0 || c.minorDirty {
+
+		// ^ has to be within a major range for > 0. Everything less than was
+		// filtered out with the LessThan call above. This filters out those
+		// that greater but not within the same major range.
+		return v.Major() == c.con.Major()
 	}
 
-	return false
+	// ^ when the major is 0 and minor > 0 is >=0.y.z < 0.y+1
+	// If the con Minor is > 0 it is not dirty
+	if c.con.Minor() > 0 || c.patchDirty {
+		return v.Minor() == c.con.Minor()
+	}
+
+	// At this point the major is 0 and the minor is 0 and not dirty. The patch
+	// is not dirty so we need to check if they are equal. If they are not equal
+	return c.con.Patch() == v.Patch()
 }
 
 func isX(x string) bool {
