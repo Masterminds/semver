@@ -22,6 +22,7 @@ func TestParseConstraint(t *testing.T) {
 		{"=1.5", constraintTildeOrEqual, "1.5.0", false},
 		{"> 1.3", constraintGreaterThan, "1.3.0", false},
 		{"< 1.4.1", constraintLessThan, "1.4.1", false},
+		{"< 40.50.10", constraintLessThan, "40.50.10", false},
 	}
 
 	for _, tc := range tests {
@@ -43,7 +44,7 @@ func TestParseConstraint(t *testing.T) {
 		}
 
 		f1 := reflect.ValueOf(tc.f)
-		f2 := reflect.ValueOf(c.function)
+		f2 := reflect.ValueOf(constraintOps[c.origfunc])
 		if f1 != f2 {
 			t.Errorf("Wrong constraint found for %s", tc.in)
 		}
@@ -56,39 +57,131 @@ func TestConstraintCheck(t *testing.T) {
 		version    string
 		check      bool
 	}{
-		{"= 2.0", "1.2.3", false},
-		{"= 2.0", "2.0.0", true},
+		{"=2.0.0", "1.2.3", false},
+		{"=2.0.0", "2.0.0", true},
+		{"=2.0", "1.2.3", false},
+		{"=2.0", "2.0.0", true},
+		{"=2.0", "2.0.1", true},
 		{"4.1", "4.1.0", true},
+		{"!=4.1.0", "4.1.0", false},
+		{"!=4.1.0", "4.1.1", true},
 		{"!=4.1", "4.1.0", false},
+		{"!=4.1", "4.1.1", false},
+		{"!=4.1", "5.1.0-alpha.1", false},
+		{"!=4.1-alpha", "4.1.0", true},
 		{"!=4.1", "5.1.0", true},
-		{">1.1", "4.1.0", true},
-		{">1.1", "1.1.0", false},
+		{"<11", "0.1.0", true},
+		{"<11", "11.1.0", false},
 		{"<1.1", "0.1.0", true},
 		{"<1.1", "1.1.0", false},
 		{"<1.1", "1.1.1", false},
+		{"<=11", "1.2.3", true},
+		{"<=11", "12.2.3", false},
+		{"<=11", "11.2.3", true},
+		{"<=1.1", "1.2.3", false},
+		{"<=1.1", "0.1.0", true},
+		{"<=1.1", "1.1.0", true},
+		{"<=1.1", "1.1.1", true},
+		{">1.1", "4.1.0", true},
+		{">1.1", "1.1.0", false},
+		{">0", "0", false},
+		{">0", "1", true},
+		{">0", "0.0.1-alpha", false},
+		{">0.0", "0.0.1-alpha", false},
+		{">0-0", "0.0.1-alpha", false},
+		{">0.0-0", "0.0.1-alpha", false},
+		{">0", "0.0.0-alpha", false},
+		{">0-0", "0.0.0-alpha", false},
+		{">0.0.0-0", "0.0.0-alpha", true},
+		{">1.2.3-alpha.1", "1.2.3-alpha.2", true},
+		{">1.2.3-alpha.1", "1.3.3-alpha.2", true},
+		{">11", "11.1.0", false},
+		{">11.1", "11.1.0", false},
+		{">11.1", "11.1.1", false},
+		{">11.1", "11.2.1", true},
+		{">=11", "11.1.2", true},
+		{">=11.1", "11.1.2", true},
+		{">=11.1", "11.0.2", false},
 		{">=1.1", "4.1.0", true},
 		{">=1.1", "1.1.0", true},
 		{">=1.1", "0.0.9", false},
-		{"<=1.1", "0.1.0", true},
-		{"<=1.1", "1.1.0", true},
-		{"<=1.1", "1.1.1", false},
-		{">0", "0", false},
-		{">0", "0.0.1-alpha", false},
-		{">0.0", "0.0.1-alpha", false},
-		{">0-0", "0.0.1-alpha", true},
-		{">0.0-0", "0.0.1-alpha", true},
-		{">0", "0.0.0-alpha", false},
-		{">0-0", "0.0.0-alpha", true},
 		{">=0", "0.0.1-alpha", false},
 		{">=0.0", "0.0.1-alpha", false},
 		{">=0-0", "0.0.1-alpha", true},
 		{">=0.0-0", "0.0.1-alpha", true},
 		{">=0", "0.0.0-alpha", false},
 		{">=0-0", "0.0.0-alpha", true},
+		{">=0.0.0-0", "0.0.0-alpha", true},
+		{">=0.0.0-0", "1.2.3", true},
+		{">=0.0.0-0", "3.4.5-beta.1", true},
 		{"<0", "0.0.0-alpha", false},
 		{"<0-z", "0.0.0-alpha", true},
 		{">=0", "0", true},
 		{"=0", "1", false},
+		{"*", "1", true},
+		{"*", "4.5.6", true},
+		{"*", "1.2.3-alpha.1", false},
+		{"2.*", "1", false},
+		{"2.*", "3.4.5", false},
+		{"2.*", "2.1.1", true},
+		{"2.1.*", "2.1.1", true},
+		{"2.1.*", "2.2.1", false},
+		{"", "1", true}, // An empty string is treated as * or wild card
+		{"", "4.5.6", true},
+		{"", "1.2.3-alpha.1", false},
+		{"2", "1", false},
+		{"2", "3.4.5", false},
+		{"2", "2.1.1", true},
+		{"2.1", "2.1.1", true},
+		{"2.1", "2.2.1", false},
+		{"~1.2.3", "1.2.4", true},
+		{"~1.2.3", "1.3.4", false},
+		{"~1.2", "1.2.4", true},
+		{"~1.2", "1.3.4", false},
+		{"~1", "1.2.4", true},
+		{"~1", "2.3.4", false},
+		{"~0.2.3", "0.2.5", true},
+		{"~0.2.3", "0.3.5", false},
+		{"~1.2.3-beta.2", "1.2.3-beta.4", true},
+
+		// This next test is a case that is different from npm/js semver handling.
+		// Their prereleases are only range scoped to patch releases. This is
+		// technically not following semver as docs note. In our case we are
+		// following semver.
+		{"~1.2.3-beta.2", "1.2.4-beta.2", true},
+		{"~1.2.3-beta.2", "1.3.4-beta.2", false},
+		{"^1.2.3", "1.8.9", true},
+		{"^1.2.3", "2.8.9", false},
+		{"^1.2.3", "1.2.1", false},
+		{"^1.1.0", "2.1.0", false},
+		{"^1.2.0", "2.2.1", false},
+		{"^1.2.0", "1.2.1-alpha.1", false},
+		{"^1.2.0-alpha.0", "1.2.1-alpha.1", true},
+		{"^1.2.0-alpha.0", "1.2.1-alpha.0", true},
+		{"^1.2.0-alpha.2", "1.2.0-alpha.1", false},
+		{"^1.2", "1.8.9", true},
+		{"^1.2", "2.8.9", false},
+		{"^1", "1.8.9", true},
+		{"^1", "2.8.9", false},
+		{"^0.2.3", "0.2.5", true},
+		{"^0.2.3", "0.5.6", false},
+		{"^0.2", "0.2.5", true},
+		{"^0.2", "0.5.6", false},
+		{"^0.0.3", "0.0.3", true},
+		{"^0.0.3", "0.0.4", false},
+		{"^0.0", "0.0.3", true},
+		{"^0.0", "0.1.4", false},
+		{"^0", "0.2.3", true},
+		{"^0", "1.1.4", false},
+		{"^0.2.3-beta.2", "0.2.3-beta.4", true},
+
+		// This next test is a case that is different from npm/js semver handling.
+		// Their prereleases are only range scoped to patch releases. This is
+		// technically not following semver as docs note. In our case we are
+		// following semver.
+		{"^0.2.3-beta.2", "0.2.4-beta.2", true},
+		{"^0.2.3-beta.2", "0.3.4-beta.2", false},
+		{"^0.2.3-beta.2", "0.2.3-beta.2", true},
 	}
 
 	for _, tc := range tests {
@@ -119,9 +212,18 @@ func TestNewConstraint(t *testing.T) {
 		err   bool
 	}{
 		{">= 1.1", 1, 1, false},
+		{">40.50.60, < 50.70", 1, 2, false},
 		{"2.0", 1, 1, false},
 		{"v2.3.5-20161202202307-sha.e8fc5e5", 1, 1, false},
 		{">= bar", 0, 0, true},
+		{"BAR >= 1.2.3", 0, 0, true},
+
+		// Test with space separated AND
+
+		{">= 1.2.3 < 2.0", 1, 2, false},
+		{">= 1.2.3 < 2.0 || => 3.0 < 4", 2, 2, false},
+
+		// Test with commas separating AND
 		{">= 1.2.3, < 2.0", 1, 2, false},
 		{">= 1.2.3, < 2.0 || => 3.0, < 4", 2, 2, false},
 
@@ -176,6 +278,7 @@ func TestConstraintsCheck(t *testing.T) {
 		{"1.x", "1.4", true},
 		{"!=4.1", "4.1.0", false},
 		{"!=4.1-alpha", "4.1.0-alpha", false},
+		{"!=4.1-alpha", "4.1.1-alpha", false},
 		{"!=4.1-alpha", "4.1.0", true},
 		{"!=4.1", "5.1.0", true},
 		{"!=4.x", "5.1.0", true},
@@ -187,10 +290,12 @@ func TestConstraintsCheck(t *testing.T) {
 		{"<1.1", "0.1.0", true},
 		{"<1.1", "1.1.0", false},
 		{"<1.1", "1.1.1", false},
-		{"<1.x", "1.1.1", true},
+		{"<1.x", "1.1.1", false},
+		{"<1.x", "0.1.1", true},
 		{"<1.x", "2.0.0", false},
 		{"<1.1.x", "1.2.1", false},
-		{"<1.1.x", "1.1.500", true},
+		{"<1.1.x", "1.1.500", false},
+		{"<1.1.x", "1.0.500", true},
 		{"<1.2.x", "1.1.1", true},
 		{">=1.1", "4.1.0", true},
 		{">=1.1", "4.1.0-beta", false},
@@ -202,15 +307,46 @@ func TestConstraintsCheck(t *testing.T) {
 		{"<=1.1", "1.1.0", true},
 		{"<=1.x", "1.1.0", true},
 		{"<=2.x", "3.0.0", false},
-		{"<=1.1", "1.1.1", false},
+		{"<=1.1", "1.1.1", true},
 		{"<=1.1.x", "1.2.500", false},
-		{">1.1, <2", "1.1.1", true},
+		{">1.1, <2", "1.1.1", false},
+		{">1.1, <2", "1.2.1", true},
 		{">1.1, <3", "4.3.2", false},
 		{">=1.1, <2, !=1.2.3", "1.2.3", false},
-		{">=1.1, <2, !=1.2.3 || > 3", "3.1.2", true},
+		{">1.1 <2", "1.1.1", false},
+		{">1.1 <2", "1.2.1", true},
+		{">1.1    <3", "4.3.2", false},
+		{">=1.1    <2    !=1.2.3", "1.2.3", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "4.1.2", true},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.1.2", false},
 		{">=1.1, <2, !=1.2.3 || >= 3", "3.0.0", true},
 		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
 		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
+		{">=1.1 <2 !=1.2.3", "1.2.3", false},
+		{">=1.1 <2 !=1.2.3 || > 3", "4.1.2", true},
+		{">=1.1 <2 !=1.2.3 || > 3", "3.1.2", false},
+		{">=1.1 <2 !=1.2.3 || >= 3", "3.0.0", true},
+		{">=1.1 <2 !=1.2.3 || > 3", "3.0.0", false},
+		{">=1.1 <2 !=1.2.3 || > 3", "1.2.3", false},
+		{"> 1.1, <     2", "1.1.1", false},
+		{">   1.1, <2", "1.2.1", true},
+		{">1.1, <  3", "4.3.2", false},
+		{">= 1.1, <     2, !=1.2.3", "1.2.3", false},
+		{"> 1.1 < 2", "1.1.1", false},
+		{">1.1 < 2", "1.2.1", true},
+		{"> 1.1    <3", "4.3.2", false},
+		{">=1.1    < 2    != 1.2.3", "1.2.3", false},
+		{">= 1.1, <2, !=1.2.3 || > 3", "4.1.2", true},
+		{">= 1.1, <2, != 1.2.3 || > 3", "3.1.2", false},
+		{">= 1.1, <2, != 1.2.3 || >= 3", "3.0.0", true},
+		{">= 1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
+		{">= 1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
+		{">= 1.1 <2 != 1.2.3", "1.2.3", false},
+		{">= 1.1 <2 != 1.2.3 || > 3", "4.1.2", true},
+		{">= 1.1 <2 != 1.2.3 || > 3", "3.1.2", false},
+		{">= 1.1 <2 != 1.2.3 || >= 3", "3.0.0", true},
+		{">= 1.1 < 2 !=1.2.3 || > 3", "3.0.0", false},
+		{">=1.1 < 2 !=1.2.3 || > 3", "1.2.3", false},
 		{"1.1 - 2", "1.1.1", true},
 		{"1.1-3", "4.3.2", false},
 		{"^1.1", "1.1.1", true},
@@ -323,10 +459,11 @@ func TestConstraintsValidate(t *testing.T) {
 		{"<1.1", "0.1.0", true},
 		{"<1.1", "1.1.0", false},
 		{"<1.1", "1.1.1", false},
-		{"<1.x", "1.1.1", true},
+		{"<1.x", "1.1.1", false},
+		{"<2.x", "1.1.1", true},
 		{"<1.x", "2.1.1", false},
 		{"<1.1.x", "1.2.1", false},
-		{"<1.1.x", "1.1.500", true},
+		{"<1.1.x", "1.1.500", false},
 		{"<1.2.x", "1.1.1", true},
 		{">=1.1", "4.1.0", true},
 		{">=1.1", "1.1.0", true},
@@ -335,12 +472,14 @@ func TestConstraintsValidate(t *testing.T) {
 		{"<=1.1", "1.1.0", true},
 		{"<=1.x", "1.1.0", true},
 		{"<=2.x", "3.1.0", false},
-		{"<=1.1", "1.1.1", false},
+		{"<=1.1", "1.1.1", true},
 		{"<=1.1.x", "1.2.500", false},
-		{">1.1, <2", "1.1.1", true},
+		{">1.1, <2", "1.1.1", false},
+		{">1.1, <2", "1.2.1", true},
 		{">1.1, <3", "4.3.2", false},
 		{">=1.1, <2, !=1.2.3", "1.2.3", false},
-		{">=1.1, <2, !=1.2.3 || > 3", "3.1.2", true},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.1.2", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "4.1.2", true},
 		{">=1.1, <2, !=1.2.3 || >= 3", "3.0.0", true},
 		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
 		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
@@ -354,6 +493,8 @@ func TestConstraintsValidate(t *testing.T) {
 		{"^1.x", "1.1.1", true},
 		{"^2.x", "1.1.1", false},
 		{"^1.x", "2.1.1", false},
+		{"^0.0.1", "0.1.3", false},
+		{"^0.0.1", "0.0.1", true},
 		{"~*", "2.1.1", true},
 		{"~1", "2.1.1", false},
 		{"~1", "1.3.5", true},
@@ -400,7 +541,7 @@ func TestConstraintsValidate(t *testing.T) {
 		// }
 	}
 
-	v, err := NewVersion("1.2.3")
+	v, err := StrictNewVersion("1.2.3")
 	if err != nil {
 		t.Errorf("err: %s", err)
 	}
@@ -426,6 +567,8 @@ func TestConstraintsValidate(t *testing.T) {
 	tests2 := []struct {
 		constraint, version, msg string
 	}{
+		{"2.x", "1.2.3", "1.2.3 is not equal to 2.x"},
+		{"2", "1.2.3", "1.2.3 is not equal to 2"},
 		{"= 2.0", "1.2.3", "1.2.3 is not equal to 2.0"},
 		{"!=4.1", "4.1.0", "4.1.0 is equal to 4.1"},
 		{"!=4.x", "4.1.0", "4.1.0 is equal to 4.x"},
@@ -437,7 +580,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{"<1.1.x", "1.2.1", "1.2.1 is greater than or equal to 1.1.x"},
 		{">=1.1", "0.0.9", "0.0.9 is less than 1.1"},
 		{"<=2.x", "3.1.0", "3.1.0 is greater than 2.x"},
-		{"<=1.1", "1.1.1", "1.1.1 is greater than 1.1"},
+		{"<=1.1", "1.2.1", "1.2.1 is greater than 1.1"},
 		{"<=1.1.x", "1.2.500", "1.2.500 is greater than 1.1.x"},
 		{">1.1, <3", "4.3.2", "4.3.2 is greater than or equal to 3"},
 		{">=1.1, <2, !=1.2.3", "1.2.3", "1.2.3 is equal to 1.2.3"},
@@ -453,6 +596,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{"~1.2.3", "1.3.2", "1.3.2 does not have same major and minor version as 1.2.3"},
 		{"~1.1", "1.2.3", "1.2.3 does not have same major and minor version as 1.1"},
 		{"~1.3", "2.4.5", "2.4.5 does not have same major and minor version as 1.3"},
+		{"> 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is a prerelease version and the constraint is only looking for release versions"},
 	}
 
 	for _, tc := range tests2 {
@@ -462,16 +606,50 @@ func TestConstraintsValidate(t *testing.T) {
 			continue
 		}
 
-		v, err := NewVersion(tc.version)
+		v, err := StrictNewVersion(tc.version)
 		if err != nil {
 			t.Errorf("err: %s", err)
 			continue
 		}
 
 		_, msgs := c.Validate(v)
-		e := msgs[0].Error()
-		if e != tc.msg {
-			t.Errorf("Did not get expected message %q: %s", tc.msg, e)
+		if len(msgs) == 0 {
+			t.Errorf("Did not get error message on constraint %q", tc.constraint)
+		} else {
+			e := msgs[0].Error()
+			if e != tc.msg {
+				t.Errorf("Did not get expected message %q: %s", tc.msg, e)
+			}
+		}
+	}
+}
+
+func TestConstraintString(t *testing.T) {
+	tests := []struct {
+		constraint string
+		st         string
+	}{
+		{"*", "*"},
+		{">=1.2.3", ">=1.2.3"},
+		{">= 1.2.3", ">=1.2.3"},
+		{"2.x,   >=1.2.3 || >4.5.6, < 5.7", "2.x >=1.2.3 || >4.5.6 <5.7"},
+		{"2.x,   >=1.2.3 || >4.5.6, < 5.7 || >40.50.60, < 50.70", "2.x >=1.2.3 || >4.5.6 <5.7 || >40.50.60 <50.70"},
+		{"1.2", "1.2"},
+	}
+
+	for _, tc := range tests {
+		c, err := NewConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("cannot create constraint for %q, err: %s", tc.constraint, err)
+			continue
+		}
+
+		if c.String() != tc.st {
+			t.Errorf("expected constraint from %q to be a string as %q but got %q", tc.constraint, tc.st, c.String())
+		}
+
+		if _, err = NewConstraint(c.String()); err != nil {
+			t.Errorf("expected string from constrint %q to parse as valid but got err: %s", tc.constraint, err)
 		}
 	}
 }

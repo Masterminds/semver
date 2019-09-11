@@ -6,12 +6,61 @@ import (
 	"testing"
 )
 
+func TestStrictNewVersion(t *testing.T) {
+	tests := []struct {
+		version string
+		err     bool
+	}{
+		{"1.2.3", false},
+		{"1.2.3-alpha.01", true},
+		{"1.2.3+test.01", false},
+		{"1.2.3-alpha.-1", false},
+		{"v1.2.3", true},
+		{"1.0", true},
+		{"v1.0", true},
+		{"1", true},
+		{"v1", true},
+		{"1.2.beta", true},
+		{"v1.2.beta", true},
+		{"foo", true},
+		{"1.2-5", true},
+		{"v1.2-5", true},
+		{"1.2-beta.5", true},
+		{"v1.2-beta.5", true},
+		{"\n1.2", true},
+		{"\nv1.2", true},
+		{"1.2.0-x.Y.0+metadata", false},
+		{"v1.2.0-x.Y.0+metadata", true},
+		{"1.2.0-x.Y.0+metadata-width-hypen", false},
+		{"v1.2.0-x.Y.0+metadata-width-hypen", true},
+		{"1.2.3-rc1-with-hypen", false},
+		{"v1.2.3-rc1-with-hypen", true},
+		{"1.2.3.4", true},
+		{"v1.2.3.4", true},
+		{"1.2.2147483648", false},
+		{"1.2147483648.3", false},
+		{"2147483648.3.0", false},
+	}
+
+	for _, tc := range tests {
+		_, err := StrictNewVersion(tc.version)
+		if tc.err && err == nil {
+			t.Fatalf("expected error for version: %s", tc.version)
+		} else if !tc.err && err != nil {
+			t.Fatalf("error for version %s: %s", tc.version, err)
+		}
+	}
+}
+
 func TestNewVersion(t *testing.T) {
 	tests := []struct {
 		version string
 		err     bool
 	}{
 		{"1.2.3", false},
+		{"1.2.3-alpha.01", true},
+		{"1.2.3+test.01", false},
+		{"1.2.3-alpha.-1", false},
 		{"v1.2.3", false},
 		{"1.0", false},
 		{"v1.0", false},
@@ -77,7 +126,7 @@ func TestOriginal(t *testing.T) {
 
 		o := v.Original()
 		if o != tc {
-			t.Errorf("Error retrieving originl. Expected '%s' but got '%s'", tc, v)
+			t.Errorf("Error retrieving original. Expected '%s' but got '%v'", tc, v)
 		}
 	}
 }
@@ -105,7 +154,7 @@ func TestParts(t *testing.T) {
 	}
 }
 
-func TestString(t *testing.T) {
+func TestCoerceString(t *testing.T) {
 	tests := []struct {
 		version  string
 		expected string
@@ -163,6 +212,9 @@ func TestCompare(t *testing.T) {
 		{"4.2-beta.2", "4.2-beta", 1},
 		{"4.2-beta.foo", "4.2-beta", 1},
 		{"1.2+bar", "1.2+baz", 0},
+		{"1.0.0-beta.4", "1.0.0-beta.-2", -1},
+		{"1.0.0-beta.-2", "1.0.0-beta.-3", -1},
+		{"1.0.0-beta.-3", "1.0.0-beta.5", 1},
 	}
 
 	for _, tc := range tests {
@@ -460,7 +512,7 @@ func TestOriginalVPrefix(t *testing.T) {
 
 func TestJsonMarshal(t *testing.T) {
 	sVer := "1.1.1"
-	x, err := NewVersion(sVer)
+	x, err := StrictNewVersion(sVer)
 	if err != nil {
 		t.Errorf("Error creating version: %s", err)
 	}
@@ -486,5 +538,44 @@ func TestJsonUnmarshal(t *testing.T) {
 	want := sVer
 	if got != want {
 		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+	}
+}
+
+func TestValidatePrerelease(t *testing.T) {
+	tests := []struct {
+		pre      string
+		expected error
+	}{
+		{"foo", nil},
+		{"alpha.1", nil},
+		{"alpha.01", ErrSegmentStartsZero},
+		{"foo☃︎", ErrInvalidPrerelease},
+		{"alpha.0-1", nil},
+	}
+
+	for _, tc := range tests {
+		if err := validatePrerelease(tc.pre); err != tc.expected {
+			t.Errorf("Unexpected error %q for prerelease %q", err, tc.pre)
+		}
+	}
+}
+
+func TestValidateMetadata(t *testing.T) {
+	tests := []struct {
+		meta     string
+		expected error
+	}{
+		{"foo", nil},
+		{"alpha.1", nil},
+		{"alpha.01", nil},
+		{"foo☃︎", ErrInvalidMetadata},
+		{"alpha.0-1", nil},
+		{"al-pha.1Phe70CgWe050H9K1mJwRUqTNQXZRERwLOEg37wpXUb4JgzgaD5YkL52ABnoyiE", nil},
+	}
+
+	for _, tc := range tests {
+		if err := validateMetadata(tc.meta); err != tc.expected {
+			t.Errorf("Unexpected error %q for metadata %q", err, tc.meta)
+		}
 	}
 }
