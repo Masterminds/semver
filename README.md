@@ -18,14 +18,16 @@ If you are looking for a command line tool for version comparisons please see
 
 There are three major versions fo the `semver` package.
 
-* 3.x.x which is currently under development. This version is focused on compatibility
-  SemVer handling in other tools from other language. It will have a similar API
-  to the 1.x.x releases. The development of this version is on the master branch.
+* 3.x.x is the new stable and active version. This version is focused on constraint
+  compatibility for range handling in other tools from other languages. It has
+  a similar API to the v1 releases. The development of this version is on the master
+  branch. The documentation for this version is below.
 * 2.x was developed primarily for [dep](https://github.com/golang/dep). There are
   no tagged releases and the development was performed by [@sdboyer](https://github.com/sdboyer).
-  This version lives on the 2.x branch.
+  There are API breaking changes from v1. This version lives on the [2.x branch](https://github.com/Masterminds/semver/tree/2.x).
 * 1.x.x is the most widely used version with numerous tagged releases. This is the
-  current stable. The development, to fix bugs, occurs on the release-1 branch.
+  previous stable and is still maintained for bug fixes. The development, to fix
+  bugs, occurs on the release-1 branch. You can read the documentation [here](https://github.com/Masterminds/semver/blob/release-1/README.md).
 
 ## Parsing Semantic Versions
 
@@ -33,18 +35,19 @@ There are two functions that can parse semantic versions. The `StrictNewVersion`
 function only parses valid version 2 semantic versions as outlined in the
 specification. The `NewVersion` function attempts to coerce a version into a
 semantic version and parse it. For example, if there is a leading v or a version
-listed without all 3 parts (e.g. 1.2) it will attempt to coerce it into a valid
+listed without all 3 parts (e.g. `v1.2`) it will attempt to coerce it into a valid
 semantic version (e.g., 1.2.0). In both cases a `Version` object is returned
 that can be sorted, compared, and used in constraints.
 
-When parsing a version an optional error can be returned if there is an issue
-parsing the version. For example,
+When parsing a version an error is returned if there is an issue parsing the
+version. For example,
 
     v, err := semver.NewVersion("1.2.3-beta.1+build345")
 
 The version object has methods to get the parts of the version, compare it to
 other versions, convert the version back into a string, and get the original
-string.
+string. Getting the original string is useful if the semantic version was coerced
+into a valid form.
 
 ## Sorting Semantic Versions
 
@@ -69,26 +72,26 @@ sort.Sort(semver.Collection(vs))
 ## Checking Version Constraints
 
 There are two methods for comparing versions. One uses comparison methods on
-`Version` instances and the other is using Constraints. There are some important
+`Version` instances and the other uses `Constraints`. There are some important
 differences to notes between these two methods of comparison.
 
 1. When two versions are compared using functions such as `Compare`, `LessThan`,
    and others it will follow the specification and always include prereleases
-   within the comparison. It will provide an answer valid with the comparison
-   spec section at https://semver.org/#spec-item-11
+   within the comparison. It will provide an answer that is valid with the
+   comparison section of the spec at https://semver.org/#spec-item-11
 2. When constraint checking is used for checks or validation it will follow a
    different set of rules that are common for ranges with tools like npm/js
    and Rust/Cargo. This includes considering prereleases to be invalid if the
-   ranges does not include on. If you want to have it include pre-releases a
+   ranges does not include one. If you want to have it include pre-releases a
    simple solution is to include `-0` in your range.
-3. Constraint ranges can have some complex rules including the shorthard use of
+3. Constraint ranges can have some complex rules including the shorthand use of
    ~ and ^. For more details on those see the options below.
 
 There are differences between the two methods or checking versions because the
 comparison methods on `Version` follow the specification while comparison ranges
 are not part of the specification. Different packages and tools have taken it
 upon themselves to come up with range rules. This has resulted in differences.
-For example, npm/js and Cargo/Rust follow similar patterns which PHP has a
+For example, npm/js and Cargo/Rust follow similar patterns while PHP has a
 different pattern for ^. The comparison features in this package follow the
 npm/js and Cargo/Rust lead because applications using it have followed similar
 patters with their versions.
@@ -113,8 +116,8 @@ a := c.Check(v)
 ### Basic Comparisons
 
 There are two elements to the comparisons. First, a comparison string is a list
-of comma separated AND comparisons. These are then separated by || (OR)
-comparisons. For example, `">= 1.2, < 3.0.0 || >= 4.2.3"` is looking for a
+of space or comma separated AND comparisons. These are then separated by || (OR)
+comparisons. For example, `">= 1.2 < 3.0.0 || >= 4.2.3"` is looking for a
 comparison that's greater than or equal to 1.2 and less than 3.0.0 or is
 greater than or equal to 4.2.3.
 
@@ -147,7 +150,9 @@ at a list of releases while `>=1.2.3-0` will evaluate and find prereleases.
 
 The reason for the `0` as a pre-release version in the example comparison is
 because pre-releases can only contain ASCII alphanumerics and hyphens (along with
-`.` separators), per the spec. Sorting happens in ASCII sort order, again per the spec. The lowest character is a `0` in ASCII sort order (see an [ASCII Table](http://www.asciitable.com/))
+`.` separators), per the spec. Sorting happens in ASCII sort order, again per the
+spec. The lowest character is a `0` in ASCII sort order
+(see an [ASCII Table](http://www.asciitable.com/))
 
 Understanding ASCII sort ordering is important because A-Z comes before a-z. That
 means `>=1.2.3-BETA` will return `1.2.3-alpha`. What you might expect from case
@@ -159,14 +164,14 @@ the spec specifies.
 There are multiple methods to handle ranges and the first is hyphens ranges.
 These look like:
 
-* `1.2 - 1.4.5` which is equivalent to `>= 1.2, <= 1.4.5`
-* `2.3.4 - 4.5` which is equivalent to `>= 2.3.4, <= 4.5`
+* `1.2 - 1.4.5` which is equivalent to `>= 1.2 <= 1.4.5`
+* `2.3.4 - 4.5` which is equivalent to `>= 2.3.4 <= 4.5`
 
 ### Wildcards In Comparisons
 
 The `x`, `X`, and `*` characters can be used as a wildcard character. This works
 for all comparison operators. When used on the `=` operator it falls
-back to the pack level comparison (see tilde below). For example,
+back to the patch level comparison (see tilde below). For example,
 
 * `1.2.x` is equivalent to `>= 1.2.0, < 1.3.0`
 * `>= 1.2.x` is equivalent to `>= 1.2.0`
