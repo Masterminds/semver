@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.1 (2019-09-13)
+
+### Fixed
+
+- #125: Fixes issue with module path for v3
+
 ## 3.0.0 (2019-09-12)
 
 This is a major release of the semver package which includes API changes. The Go

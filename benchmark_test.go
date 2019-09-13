@@ -1,9 +1,7 @@
-package semver_test
+package semver
 
 import (
 	"testing"
-
-	"github.com/Masterminds/semver"
 )
 
 /* Constraint creation benchmarks */
@@ -12,7 +10,7 @@ func benchNewConstraint(c string, b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = semver.NewConstraint(c)
+		_, _ = NewConstraint(c)
 	}
 }
 
@@ -57,8 +55,8 @@ func BenchmarkNewConstraintUnion(b *testing.B) {
 func benchCheckVersion(c, v string, b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
-	version, _ := semver.NewVersion(v)
-	constraint, _ := semver.NewConstraint(c)
+	version, _ := NewVersion(v)
+	constraint, _ := NewConstraint(c)
 
 	for i := 0; i < b.N; i++ {
 		constraint.Check(version)
@@ -104,8 +102,8 @@ func BenchmarkCheckVersionUnion(b *testing.B) {
 func benchValidateVersion(c, v string, b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
-	version, _ := semver.NewVersion(v)
-	constraint, _ := semver.NewConstraint(c)
+	version, _ := NewVersion(v)
+	constraint, _ := NewConstraint(c)
 
 	for i := 0; i < b.N; i++ {
 		constraint.Validate(version)
@@ -190,13 +188,13 @@ func BenchmarkValidateVersionUnionFail(b *testing.B) {
 
 func benchNewVersion(v string, b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = semver.NewVersion(v)
+		_, _ = NewVersion(v)
 	}
 }
 
 func benchStrictNewVersion(v string, b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = semver.StrictNewVersion(v)
+		_, _ = StrictNewVersion(v)
 	}
 }
 
