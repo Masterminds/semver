@@ -154,9 +154,10 @@ func TestCompare(t *testing.T) {
 		{"4.2-beta.2", "4.2-beta.1", 1},
 		{"4.2-beta2", "4.2-beta1", 1},
 		{"4.2-beta", "4.2-beta.2", -1},
-		{"4.2-beta", "4.2-beta.foo", 1},
+		{"4.2-beta", "4.2-beta.foo", -1},
+		{"4.2-alpha", "4.2-beta.2", -1},
 		{"4.2-beta.2", "4.2-beta", 1},
-		{"4.2-beta.foo", "4.2-beta", -1},
+		{"4.2-beta.foo", "4.2-beta", 1},
 		{"1.2+bar", "1.2+baz", 0},
 	}
 
