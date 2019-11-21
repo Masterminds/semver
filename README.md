@@ -219,7 +219,7 @@ if err != nil {
     // Handle constraint not being parseable.
 }
 
-v, _ := semver.NewVersion("1.3")
+v, err := semver.NewVersion("1.3")
 if err != nil {
     // Handle version not being parseable.
 }
