@@ -183,6 +183,17 @@ func TestConstraintCheck(t *testing.T) {
 		{"^0.2.3-beta.2", "0.2.4-beta.2", true},
 		{"^0.2.3-beta.2", "0.3.4-beta.2", false},
 		{"^0.2.3-beta.2", "0.2.3-beta.2", true},
+
+		// For discussion and demonstration purposes currently
+		// These tests are valid, and make sense to me.
+		{"1.0.0", "1.0.0+002.sdgf234", true},
+		{"1.0.0-beta.1", "1.0.0-beta.1+002.sdgf234", true},
+		
+		// Test will fail below, a constraint created from 1.0.0+001.asdf123
+		// accepts a version with a different build argument, shoult it?
+		// I note that the npm semver package also considers this fine.
+		{"1.0.0+001.asdf123", "1.0.0+002.sdgf234", false},
+		{"1.0.0-beta.1+001.asdf123", "1.0.0-beta.1+002.sdgf234", false},
 	}
 
 	for _, tc := range tests {
