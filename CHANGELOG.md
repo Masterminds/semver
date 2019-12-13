@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.3 (2019-12-13)
+
+### Fixed
+
+- #141: Fixed issue with <= comparison
+
 ## 3.0.2 (2019-11-14)
 
 ### Fixed
