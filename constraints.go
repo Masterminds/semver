@@ -401,7 +401,7 @@ func constraintLessThanEqual(v *Version, c *constraint) bool {
 
 	if v.Major() > c.con.Major() {
 		return false
-	} else if v.Minor() > c.con.Minor() && !c.minorDirty {
+	} else if v.Major() == c.con.Major() && v.Minor() > c.con.Minor() && !c.minorDirty {
 		return false
 	}
 
