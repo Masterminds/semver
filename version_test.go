@@ -1,6 +1,7 @@
 package semver
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -538,6 +539,41 @@ func TestJsonUnmarshal(t *testing.T) {
 	want := sVer
 	if got != want {
 		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+	}
+}
+
+func TestSQLScanner(t *testing.T) {
+	sVer := "1.1.1"
+	x, err := StrictNewVersion(sVer)
+	if err != nil {
+		t.Errorf("Error creating version: %s", err)
+	}
+	var s sql.Scanner = x
+	var out *Version
+	var ok bool
+	if out, ok = s.(*Version); !ok {
+		t.Errorf("Error expected Version type, got=%T want=%T", s, Version{})
+	}
+	got := out.String()
+	want := sVer
+	if got != want {
+		t.Errorf("Error sql scanner unexpected scan content: got=%q want=%q", got, want)
+	}
+}
+
+func TestDriverValuer(t *testing.T) {
+	sVer := "1.1.1"
+	x, err := StrictNewVersion(sVer)
+	if err != nil {
+		t.Errorf("Error creating version: %s", err)
+	}
+	got, err := x.Value()
+	if err != nil {
+		t.Fatalf("Error getting value, got %v", err)
+	}
+	want := sVer
+	if got != want {
+		t.Errorf("Error driver valuer unexpected value content: got=%q want=%q", got, want)
 	}
 }
 
