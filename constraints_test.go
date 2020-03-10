@@ -198,7 +198,7 @@ func TestConstraintCheck(t *testing.T) {
 			continue
 		}
 
-		a := c.check(v)
+		a, _ := c.check(v)
 		if a != tc.check {
 			t.Errorf("Constraint %q failing with %q", tc.constraint, tc.version)
 		}
@@ -561,8 +561,8 @@ func TestConstraintsValidate(t *testing.T) {
 		t.Error("Invalid number of validations found")
 	}
 	e := msgs[0].Error()
-	if e != "1.2.3 does not have same major version as 2" {
-		t.Error("Did not get expected message: 1.2.3 does not have same major version as 2")
+	if e != "1.2.3 is less than 2" {
+		t.Error("Did not get expected message: 1.2.3 is less than 2")
 	}
 	e = msgs[1].Error()
 	if e != "1.2.3 is greater than 1.1.x" {
@@ -572,9 +572,9 @@ func TestConstraintsValidate(t *testing.T) {
 	tests2 := []struct {
 		constraint, version, msg string
 	}{
-		{"2.x", "1.2.3", "1.2.3 is not equal to 2.x"},
-		{"2", "1.2.3", "1.2.3 is not equal to 2"},
-		{"= 2.0", "1.2.3", "1.2.3 is not equal to 2.0"},
+		{"2.x", "1.2.3", "1.2.3 is less than 2.x"},
+		{"2", "1.2.3", "1.2.3 is less than 2"},
+		{"= 2.0", "1.2.3", "1.2.3 is less than 2.0"},
 		{"!=4.1", "4.1.0", "4.1.0 is equal to 4.1"},
 		{"!=4.x", "4.1.0", "4.1.0 is equal to 4.x"},
 		{"!=4.2.x", "4.2.3", "4.2.3 is equal to 4.2.x"},
@@ -593,27 +593,33 @@ func TestConstraintsValidate(t *testing.T) {
 		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", "1.2.3 is equal to 1.2.3"},
 		{"1.1 - 3", "4.3.2", "4.3.2 is greater than 3"},
 		{"^1.1", "4.3.2", "4.3.2 does not have same major version as 1.1"},
-		{"^2.x", "1.1.1", "1.1.1 does not have same major version as 2.x"},
+		{"^1.12.7", "1.6.6", "1.6.6 is less than 1.12.7"},
+		{"^2.x", "1.1.1", "1.1.1 is less than 2.x"},
 		{"^1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
-		{"~1", "2.1.2", "2.1.2 does not have same major and minor version as 1"},
-		{"~1.x", "2.1.1", "2.1.1 does not have same major and minor version as 1.x"},
-		{"~1.2.3", "1.2.2", "1.2.2 does not have same major and minor version as 1.2.3"},
+		{"^0.2", "0.3.0", "0.3.0 does not have same minor version as 0.2. Expected minor versions to match when constraint major version is 0"},
+		{"^0.2", "0.1.1", "0.1.1 is less than 0.2"},
+		{"^0.0.3", "0.1.1", "0.1.1 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
+		{"^0.0.3", "0.0.4", "0.0.4 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
+		{"^0.0.3", "0.0.2", "0.0.2 is less than 0.0.3"},
+		{"~1", "2.1.2", "2.1.2 does not have same major version as 1"},
+		{"~1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
+		{"~1.2.3", "1.2.2", "1.2.2 is less than 1.2.3"},
 		{"~1.2.3", "1.3.2", "1.3.2 does not have same major and minor version as 1.2.3"},
 		{"~1.1", "1.2.3", "1.2.3 does not have same major and minor version as 1.1"},
-		{"~1.3", "2.4.5", "2.4.5 does not have same major and minor version as 1.3"},
+		{"~1.3", "2.4.5", "2.4.5 does not have same major version as 1.3"},
 		{"> 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is a prerelease version and the constraint is only looking for release versions"},
 	}
 
 	for _, tc := range tests2 {
 		c, err := NewConstraint(tc.constraint)
 		if err != nil {
-			t.Errorf("err: %s", err)
+			t.Errorf("constraint parsing err: %s", err)
 			continue
 		}
 
 		v, err := StrictNewVersion(tc.version)
 		if err != nil {
-			t.Errorf("err: %s", err)
+			t.Errorf("version parsing err: %s", err)
 			continue
 		}
 
@@ -623,7 +629,7 @@ func TestConstraintsValidate(t *testing.T) {
 		} else {
 			e := msgs[0].Error()
 			if e != tc.msg {
-				t.Errorf("Did not get expected message %q: %s", tc.msg, e)
+				t.Errorf("Did not get expected message. Expected %q, got %q", tc.msg, e)
 			}
 		}
 	}
