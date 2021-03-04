@@ -61,8 +61,8 @@ const allowed string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-" +
 // StrictNewVersion parses a given version and returns an instance of Version or
 // an error if unable to parse the version. Only parses valid semantic versions.
 // Performs checking that can find errors within the version.
-// If you want to coerce a version, such as 1 or 1.2, and perse that as the 1.x
-// releases of semver provided use the NewSemver() function.
+// If you want to coerce a version such as 1 or 1.2 and parse it as the 1.x
+// releases of semver did, use the NewVersion() function.
 func StrictNewVersion(v string) (*Version, error) {
 	// Parsing here does not use RegEx in order to increase performance and reduce
 	// allocations.
