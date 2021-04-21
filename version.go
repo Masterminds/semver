@@ -436,6 +436,31 @@ func (v Version) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.String())
 }
 
+// UnmarshalYAML implements go-yaml's yaml.Unmarshaler interface.
+func (v *Version) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	temp, err := NewVersion(s)
+	if err != nil {
+		return err
+	}
+	v.major = temp.major
+	v.minor = temp.minor
+	v.patch = temp.patch
+	v.pre = temp.pre
+	v.metadata = temp.metadata
+	v.original = temp.original
+	temp = nil
+	return nil
+}
+
+// MarshalYAML implements go-yaml's yaml.Marshaler interface.
+func (v *Version) MarshalYAML() (interface{}, error) {
+	return v.String(), nil
+}
+
 // Scan implements the SQL.Scanner interface.
 func (v *Version) Scan(value interface{}) error {
 	var s string
