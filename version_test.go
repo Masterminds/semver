@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 )
 
 func TestStrictNewVersion(t *testing.T) {
@@ -613,5 +615,51 @@ func TestValidateMetadata(t *testing.T) {
 		if err := validateMetadata(tc.meta); err != tc.expected {
 			t.Errorf("Unexpected error %q for metadata %q", err, tc.meta)
 		}
+	}
+}
+
+func TestYAMLMarshal(t *testing.T) {
+	sVer := "1.2.3-beta"
+	x, err := NewVersion(sVer)
+	if err != nil {
+		t.Errorf("Error creating version: %s", err)
+	}
+	out, err2 := yaml.Marshal(x)
+	if err2 != nil {
+		t.Errorf("Error marshaling version: %s", err2)
+	}
+	got := string(out)
+	want := fmt.Sprintf("%s\n", sVer)
+	if got != want {
+		t.Errorf("Error marshaling unexpected marshaled string: got=%q want=%q", got, want)
+	}
+
+	str := struct {
+		Version *Version
+	}{
+		Version: x,
+	}
+	out, err3 := yaml.Marshal(&str)
+	if err3 != nil {
+		t.Errorf("Error marshaling version: %s", err3)
+	}
+	got = string(out)
+	want = fmt.Sprintf("version: %s\n", sVer)
+	if got != want {
+		t.Errorf("Error marshaling unexpected marshaled struct: got=%q want=%q", got, want)
+	}
+}
+
+func TestYAMLUnmarshal(t *testing.T) {
+	sVer := "1.2.3"
+	ver := &Version{}
+	err := yaml.Unmarshal([]byte(fmt.Sprintf("%q", sVer)), ver)
+	if err != nil {
+		t.Errorf("Error unmarshaling version: %s", err)
+	}
+	got := ver.String()
+	want := sVer
+	if got != want {
+		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
 	}
 }
