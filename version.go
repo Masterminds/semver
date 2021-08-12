@@ -38,8 +38,8 @@ var (
 	ErrInvalidPrerelease = errors.New("Invalid Prerelease string")
 )
 
-// semVerRegex is the regular expression used to parse a semantic version.
-const semVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
+// VersionExpression is the regular expression used to parse a semantic version.
+const VersionExpression string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
@@ -52,7 +52,7 @@ type Version struct {
 }
 
 func init() {
-	versionRegex = regexp.MustCompile("^" + semVerRegex + "$")
+	versionRegex = regexp.MustCompile("^" + VersionExpression + "$")
 }
 
 const num string = "0123456789"
