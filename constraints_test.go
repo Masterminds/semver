@@ -1,6 +1,9 @@
 package semver
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -661,6 +664,59 @@ func TestConstraintString(t *testing.T) {
 
 		if _, err = NewConstraint(c.String()); err != nil {
 			t.Errorf("expected string from constrint %q to parse as valid but got err: %s", tc.constraint, err)
+		}
+	}
+}
+
+func TestJsonMarshalConstraints(t *testing.T) {
+	tests := []struct {
+		sCs  string
+		want string
+	}{
+		{"1.1.1", "1.1.1"},
+		{">=1.1.1", ">=1.1.1"},
+		{"<=1.1.1", "<=1.1.1"},
+	}
+
+	for _, tc := range tests {
+		cs, err := NewConstraint(tc.sCs)
+		if err != nil {
+			t.Errorf("Error creating constraints: %s", err)
+		}
+		buf := new(bytes.Buffer)
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
+		err = enc.Encode(cs)
+		if err != nil {
+			t.Errorf("Error unmarshaling version: %s", err)
+		}
+		got := buf.String()
+		want := fmt.Sprintf("%q\n", tc.want)
+		if got != want {
+			t.Errorf("Error marshaling unexpected marshaled content: got=%q want=%q", got, want)
+		}
+	}
+}
+
+func TestJsonUnmarshalConstraints(t *testing.T) {
+	tests := []struct {
+		sCs  string
+		want string
+	}{
+		{"1.1.1", "1.1.1"},
+		{">=1.2.3", ">=1.2.3"},
+		{"<=1.2.3", "<=1.2.3"},
+	}
+
+	for _, tc := range tests {
+		cs := Constraints{}
+		err := json.Unmarshal([]byte(fmt.Sprintf("%q", tc.sCs)), &cs)
+		if err != nil {
+			t.Errorf("Error unmarshaling constraints: %s", err)
+		}
+		got := cs.String()
+		if got != tc.want {
+			t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, tc.want)
 		}
 	}
 }
