@@ -113,6 +113,59 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 	return false, e
 }
 
+// Intersects checks if the both Constraints have an intersection
+func (cs Constraints) Intersects(cs2 *Constraints) (bool, error) {
+	for _, c1s := range cs.constraints {
+		expandedCs1 := make([]*constraint, len(c1s))
+		copy(expandedCs1, c1s)
+
+		for i, c := range c1s {
+			if expander, ok := constraintExpandOps[c.origfunc]; ok {
+				expandedCs1 = append(expandedCs1[:i], expandedCs1[i+1:]...)
+				expandedCs1 = append(expandedCs1, expander(c)...)
+			}
+		}
+
+		for _, c2s := range cs2.constraints {
+			expandedCs2 := make([]*constraint, len(c2s))
+			copy(expandedCs2, c2s)
+
+			for i, c := range c2s {
+				if expander, ok := constraintExpandOps[c.origfunc]; ok {
+					expandedCs2 = append(expandedCs2[:i], expandedCs2[i+1:]...)
+					expandedCs2 = append(expandedCs2, expander(c)...)
+				}
+			}
+
+			success := true
+
+			for _, c1 := range expandedCs1 {
+				for _, c2 := range expandedCs2 {
+					intersects, err := c1.intersects(c2)
+
+					if err != nil {
+						return false, err
+					}
+
+					if !intersects {
+						success = false
+						break
+					}
+				}
+
+				if !success {
+					break
+				}
+			}
+
+			if success {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 func (cs Constraints) String() string {
 	buf := make([]string, len(cs.constraints))
 	var tmp bytes.Buffer
@@ -138,6 +191,8 @@ var constraintOps map[string]cfunc
 var constraintRegex *regexp.Regexp
 var constraintRangeRegex *regexp.Regexp
 
+var constraintExpandOps map[string]cExpandFunc
+
 // Used to find individual constraints within a multi-constraint string
 var findConstraintRegex *regexp.Regexp
 
@@ -162,6 +217,12 @@ func init() {
 		"~":  constraintTilde,
 		"~>": constraintTilde,
 		"^":  constraintCaret,
+	}
+
+	constraintExpandOps = map[string]cExpandFunc{
+		"~":  constraintExpandTilde,
+		"~>": constraintExpandTilde,
+		"^":  constraintExpandCaret,
 	}
 
 	ops := `=||!=|>|<|>=|=>|<=|=<|~|~>|\^`
@@ -214,7 +275,50 @@ func (c *constraint) string() string {
 	return c.origfunc + c.orig
 }
 
+// Intersects checks if both constraints intersect
+func (c *constraint) intersects(c2 *constraint) (bool, error) {
+	if c.string() == c2.string() {
+		return true, nil
+	}
+
+	if c.origfunc == "" || c.origfunc == "=" {
+		return c2.check(c.con)
+	} else if c2.origfunc == "" || c2.origfunc == "=" {
+		return c.check(c2.con)
+	}
+
+	if c.origfunc == "!=" && c2.origfunc == "!=" {
+		return true, nil
+	}
+
+	sameDirectionIncreasing := (c.origfunc == ">=" || c.origfunc == "=>" || c.origfunc == ">") &&
+		(c2.origfunc == ">=" || c2.origfunc == "=>" || c2.origfunc == ">")
+
+	sameDirectionDecreasing := (c.origfunc == "<=" || c.origfunc == "=<" || c.origfunc == "<") &&
+		(c2.origfunc == "<=" || c2.origfunc == "=<" || c2.origfunc == "<")
+
+	sameSemVer := c.con.Equal(c2.con)
+
+	differentDirectionsInclusive := (c.origfunc == ">=" || c.origfunc == "=>" || c.origfunc == "<=" || c.origfunc == "=<") &&
+		(c2.origfunc == ">=" || c2.origfunc == "=>" || c2.origfunc == "<=" || c2.origfunc == "=<")
+
+	oppositeDirectionsLessThan := c.con.LessThan(c2.con) &&
+		(c.origfunc == ">=" || c.origfunc == "=>" || c.origfunc == ">") &&
+		(c2.origfunc == "<=" || c2.origfunc == "=<" || c2.origfunc == "<")
+
+	oppositeDirectionsGreaterThan := c.con.GreaterThan(c2.con) &&
+		(c.origfunc == "<=" || c.origfunc == "=<" || c.origfunc == "<") &&
+		(c2.origfunc == ">=" || c2.origfunc == "=>" || c2.origfunc == ">")
+
+	return sameDirectionIncreasing ||
+		sameDirectionDecreasing ||
+		(sameSemVer && differentDirectionsInclusive) ||
+		oppositeDirectionsLessThan ||
+		oppositeDirectionsGreaterThan, nil
+}
+
 type cfunc func(v *Version, c *constraint) (bool, error)
+type cExpandFunc func(c *constraint) []*constraint
 
 func parseConstraint(c string) (*constraint, error) {
 	if len(c) > 0 {
@@ -463,6 +567,52 @@ func constraintTilde(v *Version, c *constraint) (bool, error) {
 	return true, nil
 }
 
+func constraintExpandTilde(c *constraint) []*constraint {
+	if c.dirty {
+		return []*constraint{
+			{
+				con:        MustParse("0.0.0"),
+				orig:       "0.0.0",
+				origfunc:   ">=",
+				minorDirty: true,
+				dirty:      true,
+				patchDirty: true,
+			},
+		}
+	}
+
+	base := &constraint{
+		con:        c.con,
+		orig:       c.orig,
+		origfunc:   ">=",
+		minorDirty: c.minorDirty,
+		dirty:      c.dirty,
+		patchDirty: c.patchDirty,
+	}
+
+	if c.minorDirty {
+		nextMajor := c.con.IncMajor()
+		return []*constraint{
+			base,
+			{
+				con:      &nextMajor,
+				orig:     nextMajor.String(),
+				origfunc: "<",
+			},
+		}
+	}
+
+	nextMinor := c.con.IncMinor()
+	return []*constraint{
+		base,
+		{
+			con:      &nextMinor,
+			orig:     nextMinor.String(),
+			origfunc: "<",
+		},
+	}
+}
+
 // When there is a .x (dirty) status it automatically opts in to ~. Otherwise
 // it's a straight =
 func constraintTildeOrEqual(v *Version, c *constraint) (bool, error) {
@@ -542,6 +692,64 @@ func constraintCaret(v *Version, c *constraint) (bool, error) {
 		return true, nil
 	}
 	return false, fmt.Errorf("%s does not equal %s. Expect version and constraint to equal when major and minor versions are 0", v, c.orig)
+}
+
+func constraintExpandCaret(c *constraint) []*constraint {
+	if c.dirty {
+		return []*constraint{
+			{
+				con:        MustParse("0.0.0"),
+				orig:       "0.0.0",
+				origfunc:   ">=",
+				minorDirty: true,
+				dirty:      true,
+				patchDirty: true,
+			},
+		}
+	}
+
+	base := &constraint{
+		con:        c.con,
+		orig:       c.orig,
+		origfunc:   ">=",
+		minorDirty: c.minorDirty,
+		dirty:      c.dirty,
+		patchDirty: c.patchDirty,
+	}
+
+	if c.con.Major() == 0 || c.minorDirty {
+		if c.con.Minor() == 0 || c.patchDirty {
+			nextPatch := c.con.IncPatch()
+			return []*constraint{
+				base,
+				{
+					con:      &nextPatch,
+					orig:     nextPatch.String(),
+					origfunc: "<",
+				},
+			}
+		} else {
+			nextMinor := c.con.IncMinor()
+			return []*constraint{
+				base,
+				{
+					con:      &nextMinor,
+					orig:     nextMinor.String(),
+					origfunc: "<",
+				},
+			}
+		}
+	}
+
+	nextMajor := c.con.IncMajor()
+	return []*constraint{
+		base,
+		{
+			con:      &nextMajor,
+			orig:     nextMajor.String(),
+			origfunc: "<",
+		},
+	}
 }
 
 func isX(x string) bool {
