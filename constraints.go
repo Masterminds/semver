@@ -728,16 +728,16 @@ func constraintExpandCaret(c *constraint) []*constraint {
 					origfunc: "<",
 				},
 			}
-		} else {
-			nextMinor := c.con.IncMinor()
-			return []*constraint{
-				base,
-				{
-					con:      &nextMinor,
-					orig:     nextMinor.String(),
-					origfunc: "<",
-				},
-			}
+		}
+
+		nextMinor := c.con.IncMinor()
+		return []*constraint{
+			base,
+			{
+				con:      &nextMinor,
+				orig:     nextMinor.String(),
+				origfunc: "<",
+			},
 		}
 	}
 
