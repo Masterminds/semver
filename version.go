@@ -3,7 +3,6 @@ package semver
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -412,53 +411,27 @@ func (v *Version) Compare(o *Version) int {
 	return comparePrerelease(ps, po)
 }
 
-// UnmarshalJSON implements JSON.Unmarshaler interface.
-func (v *Version) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
-		return err
-	}
-	temp, err := NewVersion(s)
+// UnmarshalText unmarshals the textual representation of a semantic version into
+// this Version.
+func (v *Version) UnmarshalText(text []byte) error {
+	temp, err := NewVersion(string(text))
 	if err != nil {
 		return err
 	}
+
 	v.major = temp.major
 	v.minor = temp.minor
 	v.patch = temp.patch
 	v.pre = temp.pre
 	v.metadata = temp.metadata
 	v.original = temp.original
+
 	return nil
 }
 
-// MarshalJSON implements JSON.Marshaler interface.
-func (v Version) MarshalJSON() ([]byte, error) {
-	return json.Marshal(v.String())
-}
-
-// UnmarshalYAML implements go-yaml's yaml.Unmarshaler interface.
-func (v *Version) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	temp, err := NewVersion(s)
-	if err != nil {
-		return err
-	}
-	v.major = temp.major
-	v.minor = temp.minor
-	v.patch = temp.patch
-	v.pre = temp.pre
-	v.metadata = temp.metadata
-	v.original = temp.original
-	temp = nil
-	return nil
-}
-
-// MarshalYAML implements go-yaml's yaml.Marshaler interface.
-func (v *Version) MarshalYAML() (interface{}, error) {
-	return v.String(), nil
+// MarshalText returns the textual representation of the Version.
+func (v Version) MarshalText() ([]byte, error) {
+	return []byte(v.String()), nil
 }
 
 // Scan implements the SQL.Scanner interface.
