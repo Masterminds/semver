@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	yamlGoccy "github.com/goccy/go-yaml"
+	yamlV2 "gopkg.in/yaml.v2"
+	yamlV3 "gopkg.in/yaml.v3"
 )
 
 func TestStrictNewVersion(t *testing.T) {
@@ -539,6 +543,69 @@ func TestJsonUnmarshal(t *testing.T) {
 	want := sVer
 	if got != want {
 		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+	}
+}
+
+type testStruct struct {
+	MyVersion *Version `yaml:"myVersion"`
+}
+
+func TestYAMLMarshal(t *testing.T) {
+	t.Parallel()
+
+	sVer := "1.1.1"
+	x, err := StrictNewVersion(sVer)
+	if err != nil {
+		t.Errorf("creating version: %s", err)
+	}
+
+	for i, marshal := range []func(interface{}) ([]byte, error){
+		yamlGoccy.Marshal,
+		yamlV2.Marshal,
+		yamlV3.Marshal,
+	} {
+		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			t.Parallel()
+
+			out, err2 := marshal(testStruct{MyVersion: x})
+			if err2 != nil {
+				t.Errorf("Error marshaling version: %s", err2)
+			}
+
+			got := string(out)
+			want := fmt.Sprintf("myVersion: %s\n", sVer)
+			if got != want {
+				t.Errorf("Error marshaling unexpected marshaled content: got=%q want=%q", got, want)
+			}
+		})
+	}
+}
+
+func TestYAMLUnmarshal(t *testing.T) {
+	t.Parallel()
+
+	sVer := "1.1.1"
+
+	for i, unmarshal := range []func([]byte, interface{}) error{
+		yamlGoccy.Unmarshal,
+		yamlV2.Unmarshal,
+		yamlV3.Unmarshal,
+	} {
+		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			t.Parallel()
+
+			ts := &testStruct{}
+			err := unmarshal([]byte(fmt.Sprintf("myVersion: %s\n", sVer)), ts)
+			if err != nil {
+				t.Errorf("Error unmarshaling version: %s", err)
+			}
+
+			got := ts.MyVersion.String()
+			want := sVer
+			if got != want {
+				t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+			}
+		})
 	}
 }
 
