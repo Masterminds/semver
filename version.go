@@ -443,12 +443,9 @@ func (v *Version) UnmarshalText(text []byte) error {
 	if err != nil {
 		return err
 	}
-	v.major = temp.major
-	v.minor = temp.minor
-	v.patch = temp.patch
-	v.pre = temp.pre
-	v.metadata = temp.metadata
-	v.original = temp.original
+
+	*v = *temp
+
 	return nil
 }
 
