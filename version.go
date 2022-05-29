@@ -55,8 +55,10 @@ func init() {
 	versionRegex = regexp.MustCompile("^" + semVerRegex + "$")
 }
 
-const num string = "0123456789"
-const allowed string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-" + num
+const (
+	num     string = "0123456789"
+	allowed string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-" + num
+)
 
 // StrictNewVersion parses a given version and returns an instance of Version or
 // an error if unable to parse the version. Only parses valid semantic versions.
@@ -267,7 +269,6 @@ func (v Version) Metadata() string {
 
 // originalVPrefix returns the original 'v' prefix if any.
 func (v Version) originalVPrefix() string {
-
 	// Note, only lowercase v is supported as a prefix by the parser.
 	if v.original != "" && v.original[:1] == "v" {
 		return v.original[:1]
@@ -470,7 +471,6 @@ func compareSegment(v, o uint64) int {
 }
 
 func comparePrerelease(v, o string) int {
-
 	// split the prelease versions by their part. The separator, per the spec,
 	// is a .
 	sparts := strings.Split(v, ".")
@@ -562,11 +562,10 @@ func comparePrePart(s, o string) int {
 		return 1
 	}
 	return -1
-
 }
 
 // Like strings.ContainsAny but does an only instead of any.
-func containsOnly(s string, comp string) bool {
+func containsOnly(s, comp string) bool {
 	return strings.IndexFunc(s, func(r rune) bool {
 		return !strings.ContainsRune(comp, r)
 	}) == -1
