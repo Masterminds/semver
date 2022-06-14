@@ -233,7 +233,7 @@ func parseConstraint(c string) (*constraint, error) {
 		patchDirty := false
 		dirty := false
 		if isX(m[3]) || m[3] == "" {
-			ver = "0.0.0"
+			ver = fmt.Sprintf("0.0.0%s", m[6])
 			dirty = true
 		} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
 			minorDirty = true
