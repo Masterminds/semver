@@ -207,6 +207,21 @@ func NewVersion(v string) (*Version, error) {
 	return sv, nil
 }
 
+func New(major, minor, patch uint64, pre, metadata string) *Version {
+	v := Version{
+		major:    major,
+		minor:    minor,
+		patch:    patch,
+		pre:      pre,
+		metadata: metadata,
+		original: "",
+	}
+
+	v.original = v.String()
+
+	return &v
+}
+
 // MustParse parses a given version and panics on error.
 func MustParse(v string) *Version {
 	sv, err := NewVersion(v)
