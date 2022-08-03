@@ -534,6 +534,10 @@ func constraintCaret(v *Version, c *constraint) (bool, error) {
 		}
 		return false, fmt.Errorf("%s does not have same minor version as %s. Expected minor versions to match when constraint major version is 0", v, c.orig)
 	}
+	// ^ when the minor is 0 and minor > 0 is >=0.y.z < 0.y+1
+	if c.con.Minor() == 0 && v.Minor() > 0 {
+		return false, fmt.Errorf("%s does not have same minor version as %s", v, c.orig)
+	}
 
 	// At this point the major is 0 and the minor is 0 and not dirty. The patch
 	// is not dirty so we need to check if they are equal. If they are not equal

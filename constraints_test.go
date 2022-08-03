@@ -362,6 +362,8 @@ func TestConstraintsCheck(t *testing.T) {
 		{"^1.x", "1.1.1-beta1", false},
 		{"^1.1.2-alpha", "1.2.1-beta1", true},
 		{"^1.2.x-alpha", "1.1.1-beta1", false},
+		{"^0.0.1", "0.0.1", true},
+		{"^0.0.1", "0.3.1", false},
 		{"~*", "2.1.1", true},
 		{"~1", "2.1.1", false},
 		{"~1", "1.3.5", true},
