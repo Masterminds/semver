@@ -207,6 +207,8 @@ func NewVersion(v string) (*Version, error) {
 	return sv, nil
 }
 
+// New creates a new instance of Version with each of the parts passed in as
+// arguments instead of parsing a version string.
 func New(major, minor, patch uint64, pre, metadata string) *Version {
 	v := Version{
 		major:    major,

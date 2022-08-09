@@ -99,6 +99,22 @@ func TestNewVersion(t *testing.T) {
 	}
 }
 
+func TestNew(t *testing.T) {
+	// v0.1.2
+	v := New(0, 1, 2, "", "")
+
+	if v.String() != "0.1.2" {
+		t.Errorf("expected version 0.1.2 but got %q", v.String())
+	}
+
+	// v1.2.3-alpha.1+foo.bar
+	v = New(1, 2, 3, "alpha.1", "foo.bar")
+
+	if v.String() != "1.2.3-alpha.1+foo.bar" {
+		t.Errorf("expected version 1.2.3-alpha.1+foo.bar but got %q", v.String())
+	}
+}
+
 func TestOriginal(t *testing.T) {
 	tests := []string{
 		"1.2.3",
