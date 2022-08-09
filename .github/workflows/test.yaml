@@ -4,7 +4,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.12.x, 1.13.x, 1.14.x, 1.15.x]
+        go-version: [1.17.x, 1.18.x, 1.19.x]
         platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
@@ -14,12 +14,6 @@ jobs:
         go-version: ${{ matrix.go-version }}
     - name: Checkout code
       uses: actions/checkout@v1
-    - name: Install golangci-lint
-      if: runner.os == 'Linux'
-      run: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.1
-    - name: Lint
-      if: runner.os == 'Linux'
-      run: $(go env GOPATH)/bin/golangci-lint run
     - name: Test
       env:
         GO111MODULE: on
