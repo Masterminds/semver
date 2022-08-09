@@ -121,6 +121,7 @@ func TestConstraintCheck(t *testing.T) {
 		{"*", "1", true},
 		{"*", "4.5.6", true},
 		{"*", "1.2.3-alpha.1", false},
+		{"*-0", "1.2.3-alpha.1", true},
 		{"2.*", "1", false},
 		{"2.*", "3.4.5", false},
 		{"2.*", "2.1.1", true},
