@@ -85,7 +85,8 @@ differences to notes between these two methods of comparison.
    different set of rules that are common for ranges with tools like npm/js
    and Rust/Cargo. This includes considering prereleases to be invalid if the
    ranges does not include one. If you want to have it include pre-releases a
-   simple solution is to include `-0` in your range.
+   simple solution is to include `-0` in your range. For example, `~1.2.3-0` or
+   `1.2.3-0 - 1.5.0`.
 3. Constraint ranges can have some complex rules including the shorthand use of
    ~ and ^. For more details on those see the options below.
 

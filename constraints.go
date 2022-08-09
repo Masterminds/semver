@@ -32,6 +32,10 @@ func NewConstraint(c string) (*Constraints, error) {
 			return nil, fmt.Errorf("improper constraint: %s", v)
 		}
 
+		// If any part of the range uses a pre-release,
+		// then allow pre-release versions to match when the range is checked.
+		var rangeUsesPrerelease bool
+
 		cs := findConstraintRegex.FindAllString(v, -1)
 		if cs == nil {
 			cs = append(cs, v)
@@ -44,7 +48,21 @@ func NewConstraint(c string) (*Constraints, error) {
 			}
 
 			result[i] = pc
+
+			// Check if the range uses a pre-release
+			if !rangeUsesPrerelease && pc.con.Prerelease() != "" {
+				rangeUsesPrerelease = true
+			}
 		}
+
+		if rangeUsesPrerelease {
+			// If any part of the range used a pre-release,
+			// all versions in the range should allow pre-releases
+			for _, pc := range result {
+				pc.allowPrerelease = true
+			}
+		}
+
 		or[k] = result
 	}
 
@@ -202,6 +220,10 @@ type constraint struct {
 	minorDirty bool
 	dirty      bool
 	patchDirty bool
+
+	// allowPrerelease indicates if the constraint should allow pre-releases,
+	// such as when part of a range constraint that uses pre-releases
+	allowPrerelease bool
 }
 
 // Check if a version meets the constraint
@@ -257,6 +279,7 @@ func parseConstraint(c string) (*constraint, error) {
 		cs.minorDirty = minorDirty
 		cs.patchDirty = patchDirty
 		cs.dirty = dirty
+		cs.allowPrerelease = cs.con.Prerelease() != ""
 
 		return cs, nil
 	}
@@ -389,7 +412,7 @@ func constraintGreaterThanEqual(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -404,7 +427,7 @@ func constraintLessThanEqual(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -437,7 +460,7 @@ func constraintTilde(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -469,7 +492,7 @@ func constraintTildeOrEqual(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -498,7 +521,7 @@ func constraintCaret(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
