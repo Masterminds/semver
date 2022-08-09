@@ -600,7 +600,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{"^1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
 		{"^0.2", "0.3.0", "0.3.0 does not have same minor version as 0.2. Expected minor versions to match when constraint major version is 0"},
 		{"^0.2", "0.1.1", "0.1.1 is less than 0.2"},
-		{"^0.0.3", "0.1.1", "0.1.1 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
+		{"^0.0.3", "0.1.1", "0.1.1 does not have same minor version as 0.0.3"},
 		{"^0.0.3", "0.0.4", "0.0.4 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
 		{"^0.0.3", "0.0.2", "0.0.2 is less than 0.0.3"},
 		{"~1", "2.1.2", "2.1.2 does not have same major version as 1"},
