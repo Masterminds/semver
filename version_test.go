@@ -87,6 +87,13 @@ func TestNewVersion(t *testing.T) {
 		{"1.2.2147483648", false},
 		{"1.2147483648.3", false},
 		{"2147483648.3.0", false},
+
+		// Due to having 4 parts these should produce an error. See
+		// https://github.com/Masterminds/semver/issues/185 for the reason for
+		// these tests.
+		{"12.3.4.1234", true},
+		{"12.23.4.1234", true},
+		{"12.3.34.1234", true},
 	}
 
 	for _, tc := range tests {

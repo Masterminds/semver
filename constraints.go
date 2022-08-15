@@ -180,8 +180,13 @@ func init() {
 		ops,
 		cvRegex))
 
+	// The first time a constraint shows up will look slightly different from
+	// future times it shows up due to a leading space or comma in a given
+	// string.
 	validConstraintRegex = regexp.MustCompile(fmt.Sprintf(
-		`^(\s*(%s)\s*(%s)\s*\,?)+$`,
+		`^(\s*(%s)\s*(%s)\s*)((?:\s+|,\s*)(%s)\s*(%s)\s*)*$`,
+		ops,
+		cvRegex,
 		ops,
 		cvRegex))
 }
