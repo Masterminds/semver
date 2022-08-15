@@ -231,6 +231,15 @@ func TestNewConstraint(t *testing.T) {
 
 		// The 3 - 4 should be broken into 2 by the range rewriting
 		{"3 - 4 || => 3.0, < 4", 2, 2, false},
+
+		// Due to having 4 parts these should produce an error. See
+		// https://github.com/Masterminds/semver/issues/185 for the reason for
+		// these tests.
+		{"12.3.4.1234", 0, 0, true},
+		{"12.23.4.1234", 0, 0, true},
+		{"12.3.34.1234", 0, 0, true},
+		{"12.3.34 ~1.2.3", 1, 2, false},
+		{"12.3.34~ 1.2.3", 0, 0, true},
 	}
 
 	for _, tc := range tests {
