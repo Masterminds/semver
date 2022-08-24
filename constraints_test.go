@@ -676,3 +676,88 @@ func TestConstraintString(t *testing.T) {
 		}
 	}
 }
+
+func TestConstraintIntersect(t *testing.T) {
+	tests := []struct {
+		constraint1 string
+		constraint2 string
+		intersects  bool
+	}{
+		// One is a Version
+		{"1.3.0", ">=1.3.0", true},
+		{"1.3.0", ">1.3.0", false},
+		{">=1.3.0", "1.3.0", true},
+		{">1.3.0", "1.3.0", false},
+		// Same direction increasing
+		{">1.3.0", ">1.2.0", true},
+		{">1.2.0", ">1.3.0", true},
+		{">=1.2.0", ">1.3.0", true},
+		{">1.2.0", ">=1.3.0", true},
+		// Same direction decreasing
+		{"<1.3.0", "<1.2.0", true},
+		{"<1.2.0", "<1.3.0", true},
+		{"<=1.2.0", "<1.3.0", true},
+		{"<1.2.0", "<=1.3.0", true},
+		// Different directions, same semver and inclusive operator
+		{">=1.3.0", "<=1.3.0", true},
+		{">=v1.3.0", "<=1.3.0", true},
+		{">=1.3.0", ">=1.3.0", true},
+		{"<=1.3.0", "<=1.3.0", true},
+		{"<=1.3.0", "<=v1.3.0", true},
+		{">1.3.0", "<=1.3.0", false},
+		{">=1.3.0", "<1.3.0", false},
+		// Opposite matching directions
+		{">1.0.0", "<2.0.0", true},
+		{">=1.0.0", "<2.0.0", true},
+		{">=1.0.0", "<=2.0.0", true},
+		{">1.0.0", "<=2.0.0", true},
+		{"<=2.0.0", ">1.0.0", true},
+		{"<=1.0.0", ">=2.0.0", false},
+		// Not equals
+		{"!=1.3.0", "!=1.3.0", true},
+		{"1.3.0", "!=1.3.0", false},
+		{"!=1.4.0", "!=1.3.0", true},
+		// Tilde
+		{"~1.x.x", "~1.2.x", true},
+		{"~1.2.x", "~1.2.3", true},
+		{"~1.3.x", "~1.2.3", true},
+		{"~1.3.4", "~1.2.3", false},
+		{"~2.3.4", "~1.2.3", false},
+		{"~0.3.4", "~1.2.3", false},
+		{"~0.3.4", "~0.2.3", false},
+		{"~0.2.x", "~0.2.3", true},
+		// Caret
+		{"^1.x.x", "^1.2.x", true},
+		{"^1.2.x", "^1.2.3", true},
+		{"^1.3.x", "^1.2.3", true},
+		{"^1.3.4", "^1.2.3", true},
+		{"^2.3.4", "^1.2.3", false},
+		{"^0.3.4", "^1.2.3", false},
+		{"^0.3.4", "^0.2.3", false},
+		{"^0.2.x", "^0.2.3", true},
+	}
+
+	for _, tc := range tests {
+		c1, err := NewConstraint(tc.constraint1)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		c2, err := NewConstraint(tc.constraint2)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		a, _ := c1.Intersects(c2)
+		if a != tc.intersects {
+			t.Errorf("Constraint %q failing with %q", tc.constraint1, tc.constraint2)
+		}
+
+		b, _ := c2.Intersects(c1)
+		if b != tc.intersects {
+			t.Errorf("Constraint %q failing with %q", tc.constraint2, tc.constraint1)
+		}
+	}
+}
