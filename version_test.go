@@ -565,6 +565,42 @@ func TestJsonUnmarshal(t *testing.T) {
 	}
 }
 
+func TestTextMarshal(t *testing.T) {
+	sVer := "1.1.1"
+
+	x, err := StrictNewVersion(sVer)
+	if err != nil {
+		t.Errorf("Error creating version: %s", err)
+	}
+
+	out, err2 := x.MarshalText()
+	if err2 != nil {
+		t.Errorf("Error marshaling version: %s", err2)
+	}
+
+	got := string(out)
+	want := sVer
+	if got != want {
+		t.Errorf("Error marshaling unexpected marshaled content: got=%q want=%q", got, want)
+	}
+}
+
+func TestTextUnmarshal(t *testing.T) {
+	sVer := "1.1.1"
+	ver := &Version{}
+
+	err := ver.UnmarshalText([]byte(sVer))
+	if err != nil {
+		t.Errorf("Error unmarshaling version: %s", err)
+	}
+
+	got := ver.String()
+	want := sVer
+	if got != want {
+		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+	}
+}
+
 func TestSQLScanner(t *testing.T) {
 	sVer := "1.1.1"
 	x, err := StrictNewVersion(sVer)
