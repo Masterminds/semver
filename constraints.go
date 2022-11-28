@@ -2,6 +2,7 @@ package semver
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -132,6 +133,33 @@ func (cs Constraints) String() string {
 	}
 
 	return strings.Join(buf, " || ")
+}
+
+// UnmarshalJSON implements JSON.Unmarshaler interface.
+func (cs *Constraints) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	temp, err := NewConstraint(s)
+	if err != nil {
+		return err
+	}
+	*cs = *temp
+	return nil
+}
+
+// MarshalJSON implements JSON.Marshaler interface.
+func (cs Constraints) MarshalJSON() ([]byte, error) {
+	// we need our own encoder so we don't escape '<' and '>' which json.Marshal does
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+
+	if err := enc.Encode(cs.String()); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
 var constraintOps map[string]cfunc
