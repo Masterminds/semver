@@ -64,7 +64,7 @@ func TestConstraintCheck(t *testing.T) {
 		{"=2.0.0", "2.0.0", true},
 		{"=2.0", "1.2.3", false},
 		{"=2.0", "2.0.0", true},
-		{"=2.0", "2.0.1", true},
+		{"=2.0", "2.0.1", false},
 		{"4.1", "4.1.0", true},
 		{"!=4.1.0", "4.1.0", false},
 		{"!=4.1.0", "4.1.1", true},
@@ -135,13 +135,15 @@ func TestConstraintCheck(t *testing.T) {
 		{"", "1.2.3-alpha.1", false},
 		{"2", "1", false},
 		{"2", "3.4.5", false},
-		{"2", "2.1.1", true},
-		{"2.1", "2.1.1", true},
+		{"2", "2.0.0", true},
+		{"2", "2.1.1", false},
+		{"2.1", "2.1.0", true},
+		{"2.1", "2.1.1", false},
 		{"2.1", "2.2.1", false},
 		{"~1.2.3", "1.2.4", true},
 		{"~1.2.3", "1.3.4", false},
 		{"~1.2", "1.2.4", true},
-		{"~1.2", "1.3.4", false},
+		{"~1.2", "1.3.4", true},
 		{"~1", "1.2.4", true},
 		{"~1", "2.3.4", false},
 		{"~0.2.3", "0.2.5", true},
@@ -392,7 +394,7 @@ func TestConstraintsCheck(t *testing.T) {
 		{"~1.2.3", "1.2.5", true},
 		{"~1.2.3", "1.2.2", false},
 		{"~1.2.3", "1.3.2", false},
-		{"~1.1", "1.2.3", false},
+		{"~1.1", "1.2.3", true},
 		{"~1.3", "2.4.5", false},
 	}
 
@@ -530,7 +532,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{"~1.2.3", "1.2.5", true},
 		{"~1.2.3", "1.2.2", false},
 		{"~1.2.3", "1.3.2", false},
-		{"~1.1", "1.2.3", false},
+		{"~1.1", "1.2.3", true},
 		{"~1.3", "2.4.5", false},
 	}
 
@@ -620,7 +622,6 @@ func TestConstraintsValidate(t *testing.T) {
 		{"~1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
 		{"~1.2.3", "1.2.2", "1.2.2 is less than 1.2.3"},
 		{"~1.2.3", "1.3.2", "1.3.2 does not have same major and minor version as 1.2.3"},
-		{"~1.1", "1.2.3", "1.2.3 does not have same major and minor version as 1.1"},
 		{"~1.3", "2.4.5", "2.4.5 does not have same major version as 1.3"},
 		{"> 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is a prerelease version and the constraint is only looking for release versions"},
 	}

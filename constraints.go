@@ -478,15 +478,15 @@ func constraintTilde(v *Version, c *constraint) (bool, error) {
 		return false, fmt.Errorf("%s does not have same major version as %s", v, c.orig)
 	}
 
-	if v.Minor() != c.con.Minor() && !c.minorDirty {
+	if v.Minor() != c.con.Minor() && !c.minorDirty && (!c.patchDirty || strings.Contains(c.orig, "*")) {
 		return false, fmt.Errorf("%s does not have same major and minor version as %s", v, c.orig)
 	}
 
 	return true, nil
 }
 
-// When there is a .x (dirty) status it automatically opts in to ~. Otherwise
 // it's a straight =
+// dirtyなものが含まれている場合、dirtyな部分を0埋めしたものだけ許可する
 func constraintTildeOrEqual(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
@@ -495,7 +495,11 @@ func constraintTildeOrEqual(v *Version, c *constraint) (bool, error) {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
-	if c.dirty {
+	if v.LessThan(c.con) {
+		return false, fmt.Errorf("%s is less than %s", v, c.orig)
+	}
+
+	if c.dirty && (strings.Contains(c.orig, "*") || strings.Contains(c.orig, "x") || strings.Contains(c.orig, "X") || c.orig == "") {
 		return constraintTilde(v, c)
 	}
 
