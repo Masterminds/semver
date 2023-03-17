@@ -374,14 +374,19 @@ func TestConstraintsCheck(t *testing.T) {
 		{"~1.1-alpha", "1.1.1-beta", true},
 		{"~1.1.1-beta", "1.1.1-alpha", false},
 		{"~1.1.1-beta", "1.1.1", true},
-		{constraint: "1.0.0-alpha.1 - 1.0.0", version: "1.0.0-beta.2", check: true},
-		{constraint: "~1.2.3 || 1.2.3-beta.1", version: "1.2.3-beta.1", check: true},
-		{constraint: "~1.2.3 || 1.2.3-beta.1", version: "1.2.3-beta.2", check: false},
 		{"~1.2.3", "1.2.5", true},
 		{"~1.2.3", "1.2.2", false},
 		{"~1.2.3", "1.3.2", false},
 		{"~1.1", "1.2.3", false},
 		{"~1.3", "2.4.5", false},
+		// Should fail because 1.5.0 is AND'd with the range and since it does not allow prereleases, the entire constraint fails
+		{"1.0.0-alpha.1 - 1.0.0, <= 1.5.0", "1.0.0-beta.2", false},
+		// Should fail because only the first range should allow prereleases (detects if we are allowing prereleases for more than the affected range
+		{"1.0.0-alpha.1 - 1.0.0 || <= 1.5.0", "1.5.0-beta.2", false},
+		// When the lower part of the range allows prereleases, the upper should also allow prereleases
+		{"1.0.0-alpha.1 - 1.0.0", "1.0.0-beta.2", true},
+		// When the upper part of the range allows prereleases, the lower should also allow prereleases
+		{"1.0.0 - 2.0.0-beta.3", "2.0.0-beta.2", true},
 	}
 
 	for _, tc := range tests {
@@ -415,7 +420,7 @@ func TestRewriteRange(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		o := rewriteRange(tc.c)
+		o, _ := rewriteRange(tc.c)
 
 		if o != tc.nc {
 			t.Errorf("Range %s rewritten incorrectly as '%s'", tc.c, o)
