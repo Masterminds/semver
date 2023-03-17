@@ -1,6 +1,9 @@
 package semver
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -121,6 +124,7 @@ func TestConstraintCheck(t *testing.T) {
 		{"*", "1", true},
 		{"*", "4.5.6", true},
 		{"*", "1.2.3-alpha.1", false},
+		{"*-0", "1.2.3-alpha.1", true},
 		{"2.*", "1", false},
 		{"2.*", "3.4.5", false},
 		{"2.*", "2.1.1", true},
@@ -230,6 +234,15 @@ func TestNewConstraint(t *testing.T) {
 
 		// The 3 - 4 should be broken into 2 by the range rewriting
 		{"3 - 4 || => 3.0, < 4", 2, 2, false},
+
+		// Due to having 4 parts these should produce an error. See
+		// https://github.com/Masterminds/semver/issues/185 for the reason for
+		// these tests.
+		{"12.3.4.1234", 0, 0, true},
+		{"12.23.4.1234", 0, 0, true},
+		{"12.3.34.1234", 0, 0, true},
+		{"12.3.34 ~1.2.3", 1, 2, false},
+		{"12.3.34~ 1.2.3", 0, 0, true},
 	}
 
 	for _, tc := range tests {
@@ -362,6 +375,8 @@ func TestConstraintsCheck(t *testing.T) {
 		{"^1.x", "1.1.1-beta1", false},
 		{"^1.1.2-alpha", "1.2.1-beta1", true},
 		{"^1.2.x-alpha", "1.1.1-beta1", false},
+		{"^0.0.1", "0.0.1", true},
+		{"^0.0.1", "0.3.1", false},
 		{"~*", "2.1.1", true},
 		{"~1", "2.1.1", false},
 		{"~1", "1.3.5", true},
@@ -606,7 +621,7 @@ func TestConstraintsValidate(t *testing.T) {
 		{"^1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
 		{"^0.2", "0.3.0", "0.3.0 does not have same minor version as 0.2. Expected minor versions to match when constraint major version is 0"},
 		{"^0.2", "0.1.1", "0.1.1 is less than 0.2"},
-		{"^0.0.3", "0.1.1", "0.1.1 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
+		{"^0.0.3", "0.1.1", "0.1.1 does not have same minor version as 0.0.3"},
 		{"^0.0.3", "0.0.4", "0.0.4 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
 		{"^0.0.3", "0.0.2", "0.0.2 is less than 0.0.3"},
 		{"~1", "2.1.2", "2.1.2 does not have same major version as 1"},
@@ -669,6 +684,95 @@ func TestConstraintString(t *testing.T) {
 
 		if _, err = NewConstraint(c.String()); err != nil {
 			t.Errorf("expected string from constrint %q to parse as valid but got err: %s", tc.constraint, err)
+		}
+	}
+}
+
+func TestTextMarshalConstraints(t *testing.T) {
+	tests := []struct {
+		constraint string
+		want       string
+	}{
+		{"1.2.3", "1.2.3"},
+		{">=1.2.3", ">=1.2.3"},
+		{"<=1.2.3", "<=1.2.3"},
+		{"1 <=1.2.3", "1 <=1.2.3"},
+		{"1, <=1.2.3", "1 <=1.2.3"},
+		{">1, <=1.2.3", ">1 <=1.2.3"},
+		{"> 1 , <=1.2.3", ">1 <=1.2.3"},
+	}
+
+	for _, tc := range tests {
+		cs, err := NewConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("Error creating constraints: %s", err)
+		}
+
+		out, err2 := cs.MarshalText()
+		if err2 != nil {
+			t.Errorf("Error constraint version: %s", err2)
+		}
+
+		got := string(out)
+		if got != tc.want {
+			t.Errorf("Error marshaling constraint, unexpected marshaled content: got=%q want=%q", got, tc.want)
+		}
+
+		// Test that this works for JSON as well as text. When JSON marshaling
+		// functions are missing it falls through to TextMarshal.
+		// NOTE: To not escape the < and > (which json.Marshal does) you need
+		// a custom encoder where html escaping is disabled. This must be done
+		// in the top level encoder being used to marshal the constraints.
+		buf := new(bytes.Buffer)
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
+		err = enc.Encode(cs)
+		if err != nil {
+			t.Errorf("Error unmarshaling constraint: %s", err)
+		}
+		got = buf.String()
+		// The encoder used here adds a newline so we add that to what we want
+		// so they align. The newline is an artifact of the testing.
+		want := fmt.Sprintf("%q\n", tc.want)
+		if got != want {
+			t.Errorf("Error marshaling constraint, unexpected marshaled content: got=%q want=%q", got, want)
+		}
+	}
+}
+
+func TestTextUnmarshalConstraints(t *testing.T) {
+	tests := []struct {
+		constraint string
+		want       string
+	}{
+		{"1.2.3", "1.2.3"},
+		{">=1.2.3", ">=1.2.3"},
+		{"<=1.2.3", "<=1.2.3"},
+		{">1 <=1.2.3", ">1 <=1.2.3"},
+		{"> 1 <=1.2.3", ">1 <=1.2.3"},
+		{">1, <=1.2.3", ">1 <=1.2.3"},
+	}
+
+	for _, tc := range tests {
+		cs := Constraints{}
+		err := cs.UnmarshalText([]byte(tc.constraint))
+		if err != nil {
+			t.Errorf("Error unmarshaling constraints: %s", err)
+		}
+		got := cs.String()
+		if got != tc.want {
+			t.Errorf("Error unmarshaling constraint, unexpected object content: got=%q want=%q", got, tc.want)
+		}
+
+		// Test that this works for JSON as well as text. When JSON unmarshaling
+		// functions are missing it falls through to TextUnmarshal.
+		err = json.Unmarshal([]byte(fmt.Sprintf("%q", tc.constraint)), &cs)
+		if err != nil {
+			t.Errorf("Error unmarshaling constraints: %s", err)
+		}
+		got = cs.String()
+		if got != tc.want {
+			t.Errorf("Error unmarshaling constraint, unexpected object content: got=%q want=%q", got, tc.want)
 		}
 	}
 }

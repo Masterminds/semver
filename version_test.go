@@ -87,6 +87,13 @@ func TestNewVersion(t *testing.T) {
 		{"1.2.2147483648", false},
 		{"1.2147483648.3", false},
 		{"2147483648.3.0", false},
+
+		// Due to having 4 parts these should produce an error. See
+		// https://github.com/Masterminds/semver/issues/185 for the reason for
+		// these tests.
+		{"12.3.4.1234", true},
+		{"12.23.4.1234", true},
+		{"12.3.34.1234", true},
 	}
 
 	for _, tc := range tests {
@@ -96,6 +103,22 @@ func TestNewVersion(t *testing.T) {
 		} else if !tc.err && err != nil {
 			t.Fatalf("error for version %s: %s", tc.version, err)
 		}
+	}
+}
+
+func TestNew(t *testing.T) {
+	// v0.1.2
+	v := New(0, 1, 2, "", "")
+
+	if v.String() != "0.1.2" {
+		t.Errorf("expected version 0.1.2 but got %q", v.String())
+	}
+
+	// v1.2.3-alpha.1+foo.bar
+	v = New(1, 2, 3, "alpha.1", "foo.bar")
+
+	if v.String() != "1.2.3-alpha.1+foo.bar" {
+		t.Errorf("expected version 1.2.3-alpha.1+foo.bar but got %q", v.String())
 	}
 }
 
@@ -535,6 +558,42 @@ func TestJsonUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error unmarshaling version: %s", err)
 	}
+	got := ver.String()
+	want := sVer
+	if got != want {
+		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+	}
+}
+
+func TestTextMarshal(t *testing.T) {
+	sVer := "1.1.1"
+
+	x, err := StrictNewVersion(sVer)
+	if err != nil {
+		t.Errorf("Error creating version: %s", err)
+	}
+
+	out, err2 := x.MarshalText()
+	if err2 != nil {
+		t.Errorf("Error marshaling version: %s", err2)
+	}
+
+	got := string(out)
+	want := sVer
+	if got != want {
+		t.Errorf("Error marshaling unexpected marshaled content: got=%q want=%q", got, want)
+	}
+}
+
+func TestTextUnmarshal(t *testing.T) {
+	sVer := "1.1.1"
+	ver := &Version{}
+
+	err := ver.UnmarshalText([]byte(sVer))
+	if err != nil {
+		t.Errorf("Error unmarshaling version: %s", err)
+	}
+
 	got := ver.String()
 	want := sVer
 	if got != want {
