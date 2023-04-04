@@ -243,6 +243,8 @@ func TestNewConstraint(t *testing.T) {
 		{"12.3.34.1234", 0, 0, true},
 		{"12.3.34 ~1.2.3", 1, 2, false},
 		{"12.3.34~ 1.2.3", 0, 0, true},
+
+		{"1.0.0 - 2.0.0, <=2.0.0", 1, 3, false},
 	}
 
 	for _, tc := range tests {
@@ -394,6 +396,10 @@ func TestConstraintsCheck(t *testing.T) {
 		{"~1.2.3", "1.3.2", false},
 		{"~1.1", "1.2.3", false},
 		{"~1.3", "2.4.5", false},
+
+		// Ranges should work in conjunction with other constraints anded together.
+		{"1.0.0 - 2.0.0 <=2.0.0", "1.5.0", true},
+		{"1.0.0 - 2.0.0, <=2.0.0", "1.5.0", true},
 	}
 
 	for _, tc := range tests {
@@ -421,16 +427,18 @@ func TestRewriteRange(t *testing.T) {
 		c  string
 		nc string
 	}{
-		{"2 - 3", ">= 2, <= 3"},
-		{"2 - 3, 2 - 3", ">= 2, <= 3,>= 2, <= 3"},
-		{"2 - 3, 4.0.0 - 5.1", ">= 2, <= 3,>= 4.0.0, <= 5.1"},
+		{"2 - 3", ">= 2, <= 3 "},
+		{"2 - 3, 2 - 3", ">= 2, <= 3 ,>= 2, <= 3 "},
+		{"2 - 3, 4.0.0 - 5.1", ">= 2, <= 3 ,>= 4.0.0, <= 5.1 "},
+		{"2 - 3 4.0.0 - 5.1", ">= 2, <= 3 >= 4.0.0, <= 5.1 "},
+		{"1.0.0 - 2.0.0 <=2.0.0", ">= 1.0.0, <= 2.0.0 <=2.0.0"},
 	}
 
 	for _, tc := range tests {
 		o := rewriteRange(tc.c)
 
 		if o != tc.nc {
-			t.Errorf("Range %s rewritten incorrectly as '%s'", tc.c, o)
+			t.Errorf("Range %s rewritten incorrectly as %q instead of expected %q", tc.c, o, tc.nc)
 		}
 	}
 }
