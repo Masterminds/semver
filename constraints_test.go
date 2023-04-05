@@ -400,7 +400,7 @@ func TestConstraintsCheck(t *testing.T) {
 		// Ranges should work in conjunction with other constraints anded together.
 		{"1.0.0 - 2.0.0 <=2.0.0", "1.5.0", true},
 		{"1.0.0 - 2.0.0, <=2.0.0", "1.5.0", true},
-		
+
 		// Should fail because 1.5.0 is AND'd with the range and since it does not allow prereleases, the entire constraint fails
 		{"1.0.0-alpha.1 - 1.0.0, <= 1.5.0", "1.0.0-beta.2", false},
 		// Should fail because only the first range should allow prereleases (detects if we are allowing prereleases for more than the affected range
