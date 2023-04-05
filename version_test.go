@@ -41,6 +41,10 @@ func TestStrictNewVersion(t *testing.T) {
 		{"1.2.2147483648", false},
 		{"1.2147483648.3", false},
 		{"2147483648.3.0", false},
+
+		// The SemVer spec in a pre-release expects to allow [0-9A-Za-z-]. But,
+		// the lack of all 3 parts in this version should produce an error.
+		{"20221209-update-renovatejson-v4", true},
 	}
 
 	for _, tc := range tests {
@@ -94,6 +98,9 @@ func TestNewVersion(t *testing.T) {
 		{"12.3.4.1234", true},
 		{"12.23.4.1234", true},
 		{"12.3.34.1234", true},
+
+		// The SemVer spec in a pre-release expects to allow [0-9A-Za-z-].
+		{"20221209-update-renovatejson-v4", false},
 	}
 
 	for _, tc := range tests {

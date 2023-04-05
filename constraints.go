@@ -599,7 +599,7 @@ func rewriteRange(i string) (string, map[string]struct{}) {
 	o := i
 	allowPrerelease := make(map[string]struct{}, 0)
 	for _, v := range m {
-		t := fmt.Sprintf(">= %s, <= %s", v[1], v[11])
+		t := fmt.Sprintf(">= %s, <= %s ", v[1], v[11])
 		o = strings.Replace(o, v[0], t, 1)
 
 		// Check if any part of the range uses a pre-release
