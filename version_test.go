@@ -681,3 +681,27 @@ func TestValidateMetadata(t *testing.T) {
 		}
 	}
 }
+
+func FuzzNewVersion(f *testing.F) {
+	testcases := []string{"v1.2.3", " ", "......", "1", "1.2.3-beta.1", "1.2.3+foo", "2.3.4-alpha.1+bar", "lorem ipsum"}
+
+	for _, tc := range testcases {
+		f.Add(tc)
+	}
+
+	f.Fuzz(func(t *testing.T, a string) {
+		_, _ = NewVersion(a)
+	})
+}
+
+func FuzzStrictNewVersion(f *testing.F) {
+	testcases := []string{"v1.2.3", " ", "......", "1", "1.2.3-beta.1", "1.2.3+foo", "2.3.4-alpha.1+bar", "lorem ipsum"}
+
+	for _, tc := range testcases {
+		f.Add(tc)
+	}
+
+	f.Fuzz(func(t *testing.T, a string) {
+		_, _ = StrictNewVersion(a)
+	})
+}

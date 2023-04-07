@@ -1,0 +1,20 @@
+name: Fuzz Testing
+on:
+  # Perform Fuzz testing on PRs and on a daily basis. Daily will continue to
+  # look for problems. Doing this on PRs will look for issues introduced in
+  # a change.
+  pull_request:
+  schedule:
+    - cron: '33 23 * * *' # Run at 11:33 every day
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: "1.20"
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Fuzz
+      run: make fuzz
