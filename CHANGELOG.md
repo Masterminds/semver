@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.2.1 (2023-04-10)
+
+### Changed
+
+- #198: Improved testing around pre-release names
+- #200: Improved code scanning with addition of CodeQL
+- #201: Testing now includes Go 1.20. Go 1.17 has been dropped
+- #202: Migrated Fuzz testing to Go built-in Fuzzing. CI runs daily
+- #203: Docs updated for security details
+
+### Fixed
+
+- #199: Fixed issue with range transformations
+
 ## 3.2.0 (2022-11-28)
 
 ### Added
