@@ -18,6 +18,8 @@ If you are looking for a command line tool for version comparisons please see
 
 ## Package Versions
 
+Note, import `github.com/github.com/Masterminds/semver/v3` to use the latest version.
+
 There are three major versions fo the `semver` package.
 
 * 3.x.x is the stable and active version. This version is focused on constraint
@@ -242,3 +244,15 @@ for _, m := range msgs {
 
 If you find an issue or want to contribute please file an [issue](https://github.com/Masterminds/semver/issues)
 or [create a pull request](https://github.com/Masterminds/semver/pulls).
+
+## Security
+
+Security is an important consideration for this project. The project currently
+uses the following tools to help discover security issues:
+
+* [CodeQL](https://github.com/Masterminds/semver)
+* [gosec](https://github.com/securego/gosec)
+* Daily Fuzz testing
+
+If you believe you have found a security vulnerability you can privately disclose
+it through the [GitHub security page](https://github.com/Masterminds/semver/security).
