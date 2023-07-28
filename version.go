@@ -390,6 +390,12 @@ func (v *Version) GreaterThan(o *Version) bool {
 // Note, versions can be equal with different metadata since metadata
 // is not considered part of the comparable version.
 func (v *Version) Equal(o *Version) bool {
+	if v == o {
+		return true
+	}
+	if v == nil || o == nil {
+		return false
+	}
 	return v.Compare(o) == 0
 }
 
