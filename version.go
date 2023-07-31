@@ -522,7 +522,7 @@ func comparePrerelease(v, o string) int {
 
 	// Iterate over each part of the prereleases to compare the differences.
 	for i := 0; i < l; i++ {
-		// Since the lentgh of the parts can be different we need to create
+		// Since the length of the parts can be different we need to create
 		// a placeholder. This is to avoid out of bounds issues.
 		stemp := ""
 		if i < slen {

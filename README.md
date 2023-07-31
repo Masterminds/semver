@@ -20,7 +20,7 @@ If you are looking for a command line tool for version comparisons please see
 
 Note, import `github.com/github.com/Masterminds/semver/v3` to use the latest version.
 
-There are three major versions fo the `semver` package.
+There are three major versions of the `semver` package.
 
 * 3.x.x is the stable and active version. This version is focused on constraint
   compatibility for range handling in other tools from other languages. It has

@@ -18,7 +18,7 @@
 
 ### Added
 
-- #190: Added text marshaling and unmarshaling
+- #190: Added text marshaling and unmarshalling
 - #167: Added JSON marshalling for constraints (thanks @SimonTheLeg)
 - #173: Implement encoding.TextMarshaler and encoding.TextUnmarshaler on Version (thanks @MarkRosemaker)
 - #179: Added New() version constructor (thanks @kazhuravlev)
@@ -130,7 +130,7 @@ functions. These are described in the added and changed sections below.
 
 ### Changed
 
-- #72: Updated the docs to point to vert for a console appliaction
+- #72: Updated the docs to point to vert for a console application
 - #71: Update the docs on pre-release comparator handling
 
 ### Fixed

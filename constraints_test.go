@@ -683,7 +683,7 @@ func TestConstraintString(t *testing.T) {
 		}
 
 		if _, err = NewConstraint(c.String()); err != nil {
-			t.Errorf("expected string from constrint %q to parse as valid but got err: %s", tc.constraint, err)
+			t.Errorf("expected string from constraint %q to parse as valid but got err: %s", tc.constraint, err)
 		}
 	}
 }
@@ -728,7 +728,7 @@ func TestTextMarshalConstraints(t *testing.T) {
 		enc.SetEscapeHTML(false)
 		err = enc.Encode(cs)
 		if err != nil {
-			t.Errorf("Error unmarshaling constraint: %s", err)
+			t.Errorf("Error unmarshalling constraint: %s", err)
 		}
 		got = buf.String()
 		// The encoder used here adds a newline so we add that to what we want
@@ -757,22 +757,22 @@ func TestTextUnmarshalConstraints(t *testing.T) {
 		cs := Constraints{}
 		err := cs.UnmarshalText([]byte(tc.constraint))
 		if err != nil {
-			t.Errorf("Error unmarshaling constraints: %s", err)
+			t.Errorf("Error unmarshalling constraints: %s", err)
 		}
 		got := cs.String()
 		if got != tc.want {
-			t.Errorf("Error unmarshaling constraint, unexpected object content: got=%q want=%q", got, tc.want)
+			t.Errorf("Error unmarshalling constraint, unexpected object content: got=%q want=%q", got, tc.want)
 		}
 
-		// Test that this works for JSON as well as text. When JSON unmarshaling
+		// Test that this works for JSON as well as text. When JSON unmarshalling
 		// functions are missing it falls through to TextUnmarshal.
 		err = json.Unmarshal([]byte(fmt.Sprintf("%q", tc.constraint)), &cs)
 		if err != nil {
-			t.Errorf("Error unmarshaling constraints: %s", err)
+			t.Errorf("Error unmarshalling constraints: %s", err)
 		}
 		got = cs.String()
 		if got != tc.want {
-			t.Errorf("Error unmarshaling constraint, unexpected object content: got=%q want=%q", got, tc.want)
+			t.Errorf("Error unmarshalling constraint, unexpected object content: got=%q want=%q", got, tc.want)
 		}
 	}
 }
