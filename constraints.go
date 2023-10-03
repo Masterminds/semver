@@ -257,21 +257,33 @@ func parseConstraint(c string) (*constraint, error) {
 		minorDirty := false
 		dirty := false
 
-		if (isX(m[3]) || m[3] == "") && len(m) > 8 && m[7] != "" && isX(strings.TrimPrefix(m[8], ".")) {
-			ver = fmt.Sprintf("0.0.0-%s.0", strings.Split(m[7], ".")[0])
-			dirty = true
+		if len(m) > 8 && m[7] != "" && isX(strings.TrimPrefix(m[8], ".")) {
 			prereleaseDirty = true
-		} else if isX(m[3]) || m[3] == "" {
-			ver = fmt.Sprintf("0.0.0%s", m[6])
+		}
+
+		if isX(m[3]) || m[3] == "" {
+			if prereleaseDirty {
+				ver = fmt.Sprintf("0.0.0-%s.0", strings.Split(m[7], ".")[0])
+			} else {
+				ver = fmt.Sprintf("0.0.0%s", m[6])
+			}
 			dirty = true
 		} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
+			if prereleaseDirty {
+				ver = fmt.Sprintf("%s.0.0-%s.0", m[3], strings.Split(m[7], ".")[0])
+			} else {
+				ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
+			}
 			minorDirty = true
 			dirty = true
-			ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
 		} else if isX(strings.TrimPrefix(m[5], ".")) || m[5] == "" {
+			if prereleaseDirty {
+				ver = fmt.Sprintf("%s%s.0-%s.0", m[3], m[4], strings.Split(m[7], ".")[0])
+			} else {
+				ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
+			}
 			dirty = true
 			patchDirty = true
-			ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
 		}
 
 		con, err := NewVersion(ver)
@@ -475,15 +487,14 @@ func constraintTilde(v *Version, c *constraint) (bool, error) {
 		return false, fmt.Errorf("%s is less than %s", v, c.orig)
 	}
 
+	if c.prereleaseDirty && strings.Split(v.pre, ".")[0] != strings.Split(c.con.pre, ".")[0] {
+		return false, nil
+	}
+
 	// ~0.0.0 is a special case where all constraints are accepted. It's
 	// equivalent to >= 0.0.0.
 	if c.con.Major() == 0 && c.con.Minor() == 0 && c.con.Patch() == 0 &&
 		!c.minorDirty && !c.patchDirty {
-
-		if c.prereleaseDirty && strings.Split(v.pre, ".")[0] != strings.Split(c.con.pre, ".")[0] {
-			return false, nil
-		}
-
 		return true, nil
 	}
 
