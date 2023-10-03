@@ -162,7 +162,7 @@ var findConstraintRegex *regexp.Regexp
 var validConstraintRegex *regexp.Regexp
 
 const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
-	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-\*]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 func init() {
@@ -221,9 +221,10 @@ type constraint struct {
 	origfunc string
 
 	// When an x is used as part of the version (e.g., 1.x)
-	minorDirty bool
-	dirty      bool
-	patchDirty bool
+	minorDirty      bool
+	dirty           bool
+	patchDirty      bool
+	prereleaseDirty bool
 }
 
 // Check if a version meets the constraint
@@ -251,10 +252,16 @@ func parseConstraint(c string) (*constraint, error) {
 		}
 
 		ver := m[2]
-		minorDirty := false
+		prereleaseDirty := false
 		patchDirty := false
+		minorDirty := false
 		dirty := false
-		if isX(m[3]) || m[3] == "" {
+
+		if (isX(m[3]) || m[3] == "") && len(m) > 8 && m[7] != "" && isX(strings.TrimPrefix(m[8], ".")) {
+			ver = fmt.Sprintf("0.0.0-%s.0", strings.Split(m[7], ".")[0])
+			dirty = true
+			prereleaseDirty = true
+		} else if isX(m[3]) || m[3] == "" {
 			ver = fmt.Sprintf("0.0.0%s", m[6])
 			dirty = true
 		} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
@@ -278,6 +285,7 @@ func parseConstraint(c string) (*constraint, error) {
 		cs.con = con
 		cs.minorDirty = minorDirty
 		cs.patchDirty = patchDirty
+		cs.prereleaseDirty = prereleaseDirty
 		cs.dirty = dirty
 
 		return cs, nil
@@ -471,6 +479,11 @@ func constraintTilde(v *Version, c *constraint) (bool, error) {
 	// equivalent to >= 0.0.0.
 	if c.con.Major() == 0 && c.con.Minor() == 0 && c.con.Patch() == 0 &&
 		!c.minorDirty && !c.patchDirty {
+
+		if c.prereleaseDirty && strings.Split(v.pre, ".")[0] != strings.Split(c.con.pre, ".")[0] {
+			return false, nil
+		}
+
 		return true, nil
 	}
 
