@@ -3,7 +3,9 @@ package semver
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -189,6 +191,34 @@ func TestOriginal(t *testing.T) {
 		o := v.Original()
 		if o != tc {
 			t.Errorf("Error retrieving original. Expected '%s' but got '%v'", tc, v)
+		}
+	}
+}
+
+func TestErrors(t *testing.T) {
+	tests := map[string]error{
+		"1.3.2023080721291691443750": strconv.ErrRange,
+		"1.2.3.4.5":                  ErrInvalidSemVer,
+		"":                           ErrInvalidSemVer,
+		"1.2.0+invalid_metadata":     ErrInvalidSemVer,
+	}
+	for v, e := range tests {
+		_, err := NewVersion(v)
+		if !errors.Is(err, e) {
+			t.Errorf("Expecting error: %s but got: %s, version %s", e, err, v)
+		}
+	}
+
+	strictTests := map[string]error{
+		"1.3.2023080721291691443750": strconv.ErrRange,
+		"1.2.3.4.5":                  ErrInvalidCharacters,
+		"":                           ErrEmptyString,
+		"1.2.0+invalid$metadata":     ErrInvalidMetadata,
+	}
+	for v, e := range strictTests {
+		_, err := StrictNewVersion(v)
+		if !errors.Is(err, e) {
+			t.Errorf("Expecting error: %s but got: %s, version: %s", e, err, v)
 		}
 	}
 }

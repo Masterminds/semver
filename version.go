@@ -156,13 +156,13 @@ func NewVersion(v string) (*Version, error) {
 	var err error
 	sv.major, err = strconv.ParseUint(m[1], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing version segment: %s", err)
+		return nil, fmt.Errorf("error parsing version segment: %w", err)
 	}
 
 	if m[2] != "" {
 		sv.minor, err = strconv.ParseUint(m[2], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
 	} else {
 		sv.minor = 0
@@ -171,7 +171,7 @@ func NewVersion(v string) (*Version, error) {
 	if m[3] != "" {
 		sv.patch, err = strconv.ParseUint(m[3], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
 	} else {
 		sv.patch = 0
