@@ -209,6 +209,54 @@ func TestConstraintCheck(t *testing.T) {
 	}
 }
 
+func TestReleaseVsPrerelease(t *testing.T) {
+	tests := []struct {
+		constraint string
+		version    string
+		check      bool
+	}{
+		{"<1.0.0", "1.0.0-alpha", true},
+		{"<1.0.0", "1.0.0-beta1", true},
+		{"<1.0.0", "1.0.0-rc.1", true},
+		{"<1.0.0", "1.0.0-rc1", true},
+		{"<2.0.0-0", "1.0.0-alpha", true},
+		{"<2.0.0-0", "1.0.0-beta1", true},
+		{"<2.0.0-0", "1.0.0-rc.1", true},
+		{"<2.0.0-0", "1.0.0-rc1", true},
+		{"<2.0.0-rc.1", "1.0.0-alpha", true},
+		{"<2.0.0-rc.1", "1.0.0-beta1", true},
+		{"<2.0.0-rc.1", "1.0.0-rc.1", true},
+		{"<2.0.0-rc.1", "1.0.0-rc1", true},
+		{"<2.0.0", "1.0.0-alpha", true},
+		{"<2.0.0", "1.0.0-beta1", true},
+		{"<2.0.0", "1.0.0-rc.1", true},
+		{"<2.0.0", "1.0.0-rc", true},
+		{"<2.0.0", "1.0.0-rc1", true},
+		{"<2.0.0", "1.0.0", true},
+		{"<2.0", "1.0", true},
+		{"<2", "1", true},
+	}
+
+	for _, tc := range tests {
+		c, err := parseConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		a, _ := c.check(v)
+		if a != tc.check {
+			t.Errorf("Constraint %q failing with %q", tc.constraint, tc.version)
+		}
+	}
+}
+
 func TestNewConstraint(t *testing.T) {
 	tests := []struct {
 		input string
