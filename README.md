@@ -18,7 +18,7 @@ If you are looking for a command line tool for version comparisons please see
 
 ## Package Versions
 
-Note, import `github.com/github.com/Masterminds/semver/v3` to use the latest version.
+Note, import `github.com/Masterminds/semver/v3` to use the latest version.
 
 There are three major versions fo the `semver` package.
 
@@ -80,12 +80,12 @@ There are two methods for comparing versions. One uses comparison methods on
 differences to notes between these two methods of comparison.
 
 1. When two versions are compared using functions such as `Compare`, `LessThan`,
-   and others it will follow the specification and always include prereleases
+   and others it will follow the specification and always include pre-releases
    within the comparison. It will provide an answer that is valid with the
    comparison section of the spec at https://semver.org/#spec-item-11
 2. When constraint checking is used for checks or validation it will follow a
    different set of rules that are common for ranges with tools like npm/js
-   and Rust/Cargo. This includes considering prereleases to be invalid if the
+   and Rust/Cargo. This includes considering pre-releases to be invalid if the
    ranges does not include one. If you want to have it include pre-releases a
    simple solution is to include `-0` in your range.
 3. Constraint ranges can have some complex rules including the shorthand use of
@@ -113,7 +113,7 @@ v, err := semver.NewVersion("1.3")
 if err != nil {
     // Handle version not being parsable.
 }
-// Check if the version meets the constraints. The a variable will be true.
+// Check if the version meets the constraints. The variable a will be true.
 a := c.Check(v)
 ```
 
@@ -137,20 +137,20 @@ The basic comparisons are:
 ### Working With Prerelease Versions
 
 Pre-releases, for those not familiar with them, are used for software releases
-prior to stable or generally available releases. Examples of prereleases include
-development, alpha, beta, and release candidate releases. A prerelease may be
+prior to stable or generally available releases. Examples of pre-releases include
+development, alpha, beta, and release candidate releases. A pre-release may be
 a version such as `1.2.3-beta.1` while the stable release would be `1.2.3`. In the
-order of precedence, prereleases come before their associated releases. In this
+order of precedence, pre-releases come before their associated releases. In this
 example `1.2.3-beta.1 < 1.2.3`.
 
-According to the Semantic Version specification prereleases may not be
+According to the Semantic Version specification, pre-releases may not be
 API compliant with their release counterpart. It says,
 
 > A pre-release version indicates that the version is unstable and might not satisfy the intended compatibility requirements as denoted by its associated normal version.
 
-SemVer comparisons using constraints without a prerelease comparator will skip
-prerelease versions. For example, `>=1.2.3` will skip prereleases when looking
-at a list of releases while `>=1.2.3-0` will evaluate and find prereleases.
+SemVer's comparisons using constraints without a pre-release comparator will skip
+pre-release versions. For example, `>=1.2.3` will skip pre-releases when looking
+at a list of releases while `>=1.2.3-0` will evaluate and find pre-releases.
 
 The reason for the `0` as a pre-release version in the example comparison is
 because pre-releases can only contain ASCII alphanumerics and hyphens (along with
