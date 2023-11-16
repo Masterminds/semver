@@ -18,7 +18,7 @@ If you are looking for a command line tool for version comparisons please see
 
 ## Package Versions
 
-Note, import `github.com/github.com/Masterminds/semver/v3` to use the latest version.
+Note, import `github.com/Masterminds/semver/v3` to use the latest version.
 
 There are three major versions fo the `semver` package.
 
