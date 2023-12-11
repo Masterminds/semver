@@ -32,10 +32,10 @@ func TestStrictNewVersion(t *testing.T) {
 		{"\nv1.2", true},
 		{"1.2.0-x.Y.0+metadata", false},
 		{"v1.2.0-x.Y.0+metadata", true},
-		{"1.2.0-x.Y.0+metadata-width-hypen", false},
-		{"v1.2.0-x.Y.0+metadata-width-hypen", true},
-		{"1.2.3-rc1-with-hypen", false},
-		{"v1.2.3-rc1-with-hypen", true},
+		{"1.2.0-x.Y.0+metadata-width-hyphen", false},
+		{"v1.2.0-x.Y.0+metadata-width-hyphen", true},
+		{"1.2.3-rc1-with-hyphen", false},
+		{"v1.2.3-rc1-with-hyphen", true},
 		{"1.2.3.4", true},
 		{"v1.2.3.4", true},
 		{"1.2.2147483648", false},
@@ -82,10 +82,10 @@ func TestNewVersion(t *testing.T) {
 		{"\nv1.2", true},
 		{"1.2.0-x.Y.0+metadata", false},
 		{"v1.2.0-x.Y.0+metadata", false},
-		{"1.2.0-x.Y.0+metadata-width-hypen", false},
-		{"v1.2.0-x.Y.0+metadata-width-hypen", false},
-		{"1.2.3-rc1-with-hypen", false},
-		{"v1.2.3-rc1-with-hypen", false},
+		{"1.2.0-x.Y.0+metadata-width-hyphen", false},
+		{"v1.2.0-x.Y.0+metadata-width-hyphen", false},
+		{"1.2.3-rc1-with-hyphen", false},
+		{"v1.2.3-rc1-with-hyphen", false},
 		{"1.2.3.4", true},
 		{"v1.2.3.4", true},
 		{"1.2.2147483648", false},
@@ -143,10 +143,10 @@ func TestOriginal(t *testing.T) {
 		"v1.2-beta.5",
 		"1.2.0-x.Y.0+metadata",
 		"v1.2.0-x.Y.0+metadata",
-		"1.2.0-x.Y.0+metadata-width-hypen",
-		"v1.2.0-x.Y.0+metadata-width-hypen",
-		"1.2.3-rc1-with-hypen",
-		"v1.2.3-rc1-with-hypen",
+		"1.2.0-x.Y.0+metadata-width-hyphen",
+		"v1.2.0-x.Y.0+metadata-width-hyphen",
+		"1.2.3-rc1-with-hyphen",
+		"v1.2.3-rc1-with-hyphen",
 	}
 
 	for _, tc := range tests {
@@ -202,10 +202,10 @@ func TestCoerceString(t *testing.T) {
 		{"v1.2-beta.5", "1.2.0-beta.5"},
 		{"1.2.0-x.Y.0+metadata", "1.2.0-x.Y.0+metadata"},
 		{"v1.2.0-x.Y.0+metadata", "1.2.0-x.Y.0+metadata"},
-		{"1.2.0-x.Y.0+metadata-width-hypen", "1.2.0-x.Y.0+metadata-width-hypen"},
-		{"v1.2.0-x.Y.0+metadata-width-hypen", "1.2.0-x.Y.0+metadata-width-hypen"},
-		{"1.2.3-rc1-with-hypen", "1.2.3-rc1-with-hypen"},
-		{"v1.2.3-rc1-with-hypen", "1.2.3-rc1-with-hypen"},
+		{"1.2.0-x.Y.0+metadata-width-hyphen", "1.2.0-x.Y.0+metadata-width-hyphen"},
+		{"v1.2.0-x.Y.0+metadata-width-hyphen", "1.2.0-x.Y.0+metadata-width-hyphen"},
+		{"1.2.3-rc1-with-hyphen", "1.2.3-rc1-with-hyphen"},
+		{"v1.2.3-rc1-with-hyphen", "1.2.3-rc1-with-hyphen"},
 	}
 
 	for _, tc := range tests {
@@ -563,12 +563,12 @@ func TestJsonUnmarshal(t *testing.T) {
 	ver := &Version{}
 	err := json.Unmarshal([]byte(fmt.Sprintf("%q", sVer)), ver)
 	if err != nil {
-		t.Errorf("Error unmarshaling version: %s", err)
+		t.Errorf("Error unmarshalling version: %s", err)
 	}
 	got := ver.String()
 	want := sVer
 	if got != want {
-		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+		t.Errorf("Error unmarshalling unexpected object content: got=%q want=%q", got, want)
 	}
 }
 
@@ -598,13 +598,13 @@ func TestTextUnmarshal(t *testing.T) {
 
 	err := ver.UnmarshalText([]byte(sVer))
 	if err != nil {
-		t.Errorf("Error unmarshaling version: %s", err)
+		t.Errorf("Error unmarshalling version: %s", err)
 	}
 
 	got := ver.String()
 	want := sVer
 	if got != want {
-		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+		t.Errorf("Error unmarshalling unexpected object content: got=%q want=%q", got, want)
 	}
 }
 
