@@ -498,6 +498,7 @@ func (v *Version) UnmarshalBinary(data []byte) (err error) {
 			return ErrInvalidSemVer
 		}
 	}
+
 	*v = Version{
 		major:    nums[0],
 		minor:    nums[1],
@@ -510,17 +511,18 @@ func (v *Version) UnmarshalBinary(data []byte) (err error) {
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (v Version) MarshalBinary() ([]byte, error) {
-	// Typically major minor, patch and string lengths are <128
-	// If they are not - not a big deal, just a cost of a small buffer reallocation
-	buf := make([]byte, 0, 3+1+len(v.pre)+1+len(v.metadata))
-	buf = binary.AppendUvarint(buf, v.major)
-	buf = binary.AppendUvarint(buf, v.minor)
-	buf = binary.AppendUvarint(buf, v.patch)
-	buf = binary.AppendUvarint(buf, uint64(len(v.pre)))
-	buf = append(buf, v.pre...)
-	buf = binary.AppendUvarint(buf, uint64(len(v.metadata)))
-	buf = append(buf, v.metadata...)
-	return buf, nil
+	// Once semver has 1.19 as minimal supported go version -
+	// this can be rewritten with binary.AppendUvarint
+	buf := make([]byte, 5*binary.MaxVarintLen64+len(v.pre)+len(v.metadata))
+	n := 0
+	n += binary.PutUvarint(buf[n:], v.major)
+	n += binary.PutUvarint(buf[n:], v.minor)
+	n += binary.PutUvarint(buf[n:], v.patch)
+	n += binary.PutUvarint(buf[n:], uint64(len(v.pre)))
+	n += copy(buf[n:], v.pre)
+	n += binary.PutUvarint(buf[n:], uint64(len(v.metadata)))
+	n += copy(buf[n:], v.metadata)
+	return buf[:n], nil
 }
 
 // Scan implements the SQL.Scanner interface.
