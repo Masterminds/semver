@@ -498,7 +498,6 @@ func (v *Version) UnmarshalBinary(data []byte) (err error) {
 			return ErrInvalidSemVer
 		}
 	}
-
 	*v = Version{
 		major:    nums[0],
 		minor:    nums[1],
