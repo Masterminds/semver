@@ -484,19 +484,38 @@ func (v *Version) UnmarshalBinary(data []byte) (err error) {
 	}
 
 	var strings [2][]byte
-	for i := range strings {
+	var i int
+	// range doesn't advance i to 2
+	// (used to determine wheather `break` happened)
+	for i = 0; i < len(strings); i++ {
 		length, err := binary.ReadUvarint(r)
 		if err != nil {
-			return ErrInvalidSemVer
+			break
 		}
 		if length == 0 {
 			continue
 		}
+		if length > uint64(r.Len()) {
+			// Parsed length can't be larger than the remaining
+			// length of the data; without this check a maliciously crafted
+			// `data` can make us attempt to allocate a huge buffer
+			break
+		}
+		// We allocate here instead of returning a slice of data:
+		// data might be a slice of some enormous binary blob. It would be bad
+		// if our reference to the tiny prerelease string would prevent GC
+		// from collecting the whole large slice.
 		strings[i] = make([]byte, length)
 		_, err = r.Read(strings[i])
 		if err != nil {
-			return ErrInvalidSemVer
+			break
 		}
+	}
+	switch i {
+	case 0: // `break` during prerelease string parsing
+		return ErrInvalidPrerelease
+	case 1: // `break` during metadata string parsing
+		return ErrInvalidMetadata
 	}
 
 	*v = Version{
@@ -512,7 +531,8 @@ func (v *Version) UnmarshalBinary(data []byte) (err error) {
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (v Version) MarshalBinary() ([]byte, error) {
 	// Once semver has 1.19 as minimal supported go version -
-	// this can be rewritten with binary.AppendUvarint
+	// this can be rewritten with binary.AppendUvarint and
+	// we can allocate a smaller buffer, assuming 5 Uvarints are (usually) <128
 	buf := make([]byte, 5*binary.MaxVarintLen64+len(v.pre)+len(v.metadata))
 	n := 0
 	n += binary.PutUvarint(buf[n:], v.major)

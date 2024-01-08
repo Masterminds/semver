@@ -737,3 +737,46 @@ func FuzzStrictNewVersion(f *testing.F) {
 		_, _ = StrictNewVersion(a)
 	})
 }
+
+func FuzzMarshalBinary(f *testing.F) {
+	testcases := [][]any{
+		{uint64(1), uint64(2), uint64(3), "alpha.1", "bar"},
+		{uint64(0), uint64(math.MaxUint64), uint64(0), "", ""},
+	}
+
+	for _, tc := range testcases {
+		f.Add(tc...)
+	}
+
+	f.Fuzz(func(t *testing.T, major uint64, minor uint64, patch uint64, pre string, metadata string) {
+		v := New(major, minor, patch, pre, metadata)
+		data, err := v.MarshalBinary()
+		if err != nil {
+			t.Error("MarshalBinary is unfallable, but error is not nil!")
+		}
+		var v2 Version
+		err = v2.UnmarshalBinary(data)
+		if err != nil {
+			t.Error("Failed to unmarshal marshaled value")
+		}
+	})
+}
+
+func FuzzUnmarshalBinary(f *testing.F) {
+	testcases := [][]byte{
+		[]byte(""),
+		[]byte("\x01\x02\x03\aalpha.1\x03bar"),
+		[]byte("\xff\xff\x03\xff\xff\xff\xff\x0f" +
+			"\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\aalpha.1\x03bar"),
+		[]byte("\x00\x00\x94\xc5@\xee\xd1\xd1\xd1\xff\x7f0"),
+	}
+
+	for _, tc := range testcases {
+		f.Add(tc)
+	}
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		var v Version
+		_ = v.UnmarshalBinary(data)
+	})
+}
