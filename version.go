@@ -486,7 +486,7 @@ func (v *Version) UnmarshalBinary(data []byte) (err error) {
 	var strings [2][]byte
 	var i int
 	// range doesn't advance i to 2
-	// (used to determine wheather `break` happened)
+	// (used to determine whether `break` happened)
 	for i = 0; i < len(strings); i++ {
 		length, err := binary.ReadUvarint(r)
 		if err != nil {
@@ -530,7 +530,7 @@ func (v *Version) UnmarshalBinary(data []byte) (err error) {
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (v Version) MarshalBinary() ([]byte, error) {
-	// Once semver has 1.19 as minimal supported go version -
+	// Once semver has 1.19 as a minimal supported go version -
 	// this can be rewritten with binary.AppendUvarint and
 	// we can allocate a smaller buffer, assuming 5 Uvarints are (usually) <128
 	buf := make([]byte, 5*binary.MaxVarintLen64+len(v.pre)+len(v.metadata))
