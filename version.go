@@ -3,6 +3,7 @@ package semver
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -469,6 +470,58 @@ func (v *Version) UnmarshalText(text []byte) error {
 // MarshalText implements the encoding.TextMarshaler interface.
 func (v Version) MarshalText() ([]byte, error) {
 	return []byte(v.String()), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (v *Version) UnmarshalBinary(data []byte) (err error) {
+	var nums [3]uint64
+	r := bytes.NewReader(data)
+	for i := range nums {
+		nums[i], err = binary.ReadUvarint(r)
+		if err != nil {
+			return ErrInvalidSemVer
+		}
+	}
+
+	var strings [2][]byte
+	for i := range strings {
+		length, err := binary.ReadUvarint(r)
+		if err != nil {
+			return ErrInvalidSemVer
+		}
+		if length == 0 {
+			continue
+		}
+		strings[i] = make([]byte, length)
+		_, err = r.Read(strings[i])
+		if err != nil {
+			return ErrInvalidSemVer
+		}
+	}
+
+	*v = Version{
+		major:    nums[0],
+		minor:    nums[1],
+		patch:    nums[2],
+		pre:      string(strings[0]),
+		metadata: string(strings[1]),
+	}
+	return nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (v Version) MarshalBinary() ([]byte, error) {
+	// Typically major minor, patch and string lengths are <128
+	// If they are not - not a big deal, just a cost of a small buffer reallocation
+	buf := make([]byte, 0, 3+1+len(v.pre)+1+len(v.metadata))
+	buf = binary.AppendUvarint(buf, v.major)
+	buf = binary.AppendUvarint(buf, v.minor)
+	buf = binary.AppendUvarint(buf, v.patch)
+	buf = binary.AppendUvarint(buf, uint64(len(v.pre)))
+	buf = append(buf, v.pre...)
+	buf = binary.AppendUvarint(buf, uint64(len(v.metadata)))
+	buf = append(buf, v.metadata...)
+	return buf, nil
 }
 
 // Scan implements the SQL.Scanner interface.

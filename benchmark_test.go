@@ -245,3 +245,49 @@ func BenchmarkStrictNewVersionMetaDash(b *testing.B) {
 	b.ResetTimer()
 	benchStrictNewVersion("1.0.0-alpha.1+meta.data", b)
 }
+
+/* Marshalling benchmarks */
+
+func BenchmarkTextMarshal(b *testing.B) {
+	v := MustParse("1.0.0-alpha.1+meta.data")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = v.MarshalText()
+	}
+}
+
+func BenchmarkBinaryMarshal(b *testing.B) {
+	v := MustParse("1.0.0-alpha.1+meta.data")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = v.MarshalBinary()
+	}
+}
+
+func BenchmarkTextUnmarshal(b *testing.B) {
+	var v Version
+	text, err := MustParse("1.0.0-alpha.1+meta.data").MarshalText()
+	if err != nil {
+		panic(err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = v.UnmarshalText(text)
+	}
+}
+
+func BenchmarkBinaryUnmarshal(b *testing.B) {
+	var v Version
+	data, err := MustParse("1.0.0-alpha.1+meta.data").MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = v.UnmarshalText(data)
+	}
+}

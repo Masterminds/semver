@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -605,6 +606,37 @@ func TestTextUnmarshal(t *testing.T) {
 	want := sVer
 	if got != want {
 		t.Errorf("Error unmarshaling unexpected object content: got=%q want=%q", got, want)
+	}
+}
+
+func TestBinaryMarshallingRoundtrip(t *testing.T) {
+	maxUint64 := uint64(math.MaxUint64)
+	tests := []struct {
+		version string
+	}{
+		{"1.2.3"},
+		{fmt.Sprintf("%d.%d.%d-beta.1+build.123", maxUint64, maxUint64, maxUint64)},
+		{"1.2.3-loooooooooooongString+loooooooooooooooooooongerString"},
+	}
+
+	for _, tc := range tests {
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("Error creating version: %s", err)
+		}
+		data, err := v.MarshalBinary()
+		if err != nil {
+			t.Errorf("Error marshaling version: %s", err)
+		}
+		var v2 Version
+		err = v2.UnmarshalBinary(data)
+		if err != nil {
+			t.Errorf("Error unmarshaling version: %s", err)
+		}
+
+		if tc.version != v2.String() {
+			t.Errorf("Expected version=%q, but got %q", tc.version, v2.String())
+		}
 	}
 }
 
