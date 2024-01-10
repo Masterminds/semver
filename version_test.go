@@ -757,7 +757,15 @@ func FuzzMarshalBinary(f *testing.F) {
 		var v2 Version
 		err = v2.UnmarshalBinary(data)
 		if err != nil {
-			t.Error("Failed to unmarshal marshaled value")
+			t.Fatal("Failed to unmarshal marshaled value")
+		}
+		completelyEqual := (v.major == v2.major &&
+			v.minor == v2.minor &&
+			v.patch == v2.patch &&
+			v.pre == v2.pre &&
+			v.metadata == v2.metadata)
+		if !completelyEqual {
+			t.Errorf("Marshaling changed the data! Expected %s, got %s", v.String(), v2.String())
 		}
 	})
 }
