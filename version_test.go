@@ -343,28 +343,21 @@ func TestGreaterThan(t *testing.T) {
 
 func TestEqual(t *testing.T) {
 	tests := []struct {
-		v1       string
-		v2       string
+		v1       *Version
+		v2       *Version
 		expected bool
 	}{
-		{"1.2.3", "1.5.1", false},
-		{"2.2.3", "1.5.1", false},
-		{"3.2-beta", "3.2-beta", true},
-		{"3.2-beta+foo", "3.2-beta+bar", true},
+		{MustParse("1.2.3"), MustParse("1.5.1"), false},
+		{MustParse("2.2.3"), MustParse("1.5.1"), false},
+		{MustParse("3.2-beta"), MustParse("3.2-beta"), true},
+		{MustParse("3.2-beta+foo"), MustParse("3.2-beta+bar"), true},
+		{nil, nil, true},
+		{nil, MustParse("1.2.3"), false},
+		{MustParse("1.2.3"), nil, false},
 	}
 
 	for _, tc := range tests {
-		v1, err := NewVersion(tc.v1)
-		if err != nil {
-			t.Errorf("Error parsing version: %s", err)
-		}
-
-		v2, err := NewVersion(tc.v2)
-		if err != nil {
-			t.Errorf("Error parsing version: %s", err)
-		}
-
-		a := v1.Equal(v2)
+		a := tc.v1.Equal(tc.v2)
 		e := tc.expected
 		if a != e {
 			t.Errorf(
