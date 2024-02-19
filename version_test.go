@@ -689,7 +689,7 @@ func FuzzNewVersion(f *testing.F) {
 		f.Add(tc)
 	}
 
-	f.Fuzz(func(t *testing.T, a string) {
+	f.Fuzz(func(_ *testing.T, a string) {
 		_, _ = NewVersion(a)
 	})
 }
@@ -701,7 +701,7 @@ func FuzzStrictNewVersion(f *testing.F) {
 		f.Add(tc)
 	}
 
-	f.Fuzz(func(t *testing.T, a string) {
+	f.Fuzz(func(_ *testing.T, a string) {
 		_, _ = StrictNewVersion(a)
 	})
 }
