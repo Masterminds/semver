@@ -171,6 +171,9 @@ These look like:
 * `1.2 - 1.4.5` which is equivalent to `>= 1.2 <= 1.4.5`
 * `2.3.4 - 4.5` which is equivalent to `>= 2.3.4 <= 4.5`
 
+Note that `1.2-1.4.5` without whitespace is parsed completely differently; it's
+parsed as a single constraint `1.2.0` with _prerelease_ `1.4.5`.
+
 ### Wildcards In Comparisons
 
 The `x`, `X`, and `*` characters can be used as a wildcard character. This works
