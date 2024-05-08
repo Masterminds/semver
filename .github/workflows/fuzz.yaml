@@ -9,12 +9,41 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      cache-key: fuzzing
     steps:
     - name: Install Go
       uses: actions/setup-go@v5
       with:
         go-version: "1.22"
+    # The cache path may be different on different runners. GitHub may change
+    # this in the future. So, we dynamically fetch it.
+    - name: Get Go Cache Paths
+      id: go-cache-paths
+      run: |
+        echo "::set-output name=go-build::$(go env GOCACHE)"
     - name: Checkout code
       uses: actions/checkout@v4
+    - name: Restore Cache
+      id: cache-restore
+      uses: actions/cache/restore@v3
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-build }}
+        key: ${{ env.cache-key }}
     - name: Fuzz
       run: make fuzz
+    # Cannot overwrite the existing cache (id's are immutable) so we delete it.
+    - name: Delete Previous Cache
+      if: ${{ steps.cache-restore.outputs.cache-hit }}
+      continue-on-error: true
+      run: |
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete "${{ env.cache-key }}" --confirm
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # Saving the cache so that Fuzz testing can be additive to previous fuzz testing.
+    - name: Save Cache
+      uses: actions/cache/save@v3
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-build }}
+        key: ${{ env.cache-key }}
