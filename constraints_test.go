@@ -809,3 +809,95 @@ func FuzzNewConstraint(f *testing.F) {
 		_, _ = NewConstraint(a)
 	})
 }
+
+func TestConstraintMinVersion(t *testing.T) {
+	tests := []struct {
+		constraint string
+		minVersion string
+	}{
+		{"*", "0.0.0"},
+		{"* || >=2", "0.0.0"},
+		{">=2 || *", "0.0.0"},
+		{">2 || *", "0.0.0"},
+		{"1.0.0", "1.0.0"},
+		{"1.0", "1.0.0"},
+		{"1.0.x", "1.0.0"},
+		{"1.0.*", "1.0.0"},
+		{"1", "1.0.0"},
+		{"1.x.x", "1.0.0"},
+		{"1.x.x", "1.0.0"},
+		{"1.*.x", "1.0.0"},
+		{"1.x.*", "1.0.0"},
+		{"1.x", "1.0.0"},
+		{"1.*", "1.0.0"},
+		{"=1.0.0", "1.0.0"},
+		{"~1.1.1", "1.1.1"},
+		{"~1.1.1-beta", "1.1.1-beta"},
+		{"~1.1.1 || >=2", "1.1.1"},
+		{"^1.1.1", "1.1.1"},
+		{"~>1.1.1", "1.1.1"},
+		{"^1.1.1-beta", "1.1.1-beta"},
+		{"^1.1.1 || >=2", "1.1.1"},
+		{"^2.16.2 ^2.16", "2.16.2"},
+		{"1.1.1 - 1.8.0", "1.1.1"},
+		{"1.1 - 1.8.0", "1.1.0"},
+		{"<2", "0.0.0"},
+		{"<0.0.0-beta", "0.0.0-0"},
+		{"<0.0.1-beta", "0.0.0"},
+		{"<2 || >4", "0.0.0"},
+		{">4 || <2", "0.0.0"},
+		{"<=2 || >=4", "0.0.0"},
+		{">=4 || <=2", "0.0.0"},
+		{"=>4 || <=2", "0.0.0"},
+		{"=>4 || =<2", "0.0.0"},
+		{">=1.1.1 <2 || >=2.2.2 <2", "1.1.1"},
+		{">=2.2.2 <2 || >=1.1.1 <2", "1.1.1"},
+		{">1.0.0", "1.0.1"},
+		{">2 || >1.0.0", "1.0.1"},
+		{">1.2.3-0", "1.2.3"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.constraint, func(t *testing.T) {
+			c, err := NewConstraint(tc.constraint)
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
+
+			want, err := NewVersion(tc.minVersion)
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
+
+			got, err := c.MinVersion()
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
+			if !want.Equal(got) {
+				t.Errorf("Unexpected min version for constraint %v: want %v, got %v", tc.constraint, tc.minVersion, got.String())
+			}
+		})
+	}
+}
+
+func TestConstraintMinVersionError(t *testing.T) {
+	tests := []struct {
+		constraint string
+	}{
+		{">=2 <1"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.constraint, func(t *testing.T) {
+			c, err := NewConstraint(tc.constraint)
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
+
+			got, err := c.MinVersion()
+			if err == nil {
+				t.Fatalf("MinVersion(%s) unexpectedly returned a valid min version of %s", tc.constraint, got.String())
+			}
+		})
+	}
+}
