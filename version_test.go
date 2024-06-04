@@ -303,6 +303,39 @@ func TestLessThan(t *testing.T) {
 	}
 }
 
+func TestLessThanEqual(t *testing.T) {
+	tests := []struct {
+		v1       string
+		v2       string
+		expected bool
+	}{
+		{"1.2.3", "1.5.1", true},
+		{"2.2.3", "1.5.1", false},
+		{"1.5.1", "1.5.1", true},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		v2, err := NewVersion(tc.v2)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		a := v1.LessThanEqual(v2)
+		e := tc.expected
+		if a != e {
+			t.Errorf(
+				"Comparison of '%s' and '%s' failed. Expected '%t', got '%t'",
+				tc.v1, tc.v2, e, a,
+			)
+		}
+	}
+}
+
 func TestGreaterThan(t *testing.T) {
 	tests := []struct {
 		v1       string
@@ -331,6 +364,39 @@ func TestGreaterThan(t *testing.T) {
 		}
 
 		a := v1.GreaterThan(v2)
+		e := tc.expected
+		if a != e {
+			t.Errorf(
+				"Comparison of '%s' and '%s' failed. Expected '%t', got '%t'",
+				tc.v1, tc.v2, e, a,
+			)
+		}
+	}
+}
+
+func TestGreaterThanEqual(t *testing.T) {
+	tests := []struct {
+		v1       string
+		v2       string
+		expected bool
+	}{
+		{"1.2.3", "1.5.1", false},
+		{"2.2.3", "1.5.1", true},
+		{"1.5.1", "1.5.1", true},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		v2, err := NewVersion(tc.v2)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		a := v1.GreaterThanEqual(v2)
 		e := tc.expected
 		if a != e {
 			t.Errorf(
