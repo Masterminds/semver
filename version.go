@@ -36,6 +36,10 @@ var (
 
 	// ErrInvalidPrerelease is returned when the pre-release is an invalid format
 	ErrInvalidPrerelease = errors.New("Invalid Prerelease string")
+
+	// ErrSegmentUnparsable is returned if a version segment cannot be parsed as
+	// an int.
+	ErrSegmentUnparsable = errors.New("Version segment unparsable")
 )
 
 // semVerRegex is the regular expression used to parse a semantic version.
@@ -170,13 +174,13 @@ func NewVersion(v string) (*Version, error) {
 	var err error
 	sv.major, err = strconv.ParseUint(m[1], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing version segment: %s", err)
+		return nil, ErrSegmentUnparsable
 	}
 
 	if m[2] != "" {
 		sv.minor, err = strconv.ParseUint(strings.TrimPrefix(m[2], "."), 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			return nil, ErrSegmentUnparsable
 		}
 	} else {
 		sv.minor = 0
@@ -185,7 +189,7 @@ func NewVersion(v string) (*Version, error) {
 	if m[3] != "" {
 		sv.patch, err = strconv.ParseUint(strings.TrimPrefix(m[3], "."), 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			return nil, ErrSegmentUnparsable
 		}
 	} else {
 		sv.patch = 0
