@@ -128,11 +128,24 @@ greater than or equal to 4.2.3.
 The basic comparisons are:
 
 * `=`: equal (aliased to no operator)
+* `==`: strictly equal
 * `!=`: not equal
 * `>`: greater than
 * `<`: less than
 * `>=`: greater than or equal to
 * `<=`: less than or equal to
+
+### Strict Comparisons
+
+The double equal (`==`) operator is used to check if a version is really strictly equal to
+the passed version.
+These look like:
+
+* `==1.2.1` will only look for a `1.2.1` version, metadatas or preleased versions will be considered different from this version.
+* `==1.2.1-alpha` will only look for a `1.2.1-alpha` preleased version
+* `==1.2.1+alpha` will only look for a `1.2.1-alpha` preleased version
+
+> This helps looking for a very specific version only, the `=` operator (or the no operator) will be ok with metadatas in the version in the first place, ex: `=1.2.1` will be equivalent to `=1.2.1+x` where `x` can be any medatata.
 
 ### Working With Prerelease Versions
 
@@ -177,7 +190,7 @@ parsed as a single constraint `1.2.0` with _prerelease_ `1.4.5`.
 ### Wildcards In Comparisons
 
 The `x`, `X`, and `*` characters can be used as a wildcard character. This works
-for all comparison operators. When used on the `=` operator it falls
+for all comparison operators except the strict operators. When used on the `=` operator it falls
 back to the patch level comparison (see tilde below). For example,
 
 * `1.2.x` is equivalent to `>= 1.2.0, < 1.3.0`
