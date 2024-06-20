@@ -14,7 +14,11 @@ func (c Collection) Len() int {
 // Less is needed for the sort interface to compare two Version objects on the
 // slice. If checks if one is less than the other.
 func (c Collection) Less(i, j int) bool {
-	return c[i].LessThan(c[j])
+	comp := c[i].Compare(c[j])
+	if comp != 0 {
+		return comp < 0
+	}
+	return c[i].Original() < c[j].Original()
 }
 
 // Swap is needed for the sort interface to replace the Version objects
