@@ -15,8 +15,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.23"
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
-          version: v1.56
+          version: v1.60
