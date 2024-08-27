@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.3.0 (2024-08-27)
+
+### Added
+
+- #238: Add LessThanEqual and GreaterThanEqual functions (thanks @grosser)
+- #213: nil version equality checking (thanks @KnutZuidema)
+
+### Changed
+
+- #241: Simplify StrictNewVersion parsing (thanks @grosser)
+- Testing support up through Go 1.23
+- Minimum version set to 1.21 as this is what's tested now
+- Fuzz testing now supports caching
+
 ## 3.2.1 (2023-04-10)
 
 ### Changed
