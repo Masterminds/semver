@@ -83,22 +83,23 @@ func StrictNewVersion(v string) (*Version, error) {
 		original: v,
 	}
 
-	// check for prerelease or build metadata
-	var extra []string
-	if strings.ContainsAny(parts[2], "-+") {
-		// Start with the build metadata first as it needs to be on the right
-		extra = strings.SplitN(parts[2], "+", 2)
-		if len(extra) > 1 {
-			// build metadata found
-			sv.metadata = extra[1]
-			parts[2] = extra[0]
+	// Extract build metadata
+	if strings.Contains(parts[2], "+") {
+		extra := strings.SplitN(parts[2], "+", 2)
+		sv.metadata = extra[1]
+		parts[2] = extra[0]
+		if err := validateMetadata(sv.metadata); err != nil {
+			return nil, err
 		}
+	}
 
-		extra = strings.SplitN(parts[2], "-", 2)
-		if len(extra) > 1 {
-			// prerelease found
-			sv.pre = extra[1]
-			parts[2] = extra[0]
+	// Extract build prerelease
+	if strings.Contains(parts[2], "-") {
+		extra := strings.SplitN(parts[2], "-", 2)
+		sv.pre = extra[1]
+		parts[2] = extra[0]
+		if err := validatePrerelease(sv.pre); err != nil {
+			return nil, err
 		}
 	}
 
@@ -114,7 +115,7 @@ func StrictNewVersion(v string) (*Version, error) {
 		}
 	}
 
-	// Extract the major, minor, and patch elements onto the returned Version
+	// Extract major, minor, and patch
 	var err error
 	sv.major, err = strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
@@ -129,23 +130,6 @@ func StrictNewVersion(v string) (*Version, error) {
 	sv.patch, err = strconv.ParseUint(parts[2], 10, 64)
 	if err != nil {
 		return nil, err
-	}
-
-	// No prerelease or build metadata found so returning now as a fastpath.
-	if sv.pre == "" && sv.metadata == "" {
-		return sv, nil
-	}
-
-	if sv.pre != "" {
-		if err = validatePrerelease(sv.pre); err != nil {
-			return nil, err
-		}
-	}
-
-	if sv.metadata != "" {
-		if err = validateMetadata(sv.metadata); err != nil {
-			return nil, err
-		}
 	}
 
 	return sv, nil
