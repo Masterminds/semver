@@ -19,7 +19,7 @@ type Constraints struct {
 func NewConstraint(c string) (*Constraints, error) {
 
 	// Rewrite - ranges into a comparison operation.
-	c = rewriteRange(c)
+	c, rangesWithPrerelease := rewriteRange(c)
 
 	ors := strings.Split(c, "||")
 	or := make([][]*constraint, len(ors))
@@ -41,6 +41,13 @@ func NewConstraint(c string) (*Constraints, error) {
 			pc, err := parseConstraint(s)
 			if err != nil {
 				return nil, err
+			}
+
+			// When we parse a constraint we lose information about if it was part of a range
+			// Use rangesWithPrerelease to check if the range originally used a pre-release
+			pcStr := pc.string()
+			if _, ok := rangesWithPrerelease[pcStr]; ok {
+				pc.allowPrerelease = true
 			}
 
 			result[i] = pc
@@ -224,6 +231,10 @@ type constraint struct {
 	minorDirty bool
 	dirty      bool
 	patchDirty bool
+
+	// allowPrerelease indicates if the constraint should allow pre-releases,
+	// such as when part of a range constraint that uses pre-releases
+	allowPrerelease bool
 }
 
 // Check if a version meets the constraint
@@ -279,6 +290,7 @@ func parseConstraint(c string) (*constraint, error) {
 		cs.minorDirty = minorDirty
 		cs.patchDirty = patchDirty
 		cs.dirty = dirty
+		cs.allowPrerelease = cs.con.Prerelease() != ""
 
 		return cs, nil
 	}
@@ -411,7 +423,7 @@ func constraintGreaterThanEqual(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -426,7 +438,7 @@ func constraintLessThanEqual(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -459,7 +471,7 @@ func constraintTilde(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -491,7 +503,7 @@ func constraintTildeOrEqual(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -520,7 +532,7 @@ func constraintCaret(v *Version, c *constraint) (bool, error) {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
 	// more details.
-	if v.Prerelease() != "" && c.con.Prerelease() == "" {
+	if v.Prerelease() != "" && !c.allowPrerelease {
 		return false, fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
@@ -579,16 +591,27 @@ func isX(x string) bool {
 	}
 }
 
-func rewriteRange(i string) string {
+func rewriteRange(i string) (string, map[string]struct{}) {
 	m := constraintRangeRegex.FindAllStringSubmatch(i, -1)
 	if m == nil {
-		return i
+		return i, nil
 	}
 	o := i
+	allowPrerelease := make(map[string]struct{}, 0)
 	for _, v := range m {
 		t := fmt.Sprintf(">= %s, <= %s ", v[1], v[11])
 		o = strings.Replace(o, v[0], t, 1)
+
+		// Check if any part of the range uses a pre-release
+		rangeUsesPrerelease := v[5] != "" || v[15] != ""
+		if rangeUsesPrerelease {
+			// do not use spaces, so that we can compare this later against a parsed constraint
+			lower := fmt.Sprintf(">=%s", v[1])
+			upper := fmt.Sprintf("<=%s", v[11])
+			allowPrerelease[lower] = struct{}{}
+			allowPrerelease[upper] = struct{}{}
+		}
 	}
 
-	return o
+	return o, allowPrerelease
 }
