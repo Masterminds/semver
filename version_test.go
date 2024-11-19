@@ -21,6 +21,7 @@ func TestStrictNewVersion(t *testing.T) {
 		{"v1.0", true},
 		{"1", true},
 		{"v1", true},
+		{"1.2", true},
 		{"1.2.beta", true},
 		{"v1.2.beta", true},
 		{"foo", true},
@@ -45,6 +46,25 @@ func TestStrictNewVersion(t *testing.T) {
 		// The SemVer spec in a pre-release expects to allow [0-9A-Za-z-]. But,
 		// the lack of all 3 parts in this version should produce an error.
 		{"20221209-update-renovatejson-v4", true},
+
+		// Various cases that are invalid semver
+		{"1.1.2+.123", true},                             // A leading . in build metadata. This would signify that the first segment is empty
+		{"1.0.0-alpha_beta", true},                       // An underscore in the pre-release is an invalid character
+		{"1.0.0-alpha..", true},                          // Multiple empty segments
+		{"1.0.0-alpha..1", true},                         // Multiple empty segments but one with a value
+		{"01.1.1", true},                                 // A leading 0 on a number segment
+		{"1.01.1", true},                                 // A leading 0 on a number segment
+		{"1.1.01", true},                                 // A leading 0 on a number segment
+		{"9.8.7+meta+meta", true},                        // Multiple metadata parts
+		{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
+		{"1.2.3-0123", true},
+		{"1.2.3-0123.0123", true},
+		{"+invalid", true},
+		{"-invalid", true},
+		{"-invalid.01", true},
+		{"alpha+beta", true},
+		{"1.2.3-alpha_beta+foo", true},
+		{"1.0.0-alpha..1", true},
 	}
 
 	for _, tc := range tests {
@@ -101,6 +121,17 @@ func TestNewVersion(t *testing.T) {
 
 		// The SemVer spec in a pre-release expects to allow [0-9A-Za-z-].
 		{"20221209-update-renovatejson-v4", false},
+
+		// Various cases that are invalid semver
+		{"1.1.2+.123", true},                             // A leading . in build metadata. This would signify that the first segment is empty
+		{"1.0.0-alpha_beta", true},                       // An underscore in the pre-release is an invalid character
+		{"1.0.0-alpha..", true},                          // Multiple empty segments
+		{"1.0.0-alpha..1", true},                         // Multiple empty segments but one with a value
+		{"01.1.1", true},                                 // A leading 0 on a number segment
+		{"1.01.1", true},                                 // A leading 0 on a number segment
+		{"1.1.01", true},                                 // A leading 0 on a number segment
+		{"9.8.7+meta+meta", true},                        // Multiple metadata parts
+		{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
 	}
 
 	for _, tc := range tests {
