@@ -113,6 +113,48 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 	return false, e
 }
 
+// MinVersion return the lowest version that can possibly match the given constraints.
+func (cs Constraints) MinVersion() (*Version, error) {
+	minVer, _ := NewVersion("0.0.0")
+	if cs.Check(minVer) {
+		return minVer, nil
+	}
+
+	minVer, _ = NewVersion("0.0.0-0")
+	if cs.Check(minVer) {
+		return minVer, nil
+	}
+
+	minVer = nil
+	for _, constraintSet := range cs.constraints {
+		var minCandidate *Version
+		for _, c := range constraintSet {
+			switch c.origfunc {
+			case "", "=":
+				minCandidate = c.con
+			case ">":
+				newV := c.con.IncPatch()
+				minCandidate = &newV
+			case ">=", "=>", "^", "~", "~>":
+				if minCandidate == nil || c.con.GreaterThan(minCandidate) {
+					minCandidate = c.con
+				}
+			case "<", "<=", "!=", "=<":
+				// (ignored for minimum version calculation)
+			default:
+				return nil, fmt.Errorf("unexpected operator: %s", c.origfunc)
+			}
+		}
+		if minCandidate != nil && (minVer == nil || minCandidate.LessThan(minVer)) {
+			minVer = minCandidate
+		}
+	}
+	if minVer == nil || !cs.Check(minVer) {
+		return nil, fmt.Errorf("no valid version found that satisfies all constraints")
+	}
+	return minVer, nil
+}
+
 func (cs Constraints) String() string {
 	buf := make([]string, len(cs.constraints))
 	var tmp bytes.Buffer
