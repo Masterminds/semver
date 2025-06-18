@@ -144,6 +144,140 @@ func TestNewVersion(t *testing.T) {
 	}
 }
 
+// TestNewVersionCheckError checks the returned error for compatibility
+func TestNewVersionCheckError(t *testing.T) {
+	t.Run("With detailed errors", func(t *testing.T) {
+		tests := []struct {
+			version string
+			wantErr error
+		}{
+			{
+				"1.2.3",
+				nil,
+			},
+			{
+				"1.2.3-dev.1",
+				nil,
+			},
+			{
+				"1.2.3+meta",
+				nil,
+			},
+			{
+				"1.2.3-dev.1+meta",
+				nil,
+			},
+			{
+				"1.2.3-dev.1+meta.01",
+				nil,
+			},
+			{
+				"1.2.3-dev..1",
+				ErrInvalidSemVer,
+			},
+			{
+				"1.2.3-dev.01",
+				ErrSegmentStartsZero,
+			},
+			{
+				"1.2.3-de-v.1",
+				nil,
+			},
+			{
+				"1.02.3",
+				ErrSegmentStartsZero,
+			},
+			{
+				"01.2.3",
+				ErrSegmentStartsZero,
+			},
+			{
+				"1.2.03",
+				ErrSegmentStartsZero,
+			},
+			{
+				"1.2.3-023658",
+				ErrSegmentStartsZero,
+			},
+		}
+
+		for _, tc := range tests {
+			_, err := NewVersion(tc.version)
+			if err != tc.wantErr {
+				t.Errorf("expected error %q but got %q for version %s", tc.wantErr, err, tc.version)
+			}
+		}
+	})
+
+	t.Run("Without detailed errors", func(t *testing.T) {
+		DetailedNewVersionErrors = false
+		defer func() {
+			DetailedNewVersionErrors = true
+		}()
+
+		tests := []struct {
+			version string
+			wantErr error
+		}{
+			{
+				"1.2.3",
+				nil,
+			},
+			{
+				"1.2.3-dev.1",
+				nil,
+			},
+			{
+				"1.2.3+meta",
+				nil,
+			},
+			{
+				"1.2.3-dev.1+meta",
+				nil,
+			},
+			{
+				"1.2.3-dev.1+meta.01",
+				nil,
+			},
+			{
+				"1.2.3-dev..1",
+				ErrInvalidSemVer,
+			},
+			{
+				"1.2.3-dev.01",
+				ErrInvalidSemVer,
+			},
+			{
+				"1.2.3-de-v.1",
+				nil,
+			},
+			{
+				"1.02.3",
+				ErrInvalidSemVer,
+			},
+			{
+				"01.2.3",
+				ErrInvalidSemVer,
+			},
+			{
+				"1.2.03",
+				ErrInvalidSemVer,
+			},
+			{
+				"1.2.3-023658",
+				ErrInvalidSemVer,
+			},
+		}
+
+		for _, tc := range tests {
+			_, err := NewVersion(tc.version)
+			if err != tc.wantErr {
+				t.Errorf("expected error %q but got %q for version %s", tc.wantErr, err, tc.version)
+			}
+		}
+	})
+}
+
 func TestNew(t *testing.T) {
 	// v0.1.2
 	v := New(0, 1, 2, "", "")
