@@ -23,6 +23,8 @@ fuzz:
 	go test -fuzz=FuzzNewVersion -fuzztime=15s .
 	go test -fuzz=FuzzStrictNewVersion -fuzztime=15s .
 	go test -fuzz=FuzzNewConstraint -fuzztime=15s .
+	go test -fuzz=FuzzMarshalBinary -fuzztime=15s .
+	go test -fuzz=FuzzUnmarshalBinary -fuzztime=15s .
 
 $(GOLANGCI_LINT):
 	# Install golangci-lint. The configuration for it is in the .golangci.yml
