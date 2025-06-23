@@ -422,6 +422,39 @@ func TestConstraintsCheck(t *testing.T) {
 	}
 }
 
+func TestConstraintConstraintCheck(t *testing.T) {
+	tests := []struct {
+		con1     string
+		con2     string
+		expected bool
+	}{
+		{"<1.2.3", "~1.3", false},
+		{"<1.2.3", ">2", false},
+		{">2.0.0", "<3.0.0", true},
+		{">1", "<2.1", true},
+		{">=1.2.x", "<=1.1.x", false},
+		{">=1.2.x", "<=1.2.x", true},
+	}
+
+	for _, tc := range tests {
+		c, err := NewConstraint(tc.con1)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		c2, err := NewConstraint(tc.con2)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		if c.CheckConstraints(c2) != tc.expected {
+			t.Errorf("constraint '%s' did not match with constraint '%s'", tc.con1, tc.con2)
+		}
+	}
+}
+
 func TestRewriteRange(t *testing.T) {
 	tests := []struct {
 		c  string

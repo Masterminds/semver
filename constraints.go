@@ -74,6 +74,28 @@ func (cs Constraints) Check(v *Version) bool {
 	return false
 }
 
+func (cs Constraints) CheckConstraints(cs2 *Constraints) bool {
+	for _, o := range cs.constraints {
+		joy := true
+		for _, c := range o {
+			for _, o2 := range cs2.constraints {
+				for _, c2 := range o2 {
+					if check, _ := c.checkConstraints(c2); !check {
+						joy = false
+						break
+					}
+				}
+			}
+		}
+
+		if joy {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Validate checks if a version satisfies a constraint. If not a slice of
 // reasons for the failure are returned in addition to a bool.
 func (cs Constraints) Validate(v *Version) (bool, []error) {
@@ -591,4 +613,45 @@ func rewriteRange(i string) string {
 	}
 
 	return o
+}
+
+func (c *constraint) minVersionInConstraint() *Version {
+	switch c.origfunc {
+	case ">":
+		v, _ := NewVersion(c.con.String())
+
+		newV := v.IncPatch()
+
+		return &newV
+	case ">=", "^":
+		v, _ := NewVersion(c.con.String())
+		return v
+	case "~", "~>":
+		if c.con.Major() == 0 && c.con.Minor() == 0 && c.con.Patch() == 0 && !c.minorDirty && !c.patchDirty {
+			v, _ := NewVersion("0.0.0")
+			return v
+		}
+
+		_c := *c
+		_c.origfunc = ">="
+		return _c.minVersionInConstraint()
+	default:
+		return nil
+	}
+}
+
+func (c *constraint) checkConstraints(c2 *constraint) (bool, error) {
+	min1 := c.minVersionInConstraint()
+
+	min2 := c2.minVersionInConstraint()
+
+	if min1 != nil {
+		return constraintOps[c2.origfunc](min1, c2)
+	}
+
+	if min2 != nil {
+		return constraintOps[c.origfunc](min2, c)
+	}
+
+	return true, nil
 }
