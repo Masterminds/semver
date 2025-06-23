@@ -250,7 +250,7 @@ or [create a pull request](https://github.com/Masterminds/semver/pulls).
 Security is an important consideration for this project. The project currently
 uses the following tools to help discover security issues:
 
-* [CodeQL](https://github.com/Masterminds/semver)
+* [CodeQL](https://codeql.github.com)
 * [gosec](https://github.com/securego/gosec)
 * Daily Fuzz testing
 
