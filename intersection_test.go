@@ -18,7 +18,7 @@ func TestIntersection_NilSafety(t *testing.T) {
 	}
 }
 
-func TestIntersection_MixedOperators2(t *testing.T) {
+func TestIntersection(t *testing.T) {
 	cases := []struct {
 		a, b, want string
 	}{
@@ -75,6 +75,7 @@ func TestIntersection_MixedOperators2(t *testing.T) {
 		{"1.2.x", ">=1.2.3 <1.2.8", ">=1.2.3 <1.2.8"},
 		{">=1.0.0-alpha <1.0.0-beta", ">=1.0.0-beta <1.0.0-rc", ""},
 		{"=1.2.3", ">1.2.3", ""},
+		{">=1 <=2", "~2", ">=2.0.0 <3.0.0"},
 	}
 
 	for i, tc := range cases {
@@ -132,7 +133,7 @@ func TestIsSubset(t *testing.T) {
 		{">=1.0.0 <=2.0.0", ">=1.0.0 <=2.0.0", true},
 		{">1", ">=1", true},
 		{"<2", "<=2", true},
-		{">1 <=2", ">1 <2.5", true},
+		{">1 <=2", ">1 <2.5", false},
 		{">=1.0.0", ">=0.0.0", true},
 		{">=1.0.0", ">=1.0.0 <2.0.0", false},
 		{">=1.2.3 <4", ">=1.2.3 <4", true},
@@ -209,6 +210,7 @@ func TestIsSubset(t *testing.T) {
 		{"*", "<2.0.0", false},
 		{"0.x", "<1.0.0", true},
 		{"0.x", ">=0.1.0 <0.5.0", false},
+		{"~2", ">=1 <=2", true},
 	}
 
 	for i, tc := range cases {

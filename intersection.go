@@ -159,6 +159,16 @@ func expandConstraint(c *constraint) []*constraint {
 		if c.dirty {
 			return expandWildcard(c)
 		}
+	case "<=":
+		if c.dirty {
+			var hi Version
+			if c.minorDirty {
+				hi = c.con.IncMajor()
+			} else {
+				hi = c.con.IncMinor()
+			}
+			return []*constraint{upperConstraint(hi)}
+		}
 	}
 
 	return []*constraint{c}
