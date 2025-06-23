@@ -84,6 +84,11 @@ func filterExact(exact, cs []*constraint) (res []*constraint) {
 
 func satisfiesAll(v *Version, cs []*constraint) bool {
 	for _, c := range cs {
+		// issue 21
+		if v.Prerelease() != "" && c.con.Prerelease() == "" {
+			return false
+		}
+
 		compare := v.Compare(c.con)
 		switch c.origfunc {
 		case ">":
