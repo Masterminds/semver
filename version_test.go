@@ -78,75 +78,157 @@ func TestStrictNewVersion(t *testing.T) {
 }
 
 func TestNewVersion(t *testing.T) {
-	tests := []struct {
-		version string
-		err     bool
-	}{
-		{"1.2.3", false},
-		{"1.2.3-alpha.01", true},
-		{"1.2.3+test.01", false},
-		{"1.2.3-alpha.-1", false},
-		{"v1.2.3", false},
-		{"1.0", false},
-		{"v1.0", false},
-		{"1", false},
-		{"v1", false},
-		{"1.2.beta", true},
-		{"v1.2.beta", true},
-		{"foo", true},
-		{"1.2-5", false},
-		{"v1.2-5", false},
-		{"1.2-beta.5", false},
-		{"v1.2-beta.5", false},
-		{"\n1.2", true},
-		{"\nv1.2", true},
-		{"1.2.0-x.Y.0+metadata", false},
-		{"v1.2.0-x.Y.0+metadata", false},
-		{"1.2.0-x.Y.0+metadata-width-hypen", false},
-		{"v1.2.0-x.Y.0+metadata-width-hypen", false},
-		{"1.2.3-rc1-with-hypen", false},
-		{"v1.2.3-rc1-with-hypen", false},
-		{"1.2.3.4", true},
-		{"v1.2.3.4", true},
-		{"1.2.2147483648", false},
-		{"1.2147483648.3", false},
-		{"2147483648.3.0", false},
+	t.Run("With loose NewVersion", func(t *testing.T) {
+		tests := []struct {
+			version string
+			err     bool
+		}{
+			{"1.2.3", false},
+			{"1.2.3-alpha.01", true},
+			{"1.2.3+test.01", false},
+			{"1.2.3-alpha.-1", false},
+			{"v1.2.3", false},
+			{"1.0", false},
+			{"v1.0", false},
+			{"1", false},
+			{"v1", false},
+			{"1.2.beta", true},
+			{"v1.2.beta", true},
+			{"foo", true},
+			{"1.2-5", false},
+			{"v1.2-5", false},
+			{"1.2-beta.5", false},
+			{"v1.2-beta.5", false},
+			{"\n1.2", true},
+			{"\nv1.2", true},
+			{"1.2.0-x.Y.0+metadata", false},
+			{"v1.2.0-x.Y.0+metadata", false},
+			{"1.2.0-x.Y.0+metadata-width-hypen", false},
+			{"v1.2.0-x.Y.0+metadata-width-hypen", false},
+			{"1.2.3-rc1-with-hypen", false},
+			{"v1.2.3-rc1-with-hypen", false},
+			{"1.2.3.4", true},
+			{"v1.2.3.4", true},
+			{"1.2.2147483648", false},
+			{"1.2147483648.3", false},
+			{"2147483648.3.0", false},
 
-		// Due to having 4 parts these should produce an error. See
-		// https://github.com/Masterminds/semver/issues/185 for the reason for
-		// these tests.
-		{"12.3.4.1234", true},
-		{"12.23.4.1234", true},
-		{"12.3.34.1234", true},
+			// Due to having 4 parts these should produce an error. See
+			// https://github.com/Masterminds/semver/issues/185 for the reason for
+			// these tests.
+			{"12.3.4.1234", true},
+			{"12.23.4.1234", true},
+			{"12.3.34.1234", true},
 
-		// The SemVer spec in a pre-release expects to allow [0-9A-Za-z-].
-		{"20221209-update-renovatejson-v4", false},
+			// The SemVer spec in a pre-release expects to allow [0-9A-Za-z-].
+			{"20221209-update-renovatejson-v4", false},
 
-		// Various cases that are invalid semver
-		{"1.1.2+.123", true},                             // A leading . in build metadata. This would signify that the first segment is empty
-		{"1.0.0-alpha_beta", true},                       // An underscore in the pre-release is an invalid character
-		{"1.0.0-alpha..", true},                          // Multiple empty segments
-		{"1.0.0-alpha..1", true},                         // Multiple empty segments but one with a value
-		{"01.1.1", true},                                 // A leading 0 on a number segment
-		{"1.01.1", true},                                 // A leading 0 on a number segment
-		{"1.1.01", true},                                 // A leading 0 on a number segment
-		{"9.8.7+meta+meta", true},                        // Multiple metadata parts
-		{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
-	}
+			// Various cases that are invalid semver
+			{"1.1.2+.123", true},                             // A leading . in build metadata. This would signify that the first segment is empty
+			{"1.0.0-alpha_beta", true},                       // An underscore in the pre-release is an invalid character
+			{"1.0.0-alpha..", true},                          // Multiple empty segments
+			{"1.0.0-alpha..1", true},                         // Multiple empty segments but one with a value
+			{"9.8.7+meta+meta", true},                        // Multiple metadata parts
+			{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
 
-	for _, tc := range tests {
-		_, err := NewVersion(tc.version)
-		if tc.err && err == nil {
-			t.Fatalf("expected error for version: %s", tc.version)
-		} else if !tc.err && err != nil {
-			t.Fatalf("error for version %s: %s", tc.version, err)
+			// Versions that are invalid but in loose mode are handled.
+			// This enables a calver-ish style. This pattern has long
+			// been supported by this package even though it technically
+			// breaks from semver. Tools built on this allow it.
+			{"01.1.1", false}, // A leading 0 on a number segment
+			{"1.01.1", false}, // A leading 0 on a number segment
+			{"1.1.01", false}, // A leading 0 on a number segment
 		}
-	}
+
+		for _, tc := range tests {
+			_, err := NewVersion(tc.version)
+			if tc.err && err == nil {
+				t.Fatalf("expected error for version: %s", tc.version)
+			} else if !tc.err && err != nil {
+				t.Fatalf("error for version %s: %s", tc.version, err)
+			}
+		}
+	})
+
+	t.Run("Without loose NewVersion", func(t *testing.T) {
+		CoerceNewVersion = false
+		defer func() {
+			CoerceNewVersion = true
+		}()
+		tests := []struct {
+			version string
+			err     bool
+		}{
+			{"1.2.3", false},
+			{"1.2.3-alpha.01", true},
+			{"1.2.3+test.01", false},
+			{"1.2.3-alpha.-1", false},
+			{"v1.2.3", false},
+			{"1.0", false},
+			{"v1.0", false},
+			{"1", false},
+			{"v1", false},
+			{"1.2.beta", true},
+			{"v1.2.beta", true},
+			{"foo", true},
+			{"1.2-5", false},
+			{"v1.2-5", false},
+			{"1.2-beta.5", false},
+			{"v1.2-beta.5", false},
+			{"\n1.2", true},
+			{"\nv1.2", true},
+			{"1.2.0-x.Y.0+metadata", false},
+			{"v1.2.0-x.Y.0+metadata", false},
+			{"1.2.0-x.Y.0+metadata-width-hypen", false},
+			{"v1.2.0-x.Y.0+metadata-width-hypen", false},
+			{"1.2.3-rc1-with-hypen", false},
+			{"v1.2.3-rc1-with-hypen", false},
+			{"1.2.3.4", true},
+			{"v1.2.3.4", true},
+			{"1.2.2147483648", false},
+			{"1.2147483648.3", false},
+			{"2147483648.3.0", false},
+
+			// Due to having 4 parts these should produce an error. See
+			// https://github.com/Masterminds/semver/issues/185 for the reason for
+			// these tests.
+			{"12.3.4.1234", true},
+			{"12.23.4.1234", true},
+			{"12.3.34.1234", true},
+
+			// The SemVer spec in a pre-release expects to allow [0-9A-Za-z-].
+			{"20221209-update-renovatejson-v4", false},
+
+			// Various cases that are invalid semver
+			{"1.1.2+.123", true},                             // A leading . in build metadata. This would signify that the first segment is empty
+			{"1.0.0-alpha_beta", true},                       // An underscore in the pre-release is an invalid character
+			{"1.0.0-alpha..", true},                          // Multiple empty segments
+			{"1.0.0-alpha..1", true},                         // Multiple empty segments but one with a value
+			{"01.1.1", true},                                 // A leading 0 on a number segment
+			{"1.01.1", true},                                 // A leading 0 on a number segment
+			{"1.1.01", true},                                 // A leading 0 on a number segment
+			{"9.8.7+meta+meta", true},                        // Multiple metadata parts
+			{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
+		}
+
+		for _, tc := range tests {
+			_, err := NewVersion(tc.version)
+			if tc.err && err == nil {
+				t.Fatalf("expected error for version: %s", tc.version)
+			} else if !tc.err && err != nil {
+				t.Fatalf("error for version %s: %s", tc.version, err)
+			}
+		}
+	})
 }
 
 // TestNewVersionCheckError checks the returned error for compatibility
 func TestNewVersionCheckError(t *testing.T) {
 	t.Run("With detailed errors", func(t *testing.T) {
+		CoerceNewVersion = false
+		defer func() {
+			CoerceNewVersion = true
+		}()
 		tests := []struct {
 			version string
 			wantErr error
@@ -211,8 +293,10 @@ func TestNewVersionCheckError(t *testing.T) {
 
 	t.Run("Without detailed errors", func(t *testing.T) {
 		DetailedNewVersionErrors = false
+		CoerceNewVersion = false
 		defer func() {
 			DetailedNewVersionErrors = true
+			CoerceNewVersion = true
 		}()
 
 		tests := []struct {
