@@ -288,7 +288,7 @@ func parseConstraint(c string) (*constraint, error) {
 
 			// The constraintRegex should catch any regex parsing errors. So,
 			// we should never get here.
-			return nil, errors.New("constraint Parser Error")
+			return nil, errors.New("constraint parser error")
 		}
 
 		cs.con = con
@@ -306,7 +306,7 @@ func parseConstraint(c string) (*constraint, error) {
 
 		// The constraintRegex should catch any regex parsing errors. So,
 		// we should never get here.
-		return nil, errors.New("constraint Parser Error")
+		return nil, errors.New("constraint parser error")
 	}
 
 	cs := &constraint{

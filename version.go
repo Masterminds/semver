@@ -30,24 +30,24 @@ var DetailedNewVersionErrors = true
 var (
 	// ErrInvalidSemVer is returned a version is found to be invalid when
 	// being parsed.
-	ErrInvalidSemVer = errors.New("Invalid Semantic Version")
+	ErrInvalidSemVer = errors.New("invalid semantic version")
 
 	// ErrEmptyString is returned when an empty string is passed in for parsing.
-	ErrEmptyString = errors.New("Version string empty")
+	ErrEmptyString = errors.New("version string empty")
 
 	// ErrInvalidCharacters is returned when invalid characters are found as
 	// part of a version
-	ErrInvalidCharacters = errors.New("Invalid characters in version")
+	ErrInvalidCharacters = errors.New("invalid characters in version")
 
 	// ErrSegmentStartsZero is returned when a version segment starts with 0.
 	// This is invalid in SemVer.
-	ErrSegmentStartsZero = errors.New("Version segment starts with 0")
+	ErrSegmentStartsZero = errors.New("version segment starts with 0")
 
 	// ErrInvalidMetadata is returned when the metadata is an invalid format
-	ErrInvalidMetadata = errors.New("Invalid Metadata string")
+	ErrInvalidMetadata = errors.New("invalid metadata string")
 
 	// ErrInvalidPrerelease is returned when the pre-release is an invalid format
-	ErrInvalidPrerelease = errors.New("Invalid Prerelease string")
+	ErrInvalidPrerelease = errors.New("invalid prerelease string")
 )
 
 // semVerRegex is the regular expression used to parse a semantic version.
@@ -194,13 +194,13 @@ func NewVersion(v string) (*Version, error) {
 	var err error
 	sv.major, err = strconv.ParseUint(m[1], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing version segment: %s", err)
+		return nil, fmt.Errorf("error parsing version segment: %w", err)
 	}
 
 	if m[2] != "" {
 		sv.minor, err = strconv.ParseUint(m[2], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
 	} else {
 		sv.minor = 0
@@ -209,7 +209,7 @@ func NewVersion(v string) (*Version, error) {
 	if m[3] != "" {
 		sv.patch, err = strconv.ParseUint(m[3], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
 	} else {
 		sv.patch = 0
@@ -248,13 +248,13 @@ func coerceNewVersion(v string) (*Version, error) {
 	var err error
 	sv.major, err = strconv.ParseUint(m[1], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing version segment: %s", err)
+		return nil, fmt.Errorf("error parsing version segment: %w", err)
 	}
 
 	if m[2] != "" {
 		sv.minor, err = strconv.ParseUint(strings.TrimPrefix(m[2], "."), 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
 	} else {
 		sv.minor = 0
@@ -263,7 +263,7 @@ func coerceNewVersion(v string) (*Version, error) {
 	if m[3] != "" {
 		sv.patch, err = strconv.ParseUint(strings.TrimPrefix(m[3], "."), 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version segment: %s", err)
+			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
 	} else {
 		sv.patch = 0
@@ -707,7 +707,7 @@ func validatePrerelease(p string) error {
 	eparts := strings.Split(p, ".")
 	for _, p := range eparts {
 		if p == "" {
-			return ErrInvalidMetadata
+			return ErrInvalidPrerelease
 		} else if containsOnly(p, num) {
 			if len(p) > 1 && p[0] == '0' {
 				return ErrSegmentStartsZero
@@ -746,7 +746,7 @@ func validateVersion(m []string) error {
 		}
 		_, err = strconv.ParseUint(m[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("Error parsing version segment: %s", err)
+			return fmt.Errorf("error parsing version segment: %w", err)
 		}
 	}
 
@@ -757,7 +757,7 @@ func validateVersion(m []string) error {
 		}
 		_, err = strconv.ParseUint(v, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Error parsing version segment: %s", err)
+			return fmt.Errorf("error parsing version segment: %w", err)
 		}
 	}
 
@@ -768,7 +768,7 @@ func validateVersion(m []string) error {
 		}
 		_, err = strconv.ParseUint(v, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Error parsing version segment: %s", err)
+			return fmt.Errorf("error parsing version segment: %w", err)
 		}
 	}
 
