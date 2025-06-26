@@ -13,6 +13,12 @@ import (
 type Constraints struct {
 	constraints [][]*constraint
 	containsPre []bool
+
+	// IncludePrerelease specifies if pre-releases should be included in
+	// the results. Note, if a constraint range has a prerelease than
+	// prereleases will be included for that AND group even if this is
+	// set to false.
+	IncludePrerelease bool
 }
 
 // NewConstraint returns a Constraints instance that a Version instance can
@@ -70,7 +76,7 @@ func (cs Constraints) Check(v *Version) bool {
 	for i, o := range cs.constraints {
 		joy := true
 		for _, c := range o {
-			if check, _ := c.check(v, cs.containsPre[i]); !check {
+			if check, _ := c.check(v, (cs.IncludePrerelease || cs.containsPre[i])); !check {
 				joy = false
 				break
 			}
@@ -98,7 +104,7 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 		for _, c := range o {
 			// Before running the check handle the case there the version is
 			// a prerelease and the check is not searching for prereleases.
-			if !cs.containsPre[i] && v.pre != "" {
+			if !(cs.IncludePrerelease || cs.containsPre[i]) && v.pre != "" {
 				if !prerelesase {
 					em := fmt.Errorf("%s is a prerelease version and the constraint is only looking for release versions", v)
 					e = append(e, em)
@@ -108,7 +114,7 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 
 			} else {
 
-				if _, err := c.check(v, cs.containsPre[i]); err != nil {
+				if _, err := c.check(v, (cs.IncludePrerelease || cs.containsPre[i])); err != nil {
 					e = append(e, err)
 					joy = false
 				}
