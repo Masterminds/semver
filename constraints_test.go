@@ -71,6 +71,7 @@ func TestConstraintCheck(t *testing.T) {
 		{"!=4.1", "4.1.0", false},
 		{"!=4.1", "4.1.1", false},
 		{"!=4.1", "5.1.0-alpha.1", false},
+		{"!=4.1.0", "5.1.0-alpha.1", false},
 		{"!=4.1-alpha", "4.1.0", true},
 		{"!=4.1", "5.1.0", true},
 		{"<11", "0.1.0", true},
@@ -189,6 +190,7 @@ func TestConstraintCheck(t *testing.T) {
 		{"^0.2.3-beta.2", "0.2.3-beta.2", true},
 	}
 
+	var hasPre bool
 	for _, tc := range tests {
 		c, err := parseConstraint(tc.constraint)
 		if err != nil {
@@ -202,7 +204,12 @@ func TestConstraintCheck(t *testing.T) {
 			continue
 		}
 
-		a, _ := c.check(v)
+		hasPre = false
+		if c.con.pre != "" {
+			hasPre = true
+		}
+
+		a, _ := c.check(v, hasPre)
 		if a != tc.check {
 			t.Errorf("Constraint %q failing with %q", tc.constraint, tc.version)
 		}
@@ -366,6 +373,14 @@ func TestConstraintsCheck(t *testing.T) {
 		{">= 1.1 <2 != 1.2.3 || >= 3", "3.0.0", true},
 		{">= 1.1 < 2 !=1.2.3 || > 3", "3.0.0", false},
 		{">=1.1 < 2 !=1.2.3 || > 3", "1.2.3", false},
+		{">= 1.0.0  <= 2.0.0-beta", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta", "1.0.1", true},
+		{">= 1.0.0  <= 2.0.0-beta", "3.0.0", false},
+		{">= 1.0.0  <= 2.0.0-beta || > 3", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta || > 3", "3.0.1-beta", false},
+		{">= 1.0.0  <= 2.0.0-beta != 1.0.1 || > 3", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta != 1.0.1-beta || > 3", "1.0.1-beta", false},
+		{">= 1.0.0-0  <= 2.0.0", "1.0.1-beta", true},
 		{"1.1 - 2", "1.1.1", true},
 		{"1.5.0 - 4.5", "3.7.0", true},
 		{"1.1-3", "4.3.2", false},
