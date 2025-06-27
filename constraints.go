@@ -178,7 +178,7 @@ var findConstraintRegex *regexp.Regexp
 var validConstraintRegex *regexp.Regexp
 
 const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
-	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-\*]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 func init() {
@@ -237,9 +237,10 @@ type constraint struct {
 	origfunc string
 
 	// When an x is used as part of the version (e.g., 1.x)
-	minorDirty bool
-	dirty      bool
-	patchDirty bool
+	minorDirty      bool
+	dirty           bool
+	patchDirty      bool
+	prereleaseDirty bool
 }
 
 // Check if a version meets the constraint
@@ -267,20 +268,38 @@ func parseConstraint(c string) (*constraint, error) {
 		}
 
 		ver := m[2]
-		minorDirty := false
+		prereleaseDirty := false
 		patchDirty := false
+		minorDirty := false
 		dirty := false
+
+		if len(m) > 8 && m[7] != "" && isX(strings.TrimPrefix(m[8], ".")) {
+			prereleaseDirty = true
+		}
+
 		if isX(m[3]) || m[3] == "" {
-			ver = fmt.Sprintf("0.0.0%s", m[6])
+			if prereleaseDirty {
+				ver = fmt.Sprintf("0.0.0-%s.0", strings.Split(m[7], ".")[0])
+			} else {
+				ver = fmt.Sprintf("0.0.0%s", m[6])
+			}
 			dirty = true
 		} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
+			if prereleaseDirty {
+				ver = fmt.Sprintf("%s.0.0-%s.0", m[3], strings.Split(m[7], ".")[0])
+			} else {
+				ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
+			}
 			minorDirty = true
 			dirty = true
-			ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
 		} else if isX(strings.TrimPrefix(m[5], ".")) || m[5] == "" {
+			if prereleaseDirty {
+				ver = fmt.Sprintf("%s%s.0-%s.0", m[3], m[4], strings.Split(m[7], ".")[0])
+			} else {
+				ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
+			}
 			dirty = true
 			patchDirty = true
-			ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
 		}
 
 		con, err := NewVersion(ver)
@@ -294,6 +313,7 @@ func parseConstraint(c string) (*constraint, error) {
 		cs.con = con
 		cs.minorDirty = minorDirty
 		cs.patchDirty = patchDirty
+		cs.prereleaseDirty = prereleaseDirty
 		cs.dirty = dirty
 
 		return cs, nil
@@ -474,6 +494,10 @@ func constraintTilde(v *Version, c *constraint, includePre bool) (bool, error) {
 
 	if v.LessThan(c.con) {
 		return false, fmt.Errorf("%s is less than %s", v, c.orig)
+	}
+
+	if c.prereleaseDirty && strings.Split(v.pre, ".")[0] != strings.Split(c.con.pre, ".")[0] {
+		return false, nil
 	}
 
 	// ~0.0.0 is a special case where all constraints are accepted. It's
