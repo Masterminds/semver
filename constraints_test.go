@@ -71,6 +71,7 @@ func TestConstraintCheck(t *testing.T) {
 		{"!=4.1", "4.1.0", false},
 		{"!=4.1", "4.1.1", false},
 		{"!=4.1", "5.1.0-alpha.1", false},
+		{"!=4.1.0", "5.1.0-alpha.1", false},
 		{"!=4.1-alpha", "4.1.0", true},
 		{"!=4.1", "5.1.0", true},
 		{"<11", "0.1.0", true},
@@ -189,6 +190,7 @@ func TestConstraintCheck(t *testing.T) {
 		{"^0.2.3-beta.2", "0.2.3-beta.2", true},
 	}
 
+	var hasPre bool
 	for _, tc := range tests {
 		c, err := parseConstraint(tc.constraint)
 		if err != nil {
@@ -202,7 +204,12 @@ func TestConstraintCheck(t *testing.T) {
 			continue
 		}
 
-		a, _ := c.check(v)
+		hasPre = false
+		if c.con.pre != "" {
+			hasPre = true
+		}
+
+		a, _ := c.check(v, hasPre)
 		if a != tc.check {
 			t.Errorf("Constraint %q failing with %q", tc.constraint, tc.version)
 		}
@@ -366,6 +373,14 @@ func TestConstraintsCheck(t *testing.T) {
 		{">= 1.1 <2 != 1.2.3 || >= 3", "3.0.0", true},
 		{">= 1.1 < 2 !=1.2.3 || > 3", "3.0.0", false},
 		{">=1.1 < 2 !=1.2.3 || > 3", "1.2.3", false},
+		{">= 1.0.0  <= 2.0.0-beta", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta", "1.0.1", true},
+		{">= 1.0.0  <= 2.0.0-beta", "3.0.0", false},
+		{">= 1.0.0  <= 2.0.0-beta || > 3", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta || > 3", "3.0.1-beta", false},
+		{">= 1.0.0  <= 2.0.0-beta != 1.0.1 || > 3", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta != 1.0.1-beta || > 3", "1.0.1-beta", false},
+		{">= 1.0.0-0  <= 2.0.0", "1.0.1-beta", true},
 		{"1.1 - 2", "1.1.1", true},
 		{"1.5.0 - 4.5", "3.7.0", true},
 		{"1.1-3", "4.3.2", false},
@@ -408,6 +423,169 @@ func TestConstraintsCheck(t *testing.T) {
 			t.Errorf("err: %s", err)
 			continue
 		}
+
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		a := c.Check(v)
+		if a != tc.check {
+			t.Errorf("Constraint '%s' failing with '%s'", tc.constraint, tc.version)
+		}
+	}
+}
+
+func TestConstraintsCheckIncludePrerelease(t *testing.T) {
+	tests := []struct {
+		constraint string
+		version    string
+		check      bool
+	}{
+		// Test for including prereleases that normally would fail
+		{">=1.1", "4.1.0-beta", true},
+		{">1.1", "4.1.0-beta", true},
+		{"<=1.1", "0.1.0-alpha", true},
+		{"<1.1", "0.1.0-alpha", true},
+		{"^1.x", "1.1.1-beta1", true},
+		{"~1.1", "1.1.1-alpha", true},
+		{"*", "1.2.3-alpha", true},
+		{"= 2.0", "2.0.1-beta", true},
+
+		// This next group of tests handles normal cases
+		{"*", "1.2.3", true},
+		{"~0.0.0", "1.2.3", true},
+		{"0.x.x", "1.2.3", false},
+		{"0.0.x", "1.2.3", false},
+		{"0.0.0", "1.2.3", false},
+		{"*", "1.2.3", true},
+		{"^0.0.0", "1.2.3", false},
+		{"= 2.0", "1.2.3", false},
+		{"= 2.0", "2.0.0", true},
+		{"4.1", "4.1.0", true},
+		{"4.1.x", "4.1.3", true},
+		{"1.x", "1.4", true},
+		{"!=4.1", "4.1.0", false},
+		{"!=4.1-alpha", "4.1.0-alpha", false},
+		{"!=4.1-alpha", "4.1.1-alpha", false},
+		{"!=4.1-alpha", "4.1.0", true},
+		{"!=4.1", "5.1.0", true},
+		{"!=4.x", "5.1.0", true},
+		{"!=4.x", "4.1.0", false},
+		{"!=4.1.x", "4.2.0", true},
+		{"!=4.2.x", "4.2.3", false},
+		{">1.1", "4.1.0", true},
+		{">1.1", "1.1.0", false},
+		{"<1.1", "0.1.0", true},
+		{"<1.1", "1.1.0", false},
+		{"<1.1", "1.1.1", false},
+		{"<1.x", "1.1.1", false},
+		{"<1.x", "0.1.1", true},
+		{"<1.x", "2.0.0", false},
+		{"<1.1.x", "1.2.1", false},
+		{"<1.1.x", "1.1.500", false},
+		{"<1.1.x", "1.0.500", true},
+		{"<1.2.x", "1.1.1", true},
+		{">=1.1", "4.1.0", true},
+		{">=1.1", "1.1.0", true},
+		{">=1.1", "0.0.9", false},
+		{"<=1.1", "0.1.0", true},
+		{"<=1.1-a", "0.1.0-alpha", true},
+		{"<=1.1", "1.1.0", true},
+		{"<=1.x", "1.1.0", true},
+		{"<=2.x", "3.0.0", false},
+		{"<=1.1", "1.1.1", true},
+		{"<=1.1.x", "1.2.500", false},
+		{"<=4.5", "3.4.0", true},
+		{"<=4.5", "3.7.0", true},
+		{"<=4.5", "4.6.3", false},
+		{">1.1, <2", "1.1.1", false},
+		{">1.1, <2", "1.2.1", true},
+		{">1.1, <3", "4.3.2", false},
+		{">=1.1, <2, !=1.2.3", "1.2.3", false},
+		{">1.1 <2", "1.1.1", false},
+		{">1.1 <2", "1.2.1", true},
+		{">1.1    <3", "4.3.2", false},
+		{">=1.1    <2    !=1.2.3", "1.2.3", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "4.1.2", true},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.1.2", false},
+		{">=1.1, <2, !=1.2.3 || >= 3", "3.0.0", true},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
+		{">=1.1 <2 !=1.2.3", "1.2.3", false},
+		{">=1.1 <2 !=1.2.3 || > 3", "4.1.2", true},
+		{">=1.1 <2 !=1.2.3 || > 3", "3.1.2", false},
+		{">=1.1 <2 !=1.2.3 || >= 3", "3.0.0", true},
+		{">=1.1 <2 !=1.2.3 || > 3", "3.0.0", false},
+		{">=1.1 <2 !=1.2.3 || > 3", "1.2.3", false},
+		{"> 1.1, <     2", "1.1.1", false},
+		{">   1.1, <2", "1.2.1", true},
+		{">1.1, <  3", "4.3.2", false},
+		{">= 1.1, <     2, !=1.2.3", "1.2.3", false},
+		{"> 1.1 < 2", "1.1.1", false},
+		{">1.1 < 2", "1.2.1", true},
+		{"> 1.1    <3", "4.3.2", false},
+		{">=1.1    < 2    != 1.2.3", "1.2.3", false},
+		{">= 1.1, <2, !=1.2.3 || > 3", "4.1.2", true},
+		{">= 1.1, <2, != 1.2.3 || > 3", "3.1.2", false},
+		{">= 1.1, <2, != 1.2.3 || >= 3", "3.0.0", true},
+		{">= 1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
+		{">= 1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
+		{">= 1.1 <2 != 1.2.3", "1.2.3", false},
+		{">= 1.1 <2 != 1.2.3 || > 3", "4.1.2", true},
+		{">= 1.1 <2 != 1.2.3 || > 3", "3.1.2", false},
+		{">= 1.1 <2 != 1.2.3 || >= 3", "3.0.0", true},
+		{">= 1.1 < 2 !=1.2.3 || > 3", "3.0.0", false},
+		{">=1.1 < 2 !=1.2.3 || > 3", "1.2.3", false},
+		{">= 1.0.0  <= 2.0.0-beta", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta", "1.0.1", true},
+		{">= 1.0.0  <= 2.0.0-beta", "3.0.0", false},
+		{">= 1.0.0  <= 2.0.0-beta || > 3", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta || > 3", "3.0.1-beta", false},
+		{">= 1.0.0  <= 2.0.0-beta != 1.0.1 || > 3", "1.0.1-beta", true},
+		{">= 1.0.0  <= 2.0.0-beta != 1.0.1-beta || > 3", "1.0.1-beta", false},
+		{">= 1.0.0-0  <= 2.0.0", "1.0.1-beta", true},
+		{"1.1 - 2", "1.1.1", true},
+		{"1.5.0 - 4.5", "3.7.0", true},
+		{"1.1-3", "4.3.2", false},
+		{"^1.1", "1.1.1", true},
+		{"^1.1", "4.3.2", false},
+		{"^1.x", "1.1.1", true},
+		{"^2.x", "1.1.1", false},
+		{"^1.x", "2.1.1", false},
+		{"^1.1.2-alpha", "1.2.1-beta1", true},
+		{"^1.2.x-alpha", "1.1.1-beta1", false},
+		{"^0.0.1", "0.0.1", true},
+		{"^0.0.1", "0.3.1", false},
+		{"~*", "2.1.1", true},
+		{"~1", "2.1.1", false},
+		{"~1", "1.3.5", true},
+		{"~1", "1.4", true},
+		{"~1.x", "2.1.1", false},
+		{"~1.x", "1.3.5", true},
+		{"~1.x", "1.4", true},
+		{"~1.1", "1.1.1", true},
+		{"~1.1-alpha", "1.1.1-beta", true},
+		{"~1.1.1-beta", "1.1.1-alpha", false},
+		{"~1.1.1-beta", "1.1.1", true},
+		{"~1.2.3", "1.2.5", true},
+		{"~1.2.3", "1.2.2", false},
+		{"~1.2.3", "1.3.2", false},
+		{"~1.1", "1.2.3", false},
+		{"~1.3", "2.4.5", false},
+		{"1.0.0 - 2.0.0 <=2.0.0", "1.5.0", true},
+		{"1.0.0 - 2.0.0, <=2.0.0", "1.5.0", true},
+	}
+
+	for _, tc := range tests {
+		c, err := NewConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+		// Include prereleases in searches
+		c.IncludePrerelease = true
 
 		v, err := NewVersion(tc.version)
 		if err != nil {
@@ -561,12 +739,6 @@ func TestConstraintsValidate(t *testing.T) {
 		} else if !a && len(msgs) == 0 {
 			t.Errorf("%q failed with %q but no errors returned", tc.constraint, tc.version)
 		}
-
-		// if a == false {
-		// 	for _, m := range msgs {
-		// 		t.Errorf("%s", m)
-		// 	}
-		// }
 	}
 
 	v, err := StrictNewVersion("1.2.3")
@@ -639,6 +811,219 @@ func TestConstraintsValidate(t *testing.T) {
 			t.Errorf("constraint parsing err: %s", err)
 			continue
 		}
+
+		v, err := StrictNewVersion(tc.version)
+		if err != nil {
+			t.Errorf("version parsing err: %s", err)
+			continue
+		}
+
+		_, msgs := c.Validate(v)
+		if len(msgs) == 0 {
+			t.Errorf("Did not get error message on constraint %q", tc.constraint)
+		} else {
+			e := msgs[0].Error()
+			if e != tc.msg {
+				t.Errorf("Did not get expected message. Expected %q, got %q", tc.msg, e)
+			}
+		}
+	}
+}
+
+func TestConstraintsValidateIncludePrerelease(t *testing.T) {
+	tests := []struct {
+		constraint string
+		version    string
+		check      bool
+	}{
+		// Tests that would fail if not including prereleases but
+		// pass if prereleases are included.
+		{"^1.1", "1.1.1-alpha", true},
+		{"~1", "1.3.5-beta", true},
+		{"~1.x", "1.3.5-beta", true},
+		{">=1.1", "4.1.0-beta", true},
+		{">1.1", "4.1.0-beta", true},
+		{"<=1.1", "0.1.0-alpha", true},
+		{"<1.1", "0.1.0-alpha", true},
+		{"^1.x", "1.1.1-beta1", true},
+		{"~1.1", "1.1.1-alpha", true},
+		{"*", "1.2.3-alpha", true},
+		{"= 2.0", "2.0.1-beta", true},
+
+		// Tests that should continue to pass normally.
+		{"*", "1.2.3", true},
+		{"~0.0.0", "1.2.3", true},
+		{"= 2.0", "1.2.3", false},
+		{"= 2.0", "2.0.0", true},
+		{"4.1", "4.1.0", true},
+		{"4.1.x", "4.1.3", true},
+		{"1.x", "1.4", true},
+		{"!=4.1", "4.1.0", false},
+		{"!=4.1", "5.1.0", true},
+		{"!=4.x", "5.1.0", true},
+		{"!=4.x", "4.1.0", false},
+		{"!=4.1.x", "4.2.0", true},
+		{"!=4.2.x", "4.2.3", false},
+		{">1.1", "4.1.0", true},
+		{">1.1", "1.1.0", false},
+		{"<1.1", "0.1.0", true},
+		{"<1.1", "1.1.0", false},
+		{"<1.1", "1.1.1", false},
+		{"<1.x", "1.1.1", false},
+		{"<2.x", "1.1.1", true},
+		{"<1.x", "2.1.1", false},
+		{"<1.1.x", "1.2.1", false},
+		{"<1.1.x", "1.1.500", false},
+		{"<1.2.x", "1.1.1", true},
+		{">=1.1", "4.1.0", true},
+		{">=1.1", "1.1.0", true},
+		{">=1.1", "0.0.9", false},
+		{"<=1.1", "0.1.0", true},
+		{"<=1.1", "1.1.0", true},
+		{"<=1.x", "1.1.0", true},
+		{"<=2.x", "3.1.0", false},
+		{"<=1.1", "1.1.1", true},
+		{"<=1.1.x", "1.2.500", false},
+		{">1.1, <2", "1.1.1", false},
+		{">1.1, <2", "1.2.1", true},
+		{">1.1, <3", "4.3.2", false},
+		{">=1.1, <2, !=1.2.3", "1.2.3", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.1.2", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "4.1.2", true},
+		{">=1.1, <2, !=1.2.3 || >= 3", "3.0.0", true},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", false},
+		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", false},
+		{"1.1 - 2", "1.1.1", true},
+		{"1.1-3", "4.3.2", false},
+		{"^1.1", "1.1.1", true},
+		{"^1.1.1-alpha", "1.1.1-beta", true},
+		{"^1.1.1-beta", "1.1.1-alpha", false},
+		{"^1.1", "4.3.2", false},
+		{"^1.x", "1.1.1", true},
+		{"^2.x", "1.1.1", false},
+		{"^1.x", "2.1.1", false},
+		{"^0.0.1", "0.1.3", false},
+		{"^0.0.1", "0.0.1", true},
+		{"~*", "2.1.1", true},
+		{"~1", "2.1.1", false},
+		{"~1", "1.3.5", true},
+		{"~1.x", "2.1.1", false},
+		{"~1.x", "1.3.5", true},
+		{"~1.3.6-alpha", "1.3.5-beta", false},
+		{"~1.3.5-alpha", "1.3.5-beta", true},
+		{"~1.3.5-beta", "1.3.5-alpha", false},
+		{"~1.x", "1.4", true},
+		{"~1.1", "1.1.1", true},
+		{"~1.2.3", "1.2.5", true},
+		{"~1.2.3", "1.2.2", false},
+		{"~1.2.3", "1.3.2", false},
+		{"~1.1", "1.2.3", false},
+		{"~1.3", "2.4.5", false},
+	}
+
+	for _, tc := range tests {
+		c, err := NewConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+		c.IncludePrerelease = true
+
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("err: %s", err)
+			continue
+		}
+
+		a, msgs := c.Validate(v)
+		if a != tc.check {
+			t.Errorf("Constraint '%s' failing with '%s'", tc.constraint, tc.version)
+		} else if !a && len(msgs) == 0 {
+			t.Errorf("%q failed with %q but no errors returned", tc.constraint, tc.version)
+		}
+	}
+
+	v, err := StrictNewVersion("1.2.3")
+	if err != nil {
+		t.Errorf("err: %s", err)
+	}
+
+	c, err := NewConstraint("!= 1.2.5, ^2, <= 1.1.x")
+	if err != nil {
+		t.Errorf("err: %s", err)
+	}
+	c.IncludePrerelease = true
+
+	_, msgs := c.Validate(v)
+	if len(msgs) != 2 {
+		t.Error("Invalid number of validations found")
+	}
+	e := msgs[0].Error()
+	if e != "1.2.3 is less than 2" {
+		t.Error("Did not get expected message: 1.2.3 is less than 2")
+	}
+	e = msgs[1].Error()
+	if e != "1.2.3 is greater than 1.1.x" {
+		t.Error("Did not get expected message: 1.2.3 is greater than 1.1.x")
+	}
+
+	tests2 := []struct {
+		constraint, version, msg string
+	}{
+		// Validations that would return a prerelease message normally but
+		// because prereleases are included are being evaluated based on
+		// the version.
+		{"> 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is less than or equal to 1.2.3"},
+		{"< 1.2.3", "1.2.4-beta.1", "1.2.4-beta.1 is greater than or equal to 1.2.3"},
+		{">= 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is less than 1.2.3"},
+		{"<= 1.2.3", "1.2.4-beta.1", "1.2.4-beta.1 is greater than 1.2.3"},
+
+		// Test messages that are the same because there is no
+		// prerelease issue.
+		{"2.x", "1.2.3", "1.2.3 is less than 2.x"},
+		{"2", "1.2.3", "1.2.3 is less than 2"},
+		{"= 2.0", "1.2.3", "1.2.3 is less than 2.0"},
+		{"!=4.1", "4.1.0", "4.1.0 is equal to 4.1"},
+		{"!=4.x", "4.1.0", "4.1.0 is equal to 4.x"},
+		{"!=4.2.x", "4.2.3", "4.2.3 is equal to 4.2.x"},
+		{">1.1", "1.1.0", "1.1.0 is less than or equal to 1.1"},
+		{"<1.1", "1.1.0", "1.1.0 is greater than or equal to 1.1"},
+		{"<1.1", "1.1.1", "1.1.1 is greater than or equal to 1.1"},
+		{"<1.x", "2.1.1", "2.1.1 is greater than or equal to 1.x"},
+		{"<1.1.x", "1.2.1", "1.2.1 is greater than or equal to 1.1.x"},
+		{">=1.1", "0.0.9", "0.0.9 is less than 1.1"},
+		{"<=2.x", "3.1.0", "3.1.0 is greater than 2.x"},
+		{"<=1.1", "1.2.1", "1.2.1 is greater than 1.1"},
+		{"<=1.1.x", "1.2.500", "1.2.500 is greater than 1.1.x"},
+		{">1.1, <3", "4.3.2", "4.3.2 is greater than or equal to 3"},
+		{">=1.1, <2, !=1.2.3", "1.2.3", "1.2.3 is equal to 1.2.3"},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", "3.0.0 is greater than or equal to 2"},
+		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", "1.2.3 is equal to 1.2.3"},
+		{"1.1 - 3", "4.3.2", "4.3.2 is greater than 3"},
+		{"^1.1", "4.3.2", "4.3.2 does not have same major version as 1.1"},
+		{"^1.12.7", "1.6.6", "1.6.6 is less than 1.12.7"},
+		{"^2.x", "1.1.1", "1.1.1 is less than 2.x"},
+		{"^1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
+		{"^0.2", "0.3.0", "0.3.0 does not have same minor version as 0.2. Expected minor versions to match when constraint major version is 0"},
+		{"^0.2", "0.1.1", "0.1.1 is less than 0.2"},
+		{"^0.0.3", "0.1.1", "0.1.1 does not have same minor version as 0.0.3"},
+		{"^0.0.3", "0.0.4", "0.0.4 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
+		{"^0.0.3", "0.0.2", "0.0.2 is less than 0.0.3"},
+		{"~1", "2.1.2", "2.1.2 does not have same major version as 1"},
+		{"~1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
+		{"~1.2.3", "1.2.2", "1.2.2 is less than 1.2.3"},
+		{"~1.2.3", "1.3.2", "1.3.2 does not have same major and minor version as 1.2.3"},
+		{"~1.1", "1.2.3", "1.2.3 does not have same major and minor version as 1.1"},
+		{"~1.3", "2.4.5", "2.4.5 does not have same major version as 1.3"},
+	}
+
+	for _, tc := range tests2 {
+		c, err := NewConstraint(tc.constraint)
+		if err != nil {
+			t.Errorf("constraint parsing err: %s", err)
+			continue
+		}
+		c.IncludePrerelease = true
 
 		v, err := StrictNewVersion(tc.version)
 		if err != nil {
