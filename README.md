@@ -200,8 +200,8 @@ back to the patch level comparison (see tilde below). For example,
 
 ### Tilde Range Comparisons (Patch)
 
-The tilde (`~`) comparison operator is for patch level ranges when a minor
-version is specified and major level changes when the minor number is missing.
+The tilde (`~`) comparison operator is for patch level ranges when the minor
+number is specified and minor level changes when the major number is specified.
 For example,
 
 * `~1.2.3` is equivalent to `>= 1.2.3, < 1.3.0`
