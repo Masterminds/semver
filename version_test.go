@@ -36,6 +36,8 @@ func TestStrictNewVersion(t *testing.T) {
 		{"1.2.0-x.Y.0+metadata-width-hypen", false},
 		{"v1.2.0-x.Y.0+metadata-width-hypen", true},
 		{"1.2.3-rc1-with-hypen", false},
+		{"1.2.3-0abc123", false}, // string pre-releases can start with 0
+		{"1.2.3-beta.01", true},  // number segment cannot start with 0
 		{"v1.2.3-rc1-with-hypen", true},
 		{"1.2.3.4", true},
 		{"v1.2.3.4", true},
@@ -107,6 +109,8 @@ func TestNewVersion(t *testing.T) {
 			{"v1.2.0-x.Y.0+metadata-width-hypen", false},
 			{"1.2.3-rc1-with-hypen", false},
 			{"v1.2.3-rc1-with-hypen", false},
+			{"1.2.3-0abc123", false}, // string pre-releases can start with 0
+			{"1.2.3-beta.01", true},  // number segment cannot start with 0
 			{"1.2.3.4", true},
 			{"v1.2.3.4", true},
 			{"1.2.2147483648", false},
@@ -183,6 +187,8 @@ func TestNewVersion(t *testing.T) {
 			{"v1.2.0-x.Y.0+metadata-width-hypen", false},
 			{"1.2.3-rc1-with-hypen", false},
 			{"v1.2.3-rc1-with-hypen", false},
+			{"1.2.3-0abc123", false}, // string pre-releases can start with 0
+			{"1.2.3-beta.01", true},  // number segment cannot start with 0
 			{"1.2.3.4", true},
 			{"v1.2.3.4", true},
 			{"1.2.2147483648", false},

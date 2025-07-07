@@ -289,6 +289,8 @@ func coerceNewVersion(v string) (*Version, error) {
 
 // New creates a new instance of Version with each of the parts passed in as
 // arguments instead of parsing a version string.
+// Note, New does not validate prerelease or metadata. Incorrect information can
+// be passed in.
 func New(major, minor, patch uint64, pre, metadata string) *Version {
 	v := Version{
 		major:    major,
@@ -301,6 +303,7 @@ func New(major, minor, patch uint64, pre, metadata string) *Version {
 
 	v.original = v.String()
 
+	// TODO: In the next semver major version validate the pre and metadata. Return error if there is one.
 	return &v
 }
 
