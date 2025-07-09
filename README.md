@@ -50,6 +50,18 @@ other versions, convert the version back into a string, and get the original
 string. Getting the original string is useful if the semantic version was coerced
 into a valid form.
 
+There are package level variables that affect how `NewVersion` handles parsing.
+
+- `CoerceNewVersion` is `true` by default. When set to `true` it coerces non-compliant
+  versions into SemVer. For example, allowing a leading 0 in a major, minor, or patch
+  part. This enables the use of CalVer in versions even when not compliant with SemVer.
+  When set to `false` less coercion work is done.
+- `DetailedNewVersionErrors` provides more detailed errors. It only has an affect when
+  `CoerceNewVersion` is set to `false`. When `DetailedNewVersionErrors` is set to `true`
+  it can provide some more insight into why a version is invalid. Setting
+  `DetailedNewVersionErrors` to `false` is faster on performance but provides less
+  detailed error messages if a version fails to parse.
+
 ## Sorting Semantic Versions
 
 A set of versions can be sorted using the `sort` package from the standard library.
@@ -159,6 +171,10 @@ Understanding ASCII sort ordering is important because A-Z comes before a-z. Tha
 means `>=1.2.3-BETA` will return `1.2.3-alpha`. What you might expect from case
 sensitivity doesn't apply here. This is due to ASCII sort ordering which is what
 the spec specifies.
+
+The `Constraints` instance returned from `semver.NewConstraint()` has a property
+`IncludePrerelease` that, when set to true, will return prerelease versions when calls
+to `Check()` and `Validate()` are made.
 
 ### Hyphen Range Comparisons
 
