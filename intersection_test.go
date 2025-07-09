@@ -1,6 +1,7 @@
 package semver
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 )
@@ -76,11 +77,77 @@ func TestIntersection(t *testing.T) {
 		{">=1.0.0-alpha <1.0.0-beta", ">=1.0.0-beta <1.0.0-rc", ""},
 		{"=1.2.3", ">1.2.3", ""},
 		{">=1 <=2", "~2", ">=2.0.0 <3.0.0"},
+		{">=1.1.1-1", ">=1.1.1", ">=1.1.1"},
+		{">=1.1.1-1", ">=1.1.1 <1.2.1-1", ">=1.1.1 <1.2.1-1"},
+
+		{"1.0.6-1", ">=1.0.3-0 <1.0.6", "1.0.6-1"},
+	}
+
+	for i, tc := range cases {
+		t.Run(fmt.Sprint("WithoutIncludePrerelease ", strconv.Itoa(i)), func(t *testing.T) {
+			got := Intersection(MustParseConstraint(tc.a), MustParseConstraint(tc.b)).String()
+			if got != tc.want {
+				t.Errorf("Intersection(%q, %q) = %q, want %q", tc.a, tc.b, got, tc.want)
+			}
+		})
+		t.Run(fmt.Sprint("IncludePrerelease ", strconv.Itoa(i)), func(t *testing.T) {
+			a := MustParseConstraint(tc.a)
+			b := MustParseConstraint(tc.b)
+			a.IncludePrerelease = true
+			b.IncludePrerelease = true
+			got := Intersection(a, b).String()
+			if got != tc.want {
+				t.Errorf("Intersection(%q, %q) = %q, want %q", tc.a, tc.b, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestIntersectionWithoutIncludePrerelease(t *testing.T) {
+	cases := []struct {
+		a, b, want string
+	}{
+		{">=1.1", "4.1.0-beta", ""},
+		{">1.1", "4.1.0-beta", ""},
+		{"<=1.1", "0.1.0-alpha", ""},
+		{"<1.1", "0.1.0-alpha", ""},
+		{"^1.x", "1.1.1-beta1", ""},
+		{"~1.1", "1.1.1-alpha", ""},
+		{"*", "1.2.3-alpha", ""},
+		{"= 2.0", "2.0.1-beta", ""},
 	}
 
 	for i, tc := range cases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			got := Intersection(MustParseConstraint(tc.a), MustParseConstraint(tc.b)).String()
+			if got != tc.want {
+				t.Errorf("Intersection(%q, %q) = %q, want %q", tc.a, tc.b, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestIntersectionIncludePrerelease(t *testing.T) {
+	cases := []struct {
+		a, b, want string
+	}{
+		{">=1.1", "4.1.0-beta", "4.1.0-beta"},
+		{">1.1", "4.1.0-beta", "4.1.0-beta"},
+		{"<=1.1", "0.1.0-alpha", "0.1.0-alpha"},
+		{"<1.1", "0.1.0-alpha", "0.1.0-alpha"},
+		{"^1.x", "1.1.1-beta1", "1.1.1-beta1"},
+		{"~1.1", "1.1.1-alpha", "1.1.1-alpha"},
+		{"*", "1.2.3-alpha", "1.2.3-alpha"},
+		{"= 2.0", "2.0.1-beta", "2.0.1-beta"},
+	}
+
+	for i, tc := range cases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			a := MustParseConstraint(tc.a)
+			b := MustParseConstraint(tc.b)
+			a.IncludePrerelease = true
+			b.IncludePrerelease = true
+			got := Intersection(a, b).String()
 			if got != tc.want {
 				t.Errorf("Intersection(%q, %q) = %q, want %q", tc.a, tc.b, got, tc.want)
 			}
@@ -212,16 +279,85 @@ func TestIsSubset(t *testing.T) {
 		{"0.x", ">=0.1.0 <0.5.0", false},
 		{"~2", ">=1 <=2", true},
 
-		// issue 21
-		{"1.0.6-1", ">=1.0.3-0 <1.0.6", false},
-		{"1.0.6-1", ">=1.0.3-0 <1.0.7", false},
-		{"1.0.6-1", ">=1.0.3-0 <=1.0.6", false},
+		{"1.0.6-1", ">=1.0.3-0 <1.0.6", true},
+		{"1.0.6-1", ">=1.0.3-0 <1.0.7", true},
+		{"1.0.6-1", ">=1.0.3-0 <=1.0.6", true},
+	}
+
+	for i, tc := range cases {
+		t.Run(fmt.Sprint("WithoutIncludePrerelease ", strconv.Itoa(i)),
+			func(t *testing.T) {
+				got := IsSubset(MustParseConstraint(tc.a), MustParseConstraint(tc.b))
+				if got != tc.want {
+					t.Errorf("IsSubset(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+				}
+			})
+
+		t.Run(fmt.Sprint("IncludePrerelease ", strconv.Itoa(i)), func(t *testing.T) {
+			a := MustParseConstraint(tc.a)
+			b := MustParseConstraint(tc.b)
+			a.IncludePrerelease = true
+			b.IncludePrerelease = true
+			got := IsSubset(a, b)
+			if got != tc.want {
+				t.Errorf("IsSubset(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+			}
+		})
+
+	}
+}
+
+func TestIsSubsetWithoutIncludePrerelease(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"4.1.0-beta", ">=1.1", false},
+		{"4.1.0-beta", ">1.1", false},
+		{"0.1.0-alpha", "<=1.1", false},
+		{"0.1.0-alpha", "<1.1", false},
+		{"1.1.1-beta1", "^1.x", false},
+		{"1.1.1-alpha", "~1.1", false},
+		{"1.2.3-alpha", "*", false},
+		{"2.0.1-beta", "= 2.0", false},
 	}
 
 	for i, tc := range cases {
 		t.Run(strconv.Itoa(i),
 			func(t *testing.T) {
-				if got := IsSubset(MustParseConstraint(tc.a), MustParseConstraint(tc.b)); got != tc.want {
+				got := IsSubset(MustParseConstraint(tc.a), MustParseConstraint(tc.b))
+				if got != tc.want {
+					t.Errorf("IsSubset(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+				}
+			})
+
+	}
+}
+
+func TestIsSubsetIncludePrerelease(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"4.1.0-beta", ">=1.1", true},
+		{"4.1.0-beta", ">1.1", true},
+		{"0.1.0-alpha", "<=1.1", true},
+		{"0.1.0-alpha", "<1.1", true},
+		{"1.1.1-beta1", "^1.x", true},
+		{"1.1.1-alpha", "~1.1", true},
+		{"1.2.3-alpha", "*", true},
+		{"2.0.1-beta", "= 2.0", true},
+	}
+
+	for i, tc := range cases {
+		t.Run(strconv.Itoa(i),
+			func(t *testing.T) {
+				a := MustParseConstraint(tc.a)
+				b := MustParseConstraint(tc.b)
+				a.IncludePrerelease = true
+				b.IncludePrerelease = true
+				got := IsSubset(a, b)
+				if got != tc.want {
 					t.Errorf("IsSubset(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
 				}
 			})

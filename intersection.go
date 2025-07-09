@@ -13,19 +13,26 @@ func Intersection(a, b *Constraints) *Constraints {
 		return nil
 	}
 
+	// We include prereleases if any of the constraints has IncludePrerelease=true.
+	includePre := a.IncludePrerelease || b.IncludePrerelease
+
 	ca, cb := canonicalise(a), canonicalise(b)
 	var out [][]*constraint
 	for _, ga := range ca.constraints {
 		for _, gb := range cb.constraints {
-			g := intersect(ga, gb)
+			g := intersect(ga, gb, includePre)
 			out = append(out, g)
-
 		}
 	}
+
 	if len(out) == 0 {
 		return &Constraints{}
 	}
-	return canonicalise(&Constraints{constraints: out})
+
+	return &Constraints{
+		constraints:       canonicalise(&Constraints{constraints: out}).constraints,
+		IncludePrerelease: includePre,
+	}
 }
 
 // IsSubset returns true if every version satisfying sub also satisfies sup (sub ⊆ sup).
@@ -35,7 +42,7 @@ func IsSubset(sub, sup *Constraints) bool {
 		Intersection(sub, sup).String() == canonicalise(sub).String()
 }
 
-func intersect(a, b []*constraint) []*constraint {
+func intersect(a, b []*constraint, incPre bool) []*constraint {
 	ea, ra := splitExact(a)
 	eb, rb := splitExact(b)
 
@@ -43,9 +50,9 @@ func intersect(a, b []*constraint) []*constraint {
 	case len(ra) == 0 && len(rb) == 0:
 		return exactIntersection(ea, eb)
 	case len(ra) == 0:
-		return filterExact(ea, b)
+		return filterExact(ea, b, incPre)
 	case len(rb) == 0:
-		return filterExact(eb, a)
+		return filterExact(eb, a, incPre)
 	default:
 		return simplify(append(append([]*constraint{}, a...), b...))
 	}
@@ -73,19 +80,27 @@ func exactIntersection(a, b []*constraint) (res []*constraint) {
 	return res
 }
 
-func filterExact(exact, cs []*constraint) (res []*constraint) {
+func filterExact(exact, cs []*constraint, incPre bool) (res []*constraint) {
 	for _, e := range exact {
-		if satisfiesAll(e.con, cs) {
+		if satisfiesAll(e.con, cs, incPre) {
 			res = append(res, e)
 		}
 	}
 	return res
 }
 
-func satisfiesAll(v *Version, cs []*constraint) bool {
+func satisfiesAll(v *Version, cs []*constraint, incPre bool) bool {
+	if !incPre {
+		for _, c := range cs {
+			if c.con.Prerelease() != "" {
+				incPre = true
+				break
+			}
+		}
+	}
+
 	for _, c := range cs {
-		// issue 21
-		if v.Prerelease() != "" && c.con.Prerelease() == "" {
+		if v.Prerelease() != "" && !incPre {
 			return false
 		}
 
