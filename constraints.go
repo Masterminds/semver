@@ -68,6 +68,14 @@ func NewConstraint(c string) (*Constraints, error) {
 	return o, nil
 }
 
+func MustParseConstraint(c string) *Constraints {
+	sc, err := NewConstraint(c)
+	if err != nil {
+		panic(err)
+	}
+	return sc
+}
+
 // Check tests if a version satisfies the constraints.
 func (cs Constraints) Check(v *Version) bool {
 	// TODO(mattfarina): For v4 of this library consolidate the Check and Validate
