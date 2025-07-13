@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -922,6 +923,37 @@ func TestTextUnmarshal(t *testing.T) {
 	}
 }
 
+func TestBinaryMarshallingRoundtrip(t *testing.T) {
+	maxUint64 := uint64(math.MaxUint64)
+	tests := []struct {
+		version string
+	}{
+		{"1.2.3"},
+		{fmt.Sprintf("%d.%d.%d-beta.1+build.123", maxUint64, maxUint64, maxUint64)},
+		{"1.2.3-loooooooooooongString+loooooooooooooooooooongerString"},
+	}
+
+	for _, tc := range tests {
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("Error creating version: %s", err)
+		}
+		data, err := v.MarshalBinary()
+		if err != nil {
+			t.Errorf("Error marshaling version: %s", err)
+		}
+		var v2 Version
+		err = v2.UnmarshalBinary(data)
+		if err != nil {
+			t.Errorf("Error unmarshaling version: %s", err)
+		}
+
+		if tc.version != v2.String() {
+			t.Errorf("Expected version=%q, but got %q", tc.version, v2.String())
+		}
+	}
+}
+
 func TestSQLScanner(t *testing.T) {
 	sVer := "1.1.1"
 	x, err := StrictNewVersion(sVer)
@@ -1017,5 +1049,56 @@ func FuzzStrictNewVersion(f *testing.F) {
 
 	f.Fuzz(func(_ *testing.T, a string) {
 		_, _ = StrictNewVersion(a)
+	})
+}
+
+func FuzzMarshalBinary(f *testing.F) {
+	testcases := [][]any{
+		{uint64(1), uint64(2), uint64(3), "alpha.1", "bar"},
+		{uint64(0), uint64(math.MaxUint64), uint64(0), "", ""},
+	}
+
+	for _, tc := range testcases {
+		f.Add(tc...)
+	}
+
+	f.Fuzz(func(t *testing.T, major uint64, minor uint64, patch uint64, pre string, metadata string) {
+		v := New(major, minor, patch, pre, metadata)
+		data, err := v.MarshalBinary()
+		if err != nil {
+			t.Error("MarshalBinary is unfallable, but error is not nil!")
+		}
+		var v2 Version
+		err = v2.UnmarshalBinary(data)
+		if err != nil {
+			t.Fatal("Failed to unmarshal marshaled value")
+		}
+		completelyEqual := (v.major == v2.major &&
+			v.minor == v2.minor &&
+			v.patch == v2.patch &&
+			v.pre == v2.pre &&
+			v.metadata == v2.metadata)
+		if !completelyEqual {
+			t.Errorf("Marshaling changed the data! Expected %s, got %s", v.String(), v2.String())
+		}
+	})
+}
+
+func FuzzUnmarshalBinary(f *testing.F) {
+	testcases := [][]byte{
+		[]byte(""),
+		[]byte("\x01\x02\x03\aalpha.1\x03bar"),
+		[]byte("\xff\xff\x03\xff\xff\xff\xff\x0f" +
+			"\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\aalpha.1\x03bar"),
+		[]byte("\x00\x00\x94\xc5@\xee\xd1\xd1\xd1\xff\x7f0"),
+	}
+
+	for _, tc := range testcases {
+		f.Add(tc)
+	}
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		var v Version
+		_ = v.UnmarshalBinary(data)
 	})
 }

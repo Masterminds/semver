@@ -3,6 +3,7 @@ package semver
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -566,6 +567,79 @@ func (v *Version) UnmarshalText(text []byte) error {
 // MarshalText implements the encoding.TextMarshaler interface.
 func (v Version) MarshalText() ([]byte, error) {
 	return []byte(v.String()), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+func (v *Version) UnmarshalBinary(data []byte) (err error) {
+	var nums [3]uint64
+	r := bytes.NewReader(data)
+	for i := range nums {
+		nums[i], err = binary.ReadUvarint(r)
+		if err != nil {
+			return ErrInvalidSemVer
+		}
+	}
+
+	var strings [2][]byte
+	var i int
+	// range doesn't advance i to 2
+	// (used to determine whether `break` happened)
+	for i = 0; i < len(strings); i++ {
+		length, err := binary.ReadUvarint(r)
+		if err != nil {
+			break
+		}
+		if length == 0 {
+			continue
+		}
+		if length > uint64(r.Len()) {
+			// Parsed length can't be larger than the remaining
+			// length of the data; without this check a maliciously crafted
+			// `data` can make us attempt to allocate a huge buffer
+			break
+		}
+		// We allocate here instead of returning a slice of data:
+		// data might be a slice of some enormous binary blob. It would be bad
+		// if our reference to the tiny prerelease string would prevent GC
+		// from collecting the whole large slice.
+		strings[i] = make([]byte, length)
+		_, err = r.Read(strings[i])
+		if err != nil {
+			break
+		}
+	}
+	switch i {
+	case 0: // `break` during prerelease string parsing
+		return ErrInvalidPrerelease
+	case 1: // `break` during metadata string parsing
+		return ErrInvalidMetadata
+	}
+
+	*v = Version{
+		major:    nums[0],
+		minor:    nums[1],
+		patch:    nums[2],
+		pre:      string(strings[0]),
+		metadata: string(strings[1]),
+	}
+	return nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (v Version) MarshalBinary() ([]byte, error) {
+	// Once semver has 1.19 as a minimal supported go version -
+	// this can be rewritten with binary.AppendUvarint and
+	// we can allocate a smaller buffer, assuming 5 Uvarints are (usually) <128
+	buf := make([]byte, 5*binary.MaxVarintLen64+len(v.pre)+len(v.metadata))
+	n := 0
+	n += binary.PutUvarint(buf[n:], v.major)
+	n += binary.PutUvarint(buf[n:], v.minor)
+	n += binary.PutUvarint(buf[n:], v.patch)
+	n += binary.PutUvarint(buf[n:], uint64(len(v.pre)))
+	n += copy(buf[n:], v.pre)
+	n += binary.PutUvarint(buf[n:], uint64(len(v.metadata)))
+	n += copy(buf[n:], v.metadata)
+	return buf[:n], nil
 }
 
 // Scan implements the SQL.Scanner interface.
