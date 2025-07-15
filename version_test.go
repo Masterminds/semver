@@ -794,15 +794,16 @@ func TestSetPrerelease(t *testing.T) {
 func TestSetMetadata(t *testing.T) {
 	tests := []struct {
 		v1               string
+		metadataWas      string
 		metadata         string
 		expectedVersion  string
 		expectedMetadata string
 		expectedOriginal string
 		expectedErr      error
 	}{
-		{"1.2.3", "**", "1.2.3", "", "1.2.3", ErrInvalidMetadata},
-		{"1.2.3", "meta", "1.2.3+meta", "meta", "1.2.3+meta", nil},
-		{"v1.2.4", "meta", "1.2.4+meta", "meta", "v1.2.4+meta", nil},
+		{"1.2.3", "", "**", "1.2.3", "", "1.2.3", ErrInvalidMetadata},
+		{"1.2.3", "", "meta", "1.2.3+meta", "meta", "1.2.3+meta", nil},
+		{"v1.2.4", "", "meta", "1.2.4+meta", "meta", "v1.2.4+meta", nil},
 	}
 
 	for _, tc := range tests {
@@ -816,8 +817,14 @@ func TestSetMetadata(t *testing.T) {
 			t.Errorf("Expected to get err=%s, but got err=%s", tc.expectedErr, err)
 		}
 
-		a := v2.Metadata()
-		e := tc.expectedMetadata
+		a := v1.metadata
+		e := tc.metadataWas
+		if a != e {
+			t.Errorf("Expected metadata to not change value=%q, but got %q", e, a)
+		}
+
+		a = v2.Metadata()
+		e = tc.expectedMetadata
 		if a != e {
 			t.Errorf("Expected metadata value=%q, but got %q", e, a)
 		}

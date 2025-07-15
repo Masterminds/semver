@@ -321,7 +321,7 @@ func MustParse(v string) *Version {
 // See the Original() method to retrieve the original value. Semantic Versions
 // don't contain a leading v per the spec. Instead it's optional on
 // implementation.
-func (v Version) String() string {
+func (v *Version) String() string {
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf, "%d.%d.%d", v.major, v.minor, v.patch)
@@ -341,32 +341,32 @@ func (v *Version) Original() string {
 }
 
 // Major returns the major version.
-func (v Version) Major() uint64 {
+func (v *Version) Major() uint64 {
 	return v.major
 }
 
 // Minor returns the minor version.
-func (v Version) Minor() uint64 {
+func (v *Version) Minor() uint64 {
 	return v.minor
 }
 
 // Patch returns the patch version.
-func (v Version) Patch() uint64 {
+func (v *Version) Patch() uint64 {
 	return v.patch
 }
 
 // Prerelease returns the pre-release version.
-func (v Version) Prerelease() string {
+func (v *Version) Prerelease() string {
 	return v.pre
 }
 
 // Metadata returns the metadata on the version.
-func (v Version) Metadata() string {
+func (v *Version) Metadata() string {
 	return v.metadata
 }
 
 // originalVPrefix returns the original 'v' prefix if any.
-func (v Version) originalVPrefix() string {
+func (v *Version) originalVPrefix() string {
 	// Note, only lowercase v is supported as a prefix by the parser.
 	if v.original != "" && v.original[:1] == "v" {
 		return v.original[:1]
@@ -379,8 +379,8 @@ func (v Version) originalVPrefix() string {
 // it unsets metadata and prerelease values, increments patch number.
 // If the current version has any of prerelease or metadata information,
 // it unsets both values and keeps current patch value
-func (v Version) IncPatch() Version {
-	vNext := v
+func (v *Version) IncPatch() Version {
+	vNext := *v
 	// according to http://semver.org/#spec-item-9
 	// Pre-release versions have a lower precedence than the associated normal version.
 	// according to http://semver.org/#spec-item-10
@@ -402,8 +402,8 @@ func (v Version) IncPatch() Version {
 // Increments minor number.
 // Unsets metadata.
 // Unsets prerelease status.
-func (v Version) IncMinor() Version {
-	vNext := v
+func (v *Version) IncMinor() Version {
+	vNext := *v
 	vNext.metadata = ""
 	vNext.pre = ""
 	vNext.patch = 0
@@ -418,8 +418,8 @@ func (v Version) IncMinor() Version {
 // Increments major number.
 // Unsets metadata.
 // Unsets prerelease status.
-func (v Version) IncMajor() Version {
-	vNext := v
+func (v *Version) IncMajor() Version {
+	vNext := *v
 	vNext.metadata = ""
 	vNext.pre = ""
 	vNext.patch = 0
@@ -431,8 +431,8 @@ func (v Version) IncMajor() Version {
 
 // SetPrerelease defines the prerelease value.
 // Value must not include the required 'hyphen' prefix.
-func (v Version) SetPrerelease(prerelease string) (Version, error) {
-	vNext := v
+func (v *Version) SetPrerelease(prerelease string) (Version, error) {
+	vNext := *v
 	if len(prerelease) > 0 {
 		if err := validatePrerelease(prerelease); err != nil {
 			return vNext, err
@@ -445,8 +445,8 @@ func (v Version) SetPrerelease(prerelease string) (Version, error) {
 
 // SetMetadata defines metadata value.
 // Value must not include the required 'plus' prefix.
-func (v Version) SetMetadata(metadata string) (Version, error) {
-	vNext := v
+func (v *Version) SetMetadata(metadata string) (Version, error) {
+	vNext := *v
 	if len(metadata) > 0 {
 		if err := validateMetadata(metadata); err != nil {
 			return vNext, err
@@ -547,7 +547,7 @@ func (v *Version) UnmarshalJSON(b []byte) error {
 }
 
 // MarshalJSON implements JSON.Marshaler interface.
-func (v Version) MarshalJSON() ([]byte, error) {
+func (v *Version) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.String())
 }
 
@@ -564,7 +564,7 @@ func (v *Version) UnmarshalText(text []byte) error {
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-func (v Version) MarshalText() ([]byte, error) {
+func (v *Version) MarshalText() ([]byte, error) {
 	return []byte(v.String()), nil
 }
 
@@ -586,7 +586,7 @@ func (v *Version) Scan(value interface{}) error {
 }
 
 // Value implements the Driver.Valuer interface.
-func (v Version) Value() (driver.Value, error) {
+func (v *Version) Value() (driver.Value, error) {
 	return v.String(), nil
 }
 
