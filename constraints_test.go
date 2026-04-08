@@ -262,7 +262,7 @@ func TestNewConstraint(t *testing.T) {
 			t.Errorf("expected but did not get error for: %s", tc.input)
 			continue
 		} else if !tc.err && err != nil {
-			t.Errorf("unexpectederror for input %s: %s", tc.input, err)
+			t.Errorf("unexpected error for input %s: %s", tc.input, err)
 			continue
 		}
 		if tc.err {
@@ -758,53 +758,53 @@ func TestConstraintsValidate(t *testing.T) {
 		t.Error("Invalid number of validations found")
 	}
 	e := msgs[0].Error()
-	if e != "1.2.3 is less than 2" {
-		t.Error("Did not get expected message: 1.2.3 is less than 2")
+	if e != `"1.2.3" is less than "2"` {
+		t.Error(`Did not get expected message: "1.2.3" is less than "2"`)
 	}
 	e = msgs[1].Error()
-	if e != "1.2.3 is greater than 1.1.x" {
-		t.Error("Did not get expected message: 1.2.3 is greater than 1.1.x")
+	if e != `"1.2.3" is greater than "1.1.x"` {
+		t.Error(`Did not get expected message: "1.2.3" is greater than "1.1.x"`)
 	}
 
 	tests2 := []struct {
 		constraint, version, msg string
 	}{
-		{"2.x", "1.2.3", "1.2.3 is less than 2.x"},
-		{"2", "1.2.3", "1.2.3 is less than 2"},
-		{"= 2.0", "1.2.3", "1.2.3 is less than 2.0"},
-		{"!=4.1", "4.1.0", "4.1.0 is equal to 4.1"},
-		{"!=4.x", "4.1.0", "4.1.0 is equal to 4.x"},
-		{"!=4.2.x", "4.2.3", "4.2.3 is equal to 4.2.x"},
-		{">1.1", "1.1.0", "1.1.0 is less than or equal to 1.1"},
-		{"<1.1", "1.1.0", "1.1.0 is greater than or equal to 1.1"},
-		{"<1.1", "1.1.1", "1.1.1 is greater than or equal to 1.1"},
-		{"<1.x", "2.1.1", "2.1.1 is greater than or equal to 1.x"},
-		{"<1.1.x", "1.2.1", "1.2.1 is greater than or equal to 1.1.x"},
-		{">=1.1", "0.0.9", "0.0.9 is less than 1.1"},
-		{"<=2.x", "3.1.0", "3.1.0 is greater than 2.x"},
-		{"<=1.1", "1.2.1", "1.2.1 is greater than 1.1"},
-		{"<=1.1.x", "1.2.500", "1.2.500 is greater than 1.1.x"},
-		{">1.1, <3", "4.3.2", "4.3.2 is greater than or equal to 3"},
-		{">=1.1, <2, !=1.2.3", "1.2.3", "1.2.3 is equal to 1.2.3"},
-		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", "3.0.0 is greater than or equal to 2"},
-		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", "1.2.3 is equal to 1.2.3"},
-		{"1.1 - 3", "4.3.2", "4.3.2 is greater than 3"},
-		{"^1.1", "4.3.2", "4.3.2 does not have same major version as 1.1"},
-		{"^1.12.7", "1.6.6", "1.6.6 is less than 1.12.7"},
-		{"^2.x", "1.1.1", "1.1.1 is less than 2.x"},
-		{"^1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
-		{"^0.2", "0.3.0", "0.3.0 does not have same minor version as 0.2. Expected minor versions to match when constraint major version is 0"},
-		{"^0.2", "0.1.1", "0.1.1 is less than 0.2"},
-		{"^0.0.3", "0.1.1", "0.1.1 does not have same minor version as 0.0.3"},
-		{"^0.0.3", "0.0.4", "0.0.4 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
-		{"^0.0.3", "0.0.2", "0.0.2 is less than 0.0.3"},
-		{"~1", "2.1.2", "2.1.2 does not have same major version as 1"},
-		{"~1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
-		{"~1.2.3", "1.2.2", "1.2.2 is less than 1.2.3"},
-		{"~1.2.3", "1.3.2", "1.3.2 does not have same major and minor version as 1.2.3"},
-		{"~1.1", "1.2.3", "1.2.3 does not have same major and minor version as 1.1"},
-		{"~1.3", "2.4.5", "2.4.5 does not have same major version as 1.3"},
-		{"> 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is a prerelease version and the constraint is only looking for release versions"},
+		{"2.x", "1.2.3", `"1.2.3" is less than "2.x"`},
+		{"2", "1.2.3", `"1.2.3" is less than "2"`},
+		{"= 2.0", "1.2.3", `"1.2.3" is less than "2.0"`},
+		{"!=4.1", "4.1.0", `"4.1.0" is equal to "4.1"`},
+		{"!=4.x", "4.1.0", `"4.1.0" is equal to "4.x"`},
+		{"!=4.2.x", "4.2.3", `"4.2.3" is equal to "4.2.x"`},
+		{">1.1", "1.1.0", `"1.1.0" is less than or equal to "1.1"`},
+		{"<1.1", "1.1.0", `"1.1.0" is greater than or equal to "1.1"`},
+		{"<1.1", "1.1.1", `"1.1.1" is greater than or equal to "1.1"`},
+		{"<1.x", "2.1.1", `"2.1.1" is greater than or equal to "1.x"`},
+		{"<1.1.x", "1.2.1", `"1.2.1" is greater than or equal to "1.1.x"`},
+		{">=1.1", "0.0.9", `"0.0.9" is less than "1.1"`},
+		{"<=2.x", "3.1.0", `"3.1.0" is greater than "2.x"`},
+		{"<=1.1", "1.2.1", `"1.2.1" is greater than "1.1"`},
+		{"<=1.1.x", "1.2.500", `"1.2.500" is greater than "1.1.x"`},
+		{">1.1, <3", "4.3.2", `"4.3.2" is greater than or equal to "3"`},
+		{">=1.1, <2, !=1.2.3", "1.2.3", `"1.2.3" is equal to "1.2.3"`},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", `"3.0.0" is greater than or equal to "2"`},
+		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", `"1.2.3" is equal to "1.2.3"`},
+		{"1.1 - 3", "4.3.2", `"4.3.2" is greater than "3"`},
+		{"^1.1", "4.3.2", `"4.3.2" does not have same major version as "1.1"`},
+		{"^1.12.7", "1.6.6", `"1.6.6" is less than "1.12.7"`},
+		{"^2.x", "1.1.1", `"1.1.1" is less than "2.x"`},
+		{"^1.x", "2.1.1", `"2.1.1" does not have same major version as "1.x"`},
+		{"^0.2", "0.3.0", `"0.3.0" does not have same minor version as "0.2". Expected minor versions to match when constraint major version is 0`},
+		{"^0.2", "0.1.1", `"0.1.1" is less than "0.2"`},
+		{"^0.0.3", "0.1.1", `"0.1.1" does not have same minor version as "0.0.3"`},
+		{"^0.0.3", "0.0.4", `"0.0.4" does not equal "0.0.3". Expect version and constraint to equal when major and minor versions are 0`},
+		{"^0.0.3", "0.0.2", `"0.0.2" is less than "0.0.3"`},
+		{"~1", "2.1.2", `"2.1.2" does not have same major version as "1"`},
+		{"~1.x", "2.1.1", `"2.1.1" does not have same major version as "1.x"`},
+		{"~1.2.3", "1.2.2", `"1.2.2" is less than "1.2.3"`},
+		{"~1.2.3", "1.3.2", `"1.3.2" does not have same major and minor version as "1.2.3"`},
+		{"~1.1", "1.2.3", `"1.2.3" does not have same major and minor version as "1.1"`},
+		{"~1.3", "2.4.5", `"2.4.5" does not have same major version as "1.3"`},
+		{"> 1.2.3", "1.2.3-beta.1", `"1.2.3-beta.1" is a prerelease version and the constraint is only looking for release versions`},
 	}
 
 	for _, tc := range tests2 {
@@ -961,12 +961,12 @@ func TestConstraintsValidateIncludePrerelease(t *testing.T) {
 		t.Error("Invalid number of validations found")
 	}
 	e := msgs[0].Error()
-	if e != "1.2.3 is less than 2" {
-		t.Error("Did not get expected message: 1.2.3 is less than 2")
+	if e != `"1.2.3" is less than "2"` {
+		t.Error(`Did not get expected message: "1.2.3" is less than "2"`)
 	}
 	e = msgs[1].Error()
-	if e != "1.2.3 is greater than 1.1.x" {
-		t.Error("Did not get expected message: 1.2.3 is greater than 1.1.x")
+	if e != `"1.2.3" is greater than "1.1.x"` {
+		t.Error(`Did not get expected message: "1.2.3" is greater than "1.1.x"`)
 	}
 
 	tests2 := []struct {
@@ -975,48 +975,48 @@ func TestConstraintsValidateIncludePrerelease(t *testing.T) {
 		// Validations that would return a prerelease message normally but
 		// because prereleases are included are being evaluated based on
 		// the version.
-		{"> 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is less than or equal to 1.2.3"},
-		{"< 1.2.3", "1.2.4-beta.1", "1.2.4-beta.1 is greater than or equal to 1.2.3"},
-		{">= 1.2.3", "1.2.3-beta.1", "1.2.3-beta.1 is less than 1.2.3"},
-		{"<= 1.2.3", "1.2.4-beta.1", "1.2.4-beta.1 is greater than 1.2.3"},
+		{"> 1.2.3", "1.2.3-beta.1", `"1.2.3-beta.1" is less than or equal to "1.2.3"`},
+		{"< 1.2.3", "1.2.4-beta.1", `"1.2.4-beta.1" is greater than or equal to "1.2.3"`},
+		{">= 1.2.3", "1.2.3-beta.1", `"1.2.3-beta.1" is less than "1.2.3"`},
+		{"<= 1.2.3", "1.2.4-beta.1", `"1.2.4-beta.1" is greater than "1.2.3"`},
 
 		// Test messages that are the same because there is no
 		// prerelease issue.
-		{"2.x", "1.2.3", "1.2.3 is less than 2.x"},
-		{"2", "1.2.3", "1.2.3 is less than 2"},
-		{"= 2.0", "1.2.3", "1.2.3 is less than 2.0"},
-		{"!=4.1", "4.1.0", "4.1.0 is equal to 4.1"},
-		{"!=4.x", "4.1.0", "4.1.0 is equal to 4.x"},
-		{"!=4.2.x", "4.2.3", "4.2.3 is equal to 4.2.x"},
-		{">1.1", "1.1.0", "1.1.0 is less than or equal to 1.1"},
-		{"<1.1", "1.1.0", "1.1.0 is greater than or equal to 1.1"},
-		{"<1.1", "1.1.1", "1.1.1 is greater than or equal to 1.1"},
-		{"<1.x", "2.1.1", "2.1.1 is greater than or equal to 1.x"},
-		{"<1.1.x", "1.2.1", "1.2.1 is greater than or equal to 1.1.x"},
-		{">=1.1", "0.0.9", "0.0.9 is less than 1.1"},
-		{"<=2.x", "3.1.0", "3.1.0 is greater than 2.x"},
-		{"<=1.1", "1.2.1", "1.2.1 is greater than 1.1"},
-		{"<=1.1.x", "1.2.500", "1.2.500 is greater than 1.1.x"},
-		{">1.1, <3", "4.3.2", "4.3.2 is greater than or equal to 3"},
-		{">=1.1, <2, !=1.2.3", "1.2.3", "1.2.3 is equal to 1.2.3"},
-		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", "3.0.0 is greater than or equal to 2"},
-		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", "1.2.3 is equal to 1.2.3"},
-		{"1.1 - 3", "4.3.2", "4.3.2 is greater than 3"},
-		{"^1.1", "4.3.2", "4.3.2 does not have same major version as 1.1"},
-		{"^1.12.7", "1.6.6", "1.6.6 is less than 1.12.7"},
-		{"^2.x", "1.1.1", "1.1.1 is less than 2.x"},
-		{"^1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
-		{"^0.2", "0.3.0", "0.3.0 does not have same minor version as 0.2. Expected minor versions to match when constraint major version is 0"},
-		{"^0.2", "0.1.1", "0.1.1 is less than 0.2"},
-		{"^0.0.3", "0.1.1", "0.1.1 does not have same minor version as 0.0.3"},
-		{"^0.0.3", "0.0.4", "0.0.4 does not equal 0.0.3. Expect version and constraint to equal when major and minor versions are 0"},
-		{"^0.0.3", "0.0.2", "0.0.2 is less than 0.0.3"},
-		{"~1", "2.1.2", "2.1.2 does not have same major version as 1"},
-		{"~1.x", "2.1.1", "2.1.1 does not have same major version as 1.x"},
-		{"~1.2.3", "1.2.2", "1.2.2 is less than 1.2.3"},
-		{"~1.2.3", "1.3.2", "1.3.2 does not have same major and minor version as 1.2.3"},
-		{"~1.1", "1.2.3", "1.2.3 does not have same major and minor version as 1.1"},
-		{"~1.3", "2.4.5", "2.4.5 does not have same major version as 1.3"},
+		{"2.x", "1.2.3", `"1.2.3" is less than "2.x"`},
+		{"2", "1.2.3", `"1.2.3" is less than "2"`},
+		{"= 2.0", "1.2.3", `"1.2.3" is less than "2.0"`},
+		{"!=4.1", "4.1.0", `"4.1.0" is equal to "4.1"`},
+		{"!=4.x", "4.1.0", `"4.1.0" is equal to "4.x"`},
+		{"!=4.2.x", "4.2.3", `"4.2.3" is equal to "4.2.x"`},
+		{">1.1", "1.1.0", `"1.1.0" is less than or equal to "1.1"`},
+		{"<1.1", "1.1.0", `"1.1.0" is greater than or equal to "1.1"`},
+		{"<1.1", "1.1.1", `"1.1.1" is greater than or equal to "1.1"`},
+		{"<1.x", "2.1.1", `"2.1.1" is greater than or equal to "1.x"`},
+		{"<1.1.x", "1.2.1", `"1.2.1" is greater than or equal to "1.1.x"`},
+		{">=1.1", "0.0.9", `"0.0.9" is less than "1.1"`},
+		{"<=2.x", "3.1.0", `"3.1.0" is greater than "2.x"`},
+		{"<=1.1", "1.2.1", `"1.2.1" is greater than "1.1"`},
+		{"<=1.1.x", "1.2.500", `"1.2.500" is greater than "1.1.x"`},
+		{">1.1, <3", "4.3.2", `"4.3.2" is greater than or equal to "3"`},
+		{">=1.1, <2, !=1.2.3", "1.2.3", `"1.2.3" is equal to "1.2.3"`},
+		{">=1.1, <2, !=1.2.3 || > 3", "3.0.0", `"3.0.0" is greater than or equal to "2"`},
+		{">=1.1, <2, !=1.2.3 || > 3", "1.2.3", `"1.2.3" is equal to "1.2.3"`},
+		{"1.1 - 3", "4.3.2", `"4.3.2" is greater than "3"`},
+		{"^1.1", "4.3.2", `"4.3.2" does not have same major version as "1.1"`},
+		{"^1.12.7", "1.6.6", `"1.6.6" is less than "1.12.7"`},
+		{"^2.x", "1.1.1", `"1.1.1" is less than "2.x"`},
+		{"^1.x", "2.1.1", `"2.1.1" does not have same major version as "1.x"`},
+		{"^0.2", "0.3.0", `"0.3.0" does not have same minor version as "0.2". Expected minor versions to match when constraint major version is 0`},
+		{"^0.2", "0.1.1", `"0.1.1" is less than "0.2"`},
+		{"^0.0.3", "0.1.1", `"0.1.1" does not have same minor version as "0.0.3"`},
+		{"^0.0.3", "0.0.4", `"0.0.4" does not equal "0.0.3". Expect version and constraint to equal when major and minor versions are 0`},
+		{"^0.0.3", "0.0.2", `"0.0.2" is less than "0.0.3"`},
+		{"~1", "2.1.2", `"2.1.2" does not have same major version as "1"`},
+		{"~1.x", "2.1.1", `"2.1.1" does not have same major version as "1.x"`},
+		{"~1.2.3", "1.2.2", `"1.2.2" is less than "1.2.3"`},
+		{"~1.2.3", "1.3.2", `"1.3.2" does not have same major and minor version as "1.2.3"`},
+		{"~1.1", "1.2.3", `"1.2.3" does not have same major and minor version as "1.1"`},
+		{"~1.3", "2.4.5", `"2.4.5" does not have same major version as "1.3"`},
 	}
 
 	for _, tc := range tests2 {
@@ -1070,7 +1070,7 @@ func TestConstraintString(t *testing.T) {
 		}
 
 		if _, err = NewConstraint(c.String()); err != nil {
-			t.Errorf("expected string from constrint %q to parse as valid but got err: %s", tc.constraint, err)
+			t.Errorf("expected string from constraint %q to parse as valid but got err: %s", tc.constraint, err)
 		}
 	}
 }
