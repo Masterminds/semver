@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -391,6 +392,9 @@ func (v Version) IncPatch() Version {
 	} else {
 		vNext.metadata = ""
 		vNext.pre = ""
+		if v.patch == math.MaxUint64 {
+			panic("patch version increment would overflow uint64")
+		}
 		vNext.patch = v.patch + 1
 	}
 	vNext.original = v.originalVPrefix() + "" + vNext.String()
@@ -407,6 +411,9 @@ func (v Version) IncMinor() Version {
 	vNext.metadata = ""
 	vNext.pre = ""
 	vNext.patch = 0
+	if v.minor == math.MaxUint64 {
+		panic("minor version increment would overflow uint64")
+	}
 	vNext.minor = v.minor + 1
 	vNext.original = v.originalVPrefix() + "" + vNext.String()
 	return vNext
@@ -424,6 +431,9 @@ func (v Version) IncMajor() Version {
 	vNext.pre = ""
 	vNext.patch = 0
 	vNext.minor = 0
+	if v.major == math.MaxUint64 {
+		panic("major version increment would overflow uint64")
+	}
 	vNext.major = v.major + 1
 	vNext.original = v.originalVPrefix() + "" + vNext.String()
 	return vNext
