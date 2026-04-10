@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -744,6 +745,36 @@ func TestInc(t *testing.T) {
 			)
 		}
 	}
+}
+
+func TestIncPatchOverflow(t *testing.T) {
+	v := Version{major: 1, minor: 2, patch: math.MaxUint64}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Expected panic on patch overflow, but did not get one")
+		}
+	}()
+	v.IncPatch()
+}
+
+func TestIncMinorOverflow(t *testing.T) {
+	v := Version{major: 1, minor: math.MaxUint64, patch: 0}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Expected panic on minor overflow, but did not get one")
+		}
+	}()
+	v.IncMinor()
+}
+
+func TestIncMajorOverflow(t *testing.T) {
+	v := Version{major: math.MaxUint64, minor: 0, patch: 0}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Expected panic on major overflow, but did not get one")
+		}
+	}()
+	v.IncMajor()
 }
 
 func TestSetPrerelease(t *testing.T) {
