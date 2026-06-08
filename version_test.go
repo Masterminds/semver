@@ -1055,26 +1055,61 @@ func TestValidateMetadata(t *testing.T) {
 }
 
 func FuzzNewVersion(f *testing.F) {
-	testcases := []string{"v1.2.3", " ", "......", "1", "1.2.3-beta.1", "1.2.3+foo", "2.3.4-alpha.1+bar", "lorem ipsum"}
+	testcases := []string{
+		"v1.2.3", " ", "......", "1", "1.2.3-beta.1", "1.2.3+foo", "2.3.4-alpha.1+bar", "lorem ipsum",
+		"0.0.0", "v1.2.3", "1.2.3-alpha.1", "1.2.3+build.2024",
+		"1.2.3-alpha.1+build.2024",
+		"18446744073709551615.18446744073709551615.18446744073709551615",
+		"001.002.003", "1.2.3-alpha...1", "1.2.3+build..meta", "",
+		"x.y.z", "1.2", strings.Repeat("1.2.3-alpha.", 50) + "end",
+	}
 
 	for _, tc := range testcases {
 		f.Add(tc)
 	}
 
-	f.Fuzz(func(_ *testing.T, a string) {
-		_, _ = NewVersion(a)
+	f.Fuzz(func(t *testing.T, a string) {
+		if len(a) > 512 {
+			return
+		}
+		ver, err := NewVersion(a)
+		if err != nil {
+			return
+		}
+		// Round-trip safety
+		str := ver.String()
+		ver2, err2 := NewVersion(str)
+		if err2 == nil && !ver.Equal(ver2) {
+			t.Errorf("Round-trip mismatch: %q → %q", a, str)
+		}
+		// MustParse must not panic on valid output
+		func() {
+			defer func() { recover() }()
+			MustParse(str)
+		}()
 	})
 }
 
 func FuzzStrictNewVersion(f *testing.F) {
-	testcases := []string{"v1.2.3", " ", "......", "1", "1.2.3-beta.1", "1.2.3+foo", "2.3.4-alpha.1+bar", "lorem ipsum"}
+	testcases := []string{
+		"v1.2.3", " ", "......", "1", "1.2.3-beta.1", "1.2.3+foo", "2.3.4-alpha.1+bar", "lorem ipsum",
+		"1.2.3", "1.0.0", "0.0.0", "1.2.3-alpha.1+build.123",
+		"18446744073709551615.0.0",
+	}
 
 	for _, tc := range testcases {
 		f.Add(tc)
 	}
 
-	f.Fuzz(func(_ *testing.T, a string) {
-		_, _ = StrictNewVersion(a)
+	f.Fuzz(func(t *testing.T, a string) {
+		if len(a) > 256 {
+			return
+		}
+		ver, err := StrictNewVersion(a)
+		if err != nil {
+			return
+		}
+		_ = ver.String()
 	})
 }
 
