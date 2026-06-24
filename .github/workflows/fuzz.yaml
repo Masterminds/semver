@@ -13,7 +13,7 @@ jobs:
       cache-key: fuzzing
     steps:
     - name: Install Go
-      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
       with:
         # There are no dependencies so there is no go.sum file. This is needed
         # for the cache key generation. So, caching doesn't happen and a
