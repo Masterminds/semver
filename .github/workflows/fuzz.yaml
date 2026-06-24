@@ -30,7 +30,7 @@ jobs:
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Restore Cache
       id: cache-restore
-      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache/restore@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
       with:
         path: ${{ steps.go-cache-paths.outputs.go-build }}
         key: ${{ env.cache-key }}
@@ -47,7 +47,7 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     # Saving the cache so that Fuzz testing can be additive to previous fuzz testing.
     - name: Save Cache
-      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache/save@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
       with:
         path: ${{ steps.go-cache-paths.outputs.go-build }}
         key: ${{ env.cache-key }}
