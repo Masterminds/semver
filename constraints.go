@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Constraints is one or more constraint that a semantic version can be
+// Constraints is one or more constraints that a semantic version can be
 // checked against.
 type Constraints struct {
 	constraints [][]*constraint
