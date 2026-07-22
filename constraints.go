@@ -15,7 +15,7 @@ type Constraints struct {
 	containsPre []bool
 
 	// IncludePrerelease specifies if pre-releases should be included in
-	// the results. Note, if a constraint range has a prerelease than
+	// the results. Note, if a constraint range has a prerelease then
 	// prereleases will be included for that AND group even if this is
 	// set to false.
 	IncludePrerelease bool
