@@ -39,6 +39,7 @@ var ErrTooManyConstraintGroups = fmt.Errorf("too many constraint groups (max %d)
 // NewConstraint returns a Constraints instance that a Version instance can
 // be checked against. If there is a parse error it will be returned.
 func NewConstraint(c string) (*Constraints, error) {
+	c = strings.TrimSpace(c)
 
 	if len(c) > MaxConstraintLen {
 		return nil, ErrConstraintTooLong

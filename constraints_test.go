@@ -1218,3 +1218,17 @@ func FuzzNewConstraint(f *testing.F) {
 		_, _ = NewConstraint(a)
 	})
 }
+
+func TestNewConstraintTrimSpace(t *testing.T) {
+	c, err := NewConstraint(" >=1.0.0 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := NewVersion("1.2.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Check(v) {
+		t.Fatal("expected match")
+	}
+}

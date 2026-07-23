@@ -96,6 +96,7 @@ const (
 // If you want to coerce a version such as 1 or 1.2 and parse it as the 1.x
 // releases of semver did, use the NewVersion() function.
 func StrictNewVersion(v string) (*Version, error) {
+	v = strings.TrimSpace(v)
 	// Parsing here does not use RegEx in order to increase performance and reduce
 	// allocations.
 
@@ -174,6 +175,7 @@ func StrictNewVersion(v string) (*Version, error) {
 // attempts to convert it to SemVer. If you want  to validate it was a strict
 // semantic version at parse time see StrictNewVersion().
 func NewVersion(v string) (*Version, error) {
+	v = strings.TrimSpace(v)
 	if len(v) > MaxVersionLen {
 		return nil, ErrVersionTooLong
 	}
