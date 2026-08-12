@@ -176,6 +176,22 @@ The `Constraints` instance returned from `semver.NewConstraint()` has a property
 `IncludePrerelease` that, when set to true, will return prerelease versions when calls
 to `Check()` and `Validate()` are made.
 
+
+Without `IncludePrerelease`, a constraint such as `<0.5.0` does **not** match
+`0.4.1-4.1` even though SemVer ordering would consider that prerelease less than
+`0.5.0`. The library treats bare release ranges as release-only (Cargo/npm style)
+unless you opt in:
+
+```go
+c, _ := semver.NewConstraint("<0.5.0")
+c.IncludePrerelease = true
+v, _ := semver.NewVersion("0.4.1-4.1")
+c.Check(v) // true when IncludePrerelease is set
+```
+
+If the constraint itself mentions a prerelease (for example `>=1.2.3-beta`),
+prereleases are considered for that constraint group automatically.
+
 ### Hyphen Range Comparisons
 
 There are multiple methods to handle ranges and the first is hyphens ranges.
