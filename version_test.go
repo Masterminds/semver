@@ -3,6 +3,7 @@ package semver
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -748,34 +749,164 @@ func TestInc(t *testing.T) {
 	}
 }
 
-func TestIncPatchOverflow(t *testing.T) {
-	v := Version{major: 1, minor: 2, patch: math.MaxUint64}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic on patch overflow, but did not get one")
+func TestIncE(t *testing.T) {
+	tests := []struct {
+		v1               string
+		expected         string
+		how              string
+		expectedOriginal string
+	}{
+		{"1.2.3", "1.2.4", "patch", "1.2.4"},
+		{"v1.2.4", "1.2.5", "patch", "v1.2.5"},
+		{"1.2.3", "1.3.0", "minor", "1.3.0"},
+		{"v1.2.4", "1.3.0", "minor", "v1.3.0"},
+		{"1.2.3", "2.0.0", "major", "2.0.0"},
+		{"v1.2.4", "2.0.0", "major", "v2.0.0"},
+		{"1.2.3+meta", "1.2.4", "patch", "1.2.4"},
+		{"1.2.3-beta+meta", "1.2.3", "patch", "1.2.3"},
+		{"v1.2.4-beta+meta", "1.2.4", "patch", "v1.2.4"},
+		{"1.2.3-beta+meta", "1.3.0", "minor", "1.3.0"},
+		{"v1.2.4-beta+meta", "1.3.0", "minor", "v1.3.0"},
+		{"1.2.3-beta+meta", "2.0.0", "major", "2.0.0"},
+		{"v1.2.4-beta+meta", "2.0.0", "major", "v2.0.0"},
+	}
+
+	// The E variants must agree with the panicking ones for every input that
+	// does not overflow.
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+			continue
 		}
-	}()
-	v.IncPatch()
+
+		var v2 Version
+		var incErr error
+		switch tc.how {
+		case "patch":
+			v2, incErr = v1.IncPatchE()
+		case "minor":
+			v2, incErr = v1.IncMinorE()
+		case "major":
+			v2, incErr = v1.IncMajorE()
+		}
+
+		if incErr != nil {
+			t.Errorf("Inc %q of %q returned unexpected error: %s", tc.how, tc.v1, incErr)
+			continue
+		}
+
+		if a, e := v2.String(), tc.expected; a != e {
+			t.Errorf("IncE %q failed. Expected %q got %q", tc.how, e, a)
+		}
+
+		if a, e := v2.Original(), tc.expectedOriginal; a != e {
+			t.Errorf("IncE %q failed. Expected original %q got %q", tc.how, e, a)
+		}
+	}
 }
 
-func TestIncMinorOverflow(t *testing.T) {
-	v := Version{major: 1, minor: math.MaxUint64, patch: 0}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic on minor overflow, but did not get one")
-		}
-	}()
-	v.IncMinor()
+func TestIncOverflow(t *testing.T) {
+	tests := []struct {
+		name    string
+		v       Version
+		inc     func(Version) Version
+		incE    func(Version) (Version, error)
+		wantMsg string
+	}{
+		{
+			name:    "patch",
+			v:       Version{major: 1, minor: 2, patch: math.MaxUint64},
+			inc:     Version.IncPatch,
+			incE:    Version.IncPatchE,
+			wantMsg: "patch version increment would overflow uint64",
+		},
+		{
+			name:    "minor",
+			v:       Version{major: 1, minor: math.MaxUint64, patch: 0},
+			inc:     Version.IncMinor,
+			incE:    Version.IncMinorE,
+			wantMsg: "minor version increment would overflow uint64",
+		},
+		{
+			name:    "major",
+			v:       Version{major: math.MaxUint64, minor: 0, patch: 0},
+			inc:     Version.IncMajor,
+			incE:    Version.IncMajorE,
+			wantMsg: "major version increment would overflow uint64",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// The E variant reports the overflow instead of panicking and
+			// leaves the version untouched.
+			got, err := tc.incE(tc.v)
+			if err == nil {
+				t.Fatalf("Expected an error on %s overflow, but did not get one", tc.name)
+			}
+			if !errors.Is(err, ErrIncrementOverflow) {
+				t.Errorf("Expected error to wrap ErrIncrementOverflow, got: %v", err)
+			}
+			if err.Error() != tc.wantMsg {
+				t.Errorf("Expected error message %q, got %q", tc.wantMsg, err.Error())
+			}
+			if got != tc.v {
+				t.Errorf("Expected the version to be unchanged on overflow. Expected %q got %q", tc.v, got)
+			}
+
+			// The original method still panics, and the panic value is the
+			// same error so it can be inspected after a recover.
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatalf("Expected panic on %s overflow, but did not get one", tc.name)
+				}
+				rerr, ok := r.(error)
+				if !ok {
+					t.Fatalf("Expected the panic value to be an error, got %T", r)
+				}
+				if !errors.Is(rerr, ErrIncrementOverflow) {
+					t.Errorf("Expected panic value to wrap ErrIncrementOverflow, got: %v", rerr)
+				}
+			}()
+			tc.inc(tc.v)
+		})
+	}
 }
 
-func TestIncMajorOverflow(t *testing.T) {
-	v := Version{major: math.MaxUint64, minor: 0, patch: 0}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic on major overflow, but did not get one")
-		}
-	}()
-	v.IncMajor()
+// A version with a maxed out segment is reachable from untrusted input, so the
+// non-panicking path has to cover values that arrive through the parser.
+func TestIncOverflowFromParsedInput(t *testing.T) {
+	v, err := NewVersion("1.2.18446744073709551615")
+	if err != nil {
+		t.Fatalf("Error parsing version: %s", err)
+	}
+
+	if _, err = v.IncPatchE(); !errors.Is(err, ErrIncrementOverflow) {
+		t.Errorf("Expected ErrIncrementOverflow from parsed input, got: %v", err)
+	}
+
+	// The other segments are nowhere near the limit and must still increment.
+	if _, err = v.IncMinorE(); err != nil {
+		t.Errorf("Unexpected error incrementing minor: %s", err)
+	}
+	if _, err = v.IncMajorE(); err != nil {
+		t.Errorf("Unexpected error incrementing major: %s", err)
+	}
+}
+
+// A prerelease does not increment the patch segment, so it cannot overflow
+// even when the patch is already at the maximum.
+func TestIncPatchOverflowWithPrerelease(t *testing.T) {
+	v := Version{major: 1, minor: 2, patch: math.MaxUint64, pre: "beta"}
+	got, err := v.IncPatchE()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	if e := "1.2.18446744073709551615"; got.String() != e {
+		t.Errorf("Expected %q got %q", e, got.String())
+	}
 }
 
 func TestSetPrerelease(t *testing.T) {

@@ -53,6 +53,12 @@ var (
 	// ErrVersionTooLong is returned when a version string exceeds the
 	// maximum allowed length.
 	ErrVersionTooLong = fmt.Errorf("version string is too long (max %d bytes)", MaxVersionLen)
+
+	// ErrIncrementOverflow is returned when incrementing a version segment
+	// would exceed the maximum value of a uint64. Errors returned by
+	// IncMajorE, IncMinorE, and IncPatchE wrap this value and name the segment
+	// that overflowed, so they can be detected with errors.Is.
+	ErrIncrementOverflow = errors.New("version increment would overflow uint64")
 )
 
 // MaxVersionLen is the maximum allowed length of a version string. This guards
@@ -395,7 +401,23 @@ func (v Version) originalVPrefix() string {
 // it unsets metadata and prerelease values, increments patch number.
 // If the current version has any of prerelease or metadata information,
 // it unsets both values and keeps current patch value
+//
+// Note, this panics if the patch segment is math.MaxUint64 and would overflow.
+// A version parsed from untrusted input can reach that value, so callers
+// handling input they do not control should use IncPatchE instead.
 func (v Version) IncPatch() Version {
+	vNext, err := v.IncPatchE()
+	if err != nil {
+		panic(err)
+	}
+	return vNext
+}
+
+// IncPatchE produces the next patch version. It behaves the same as IncPatch
+// but returns an error wrapping ErrIncrementOverflow instead of panicking when
+// the patch segment is math.MaxUint64. On error the version is returned
+// unchanged.
+func (v Version) IncPatchE() (Version, error) {
 	vNext := v
 	// according to http://semver.org/#spec-item-9
 	// Pre-release versions have a lower precedence than the associated normal version.
@@ -408,12 +430,12 @@ func (v Version) IncPatch() Version {
 		vNext.metadata = ""
 		vNext.pre = ""
 		if v.patch == math.MaxUint64 {
-			panic("patch version increment would overflow uint64")
+			return v, fmt.Errorf("patch %w", ErrIncrementOverflow)
 		}
 		vNext.patch = v.patch + 1
 	}
 	vNext.original = v.originalVPrefix() + "" + vNext.String()
-	return vNext
+	return vNext, nil
 }
 
 // IncMinor produces the next minor version.
@@ -421,17 +443,33 @@ func (v Version) IncPatch() Version {
 // Increments minor number.
 // Unsets metadata.
 // Unsets prerelease status.
+//
+// Note, this panics if the minor segment is math.MaxUint64 and would overflow.
+// A version parsed from untrusted input can reach that value, so callers
+// handling input they do not control should use IncMinorE instead.
 func (v Version) IncMinor() Version {
+	vNext, err := v.IncMinorE()
+	if err != nil {
+		panic(err)
+	}
+	return vNext
+}
+
+// IncMinorE produces the next minor version. It behaves the same as IncMinor
+// but returns an error wrapping ErrIncrementOverflow instead of panicking when
+// the minor segment is math.MaxUint64. On error the version is returned
+// unchanged.
+func (v Version) IncMinorE() (Version, error) {
 	vNext := v
 	vNext.metadata = ""
 	vNext.pre = ""
 	vNext.patch = 0
 	if v.minor == math.MaxUint64 {
-		panic("minor version increment would overflow uint64")
+		return v, fmt.Errorf("minor %w", ErrIncrementOverflow)
 	}
 	vNext.minor = v.minor + 1
 	vNext.original = v.originalVPrefix() + "" + vNext.String()
-	return vNext
+	return vNext, nil
 }
 
 // IncMajor produces the next major version.
@@ -440,18 +478,34 @@ func (v Version) IncMinor() Version {
 // Increments major number.
 // Unsets metadata.
 // Unsets prerelease status.
+//
+// Note, this panics if the major segment is math.MaxUint64 and would overflow.
+// A version parsed from untrusted input can reach that value, so callers
+// handling input they do not control should use IncMajorE instead.
 func (v Version) IncMajor() Version {
+	vNext, err := v.IncMajorE()
+	if err != nil {
+		panic(err)
+	}
+	return vNext
+}
+
+// IncMajorE produces the next major version. It behaves the same as IncMajor
+// but returns an error wrapping ErrIncrementOverflow instead of panicking when
+// the major segment is math.MaxUint64. On error the version is returned
+// unchanged.
+func (v Version) IncMajorE() (Version, error) {
 	vNext := v
 	vNext.metadata = ""
 	vNext.pre = ""
 	vNext.patch = 0
 	vNext.minor = 0
 	if v.major == math.MaxUint64 {
-		panic("major version increment would overflow uint64")
+		return v, fmt.Errorf("major %w", ErrIncrementOverflow)
 	}
 	vNext.major = v.major + 1
 	vNext.original = v.originalVPrefix() + "" + vNext.String()
-	return vNext
+	return vNext, nil
 }
 
 // SetPrerelease defines the prerelease value.
