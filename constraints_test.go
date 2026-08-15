@@ -210,7 +210,7 @@ func TestConstraintCheck(t *testing.T) {
 			hasPre = true
 		}
 
-		a, _ := c.check(v, hasPre)
+		a, _ := c.check(v, hasPre, true)
 		if a != tc.check {
 			t.Errorf("Constraint %q failing with %q", tc.constraint, tc.version)
 		}
