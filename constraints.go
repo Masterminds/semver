@@ -92,6 +92,10 @@ func NewConstraint(c string) (*Constraints, error) {
 
 // Check tests if a version satisfies the constraints.
 func (cs Constraints) Check(v *Version) bool {
+	// Validate the version is not nil to prevent panics.
+	if v == nil {
+		return false
+	}
 	// TODO(mattfarina): For v4 of this library consolidate the Check and Validate
 	// functions as the underlying functions make that possible now.
 	// loop over the ORs and check the inner ANDs
@@ -115,6 +119,10 @@ func (cs Constraints) Check(v *Version) bool {
 // Validate checks if a version satisfies a constraint. If not a slice of
 // reasons for the failure are returned in addition to a bool.
 func (cs Constraints) Validate(v *Version) (bool, []error) {
+	// Validate the version is not nil to prevent panics.
+	if v == nil {
+		return false, []error{fmt.Errorf("version is nil")}
+	}
 	// loop over the ORs and check the inner ANDs
 	var e []error
 
