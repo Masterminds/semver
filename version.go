@@ -387,6 +387,17 @@ func (v Version) Metadata() string {
 	return v.metadata
 }
 
+// IsPrerelease returns true if the version has a prerelease identifier.
+func (v *Version) IsPrerelease() bool {
+	return v.Prerelease() != ""
+}
+
+// IsStable returns true if the version is a stable release.
+// A version is stable when Major >= 1 and there's no prerelease identifier.
+func (v *Version) IsStable() bool {
+	return v.Major() >= 1 && v.Prerelease() == ""
+}
+
 // originalVPrefix returns the original 'v' prefix if any.
 func (v Version) originalVPrefix() string {
 	// Note, only lowercase v is supported as a prefix by the parser.
@@ -567,6 +578,25 @@ func (v *Version) Equal(o *Version) bool {
 		return false
 	}
 	return v.Compare(o) == 0
+}
+
+// Diff returns the difference type between two versions.
+// It returns "major", "minor", "patch", "prerelease", or "" if the versions
+// are equal. Metadata differences are ignored.
+func (v *Version) Diff(o *Version) string {
+	if v.Major() != o.Major() {
+		return "major"
+	}
+	if v.Minor() != o.Minor() {
+		return "minor"
+	}
+	if v.Patch() != o.Patch() {
+		return "patch"
+	}
+	if v.Prerelease() != o.Prerelease() {
+		return "prerelease"
+	}
+	return ""
 }
 
 // Compare compares this version to another one. It returns -1, 0, or 1 if

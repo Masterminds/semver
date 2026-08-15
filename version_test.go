@@ -1185,6 +1185,105 @@ func TestValidateMetadata(t *testing.T) {
 	}
 }
 
+func TestDiff(t *testing.T) {
+	tests := []struct {
+		v1       string
+		v2       string
+		expected string
+	}{
+		{"1.2.3", "2.2.3", "major"},
+		{"1.2.3", "1.3.3", "minor"},
+		{"1.2.3", "1.2.4", "patch"},
+		{"1.2.3", "1.2.3-alpha", "prerelease"},
+		{"1.2.3-alpha", "1.2.3-beta", "prerelease"},
+		{"1.2.3-alpha.1", "1.2.3-alpha.2", "prerelease"},
+		{"1.2.3", "1.2.3", ""},
+		{"1.2.3+foo", "1.2.3+bar", ""},
+		{"1.2.3-alpha+foo", "1.2.3-alpha+bar", ""},
+	}
+
+	for _, tc := range tests {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		v2, err := NewVersion(tc.v2)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		a := v1.Diff(v2)
+		e := tc.expected
+		if a != e {
+			t.Errorf(
+				"Diff of '%s' and '%s' failed. Expected '%s', got '%s'",
+				tc.v1, tc.v2, e, a,
+			)
+		}
+	}
+}
+
+func TestIsPrerelease(t *testing.T) {
+	tests := []struct {
+		version  string
+		expected bool
+	}{
+		{"1.2.3", false},
+		{"1.2.3-alpha", true},
+		{"1.2.3-alpha.1", true},
+		{"0.3.7", false},
+		{"0.3.7-beta", true},
+		{"1.2.3-x.7.z.92", true},
+	}
+
+	for _, tc := range tests {
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		a := v.IsPrerelease()
+		e := tc.expected
+		if a != e {
+			t.Errorf(
+				"IsPrerelease of '%s' failed. Expected '%t', got '%t'",
+				tc.version, e, a,
+			)
+		}
+	}
+}
+
+func TestIsStable(t *testing.T) {
+	tests := []struct {
+		version  string
+		expected bool
+	}{
+		{"0.1.0", false},
+		{"0.9.9", false},
+		{"1.0.0", true},
+		{"1.0.0-beta", false},
+		{"2.3.4", true},
+		{"1.2.3-alpha.1", false},
+	}
+
+	for _, tc := range tests {
+		v, err := NewVersion(tc.version)
+		if err != nil {
+			t.Errorf("Error parsing version: %s", err)
+		}
+
+		a := v.IsStable()
+		e := tc.expected
+		if a != e {
+			t.Errorf(
+				"IsStable of '%s' failed. Expected '%t', got '%t'",
+				tc.version, e, a,
+			)
+		}
+	}
+}
+
 func FuzzNewVersion(f *testing.F) {
 	testcases := []string{"v1.2.3", " ", "......", "1", "1.2.3-beta.1", "1.2.3+foo", "2.3.4-alpha.1+bar", "lorem ipsum"}
 
