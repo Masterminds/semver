@@ -1,7 +1,6 @@
 package semver
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -344,17 +343,23 @@ func MustParse(v string) *Version {
 // don't contain a leading v per the spec. Instead it's optional on
 // implementation.
 func (v Version) String() string {
-	var buf bytes.Buffer
+	buf := make([]byte, 0, 12+len(v.pre)+len(v.metadata))
 
-	fmt.Fprintf(&buf, "%d.%d.%d", v.major, v.minor, v.patch)
+	buf = strconv.AppendUint(buf, v.major, 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, v.minor, 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, v.patch, 10)
 	if v.pre != "" {
-		fmt.Fprintf(&buf, "-%s", v.pre)
+		buf = append(buf, '-')
+		buf = append(buf, v.pre...)
 	}
 	if v.metadata != "" {
-		fmt.Fprintf(&buf, "+%s", v.metadata)
+		buf = append(buf, '+')
+		buf = append(buf, v.metadata...)
 	}
 
-	return buf.String()
+	return string(buf)
 }
 
 // Original returns the original value passed in to be parsed.
@@ -690,44 +695,41 @@ func compareSegment(v, o uint64) int {
 }
 
 func comparePrerelease(v, o string) int {
-	// split the prelease versions by their part. The separator, per the spec,
-	// is a .
-	sparts := strings.Split(v, ".")
-	oparts := strings.Split(o, ".")
-
-	// Find the longer length of the parts to know how many loop iterations to
-	// go through.
-	slen := len(sparts)
-	olen := len(oparts)
-
-	l := slen
-	if olen > slen {
-		l = olen
-	}
-
-	// Iterate over each part of the prereleases to compare the differences.
-	for i := 0; i < l; i++ {
-		// Since the lentgh of the parts can be different we need to create
-		// a placeholder. This is to avoid out of bounds issues.
-		stemp := ""
-		if i < slen {
-			stemp = sparts[i]
+	// Compare the prerelease identifiers part by part (the separator, per the
+	// spec, is a .) without allocating a slice of parts. Parts that exist in
+	// only one identifier are compared against the empty string, matching the
+	// original semantics.
+	vi, oi := 0, 0
+	exv, exo := false, false
+	for !exv || !exo {
+		vpart := ""
+		if !exv {
+			if j := strings.IndexByte(v[vi:], '.'); j < 0 {
+				vpart = v[vi:]
+				exv = true
+			} else {
+				vpart = v[vi : vi+j]
+				vi += j + 1
+			}
 		}
 
-		otemp := ""
-		if i < olen {
-			otemp = oparts[i]
+		opart := ""
+		if !exo {
+			if j := strings.IndexByte(o[oi:], '.'); j < 0 {
+				opart = o[oi:]
+				exo = true
+			} else {
+				opart = o[oi : oi+j]
+				oi += j + 1
+			}
 		}
 
-		d := comparePrePart(stemp, otemp)
-		if d != 0 {
+		if d := comparePrePart(vpart, opart); d != 0 {
 			return d
 		}
 	}
 
-	// Reaching here means two versions are of equal value but have different
-	// metadata (the part following a +). They are not identical in string form
-	// but the version comparison finds them to be equal.
+	// Reaching here means the compared parts were all equal.
 	return 0
 }
 
@@ -785,9 +787,21 @@ func comparePrePart(s, o string) int {
 
 // Like strings.ContainsAny but does an only instead of any.
 func containsOnly(s string, comp string) bool {
-	return strings.IndexFunc(s, func(r rune) bool {
-		return !strings.ContainsRune(comp, r)
-	}) == -1
+	if s == "" {
+		return true
+	}
+	// Build a per-byte lookup table once so the per-character check below is
+	// O(1) instead of scanning comp for every rune.
+	var ok [256]bool
+	for i := 0; i < len(comp); i++ {
+		ok[comp[i]] = true
+	}
+	for i := 0; i < len(s); i++ {
+		if !ok[s[i]] {
+			return false
+		}
+	}
+	return true
 }
 
 // From the spec, "Identifiers MUST comprise only
