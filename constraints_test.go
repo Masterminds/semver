@@ -854,6 +854,42 @@ func TestConstraintsValidate(t *testing.T) {
 	}
 }
 
+// TestConstraintErrMessageOne pins the lazy one-argument branch of
+// constraintErr.Error() (built by cerrOne); the prerelease guard inside each
+// constraint func is the only caller of cerrOne and is otherwise only reached
+// when the error is discarded (Check) or re-wrapped by Validate, so it needs
+// the message read directly here.
+func TestConstraintErrMessageOne(t *testing.T) {
+	c := &constraint{orig: "2.0.0", con: MustParse("2.0.0")}
+	v := MustParse("3.1.4-beta")
+
+	ok, err := constraintGreaterThan(v, c, false)
+	if ok {
+		t.Fatal("expected constraint check to fail for a prerelease when prereleases are excluded")
+	}
+	got, want := err.Error(), `"3.1.4-beta" is a prerelease version and the constraint is only looking for release versions`
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// TestConstraintErrMessageTwo pins the lazy two-argument branch of
+// constraintErr.Error() (built by cerrTwo) end-to-end, reading the message
+// straight from the returned error rather than through Validate's own copy.
+func TestConstraintErrMessageTwo(t *testing.T) {
+	c := &constraint{orig: "2.0.0", con: MustParse("2.0.0")}
+	v := MustParse("1.0.0")
+
+	ok, err := constraintGreaterThan(v, c, false)
+	if ok {
+		t.Fatal("expected constraint check to fail for a lower version")
+	}
+	got, want := err.Error(), `"1.0.0" is less than or equal to "2.0.0"`
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestConstraintsValidateIncludePrerelease(t *testing.T) {
 	tests := []struct {
 		constraint string

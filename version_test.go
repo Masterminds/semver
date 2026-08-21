@@ -70,6 +70,25 @@ func TestStrictNewVersion(t *testing.T) {
 		{"alpha+beta", true},
 		{"1.2.3-alpha_beta+foo", true},
 		{"1.0.0-alpha..1", true},
+
+		// Whitespace anywhere in the version is invalid per the spec.
+		{" 1.2.3", true},
+		{"1.2.3 ", true},
+		{"1.2 .3", true},
+		{"1.2.3-alpha 1", true},
+
+		// Dangling separators and empty identifiers are invalid.
+		{"1.2.3+", true}, // empty build metadata
+		{"1.2.3-", true}, // empty pre-release
+		{"1.2.3-alpha.", true},
+		{"1.2.3+meta.", true},
+		{"1.2.3+meta..meta", true},
+
+		// Numeric segments and pre-release identifier parts must not be
+		// negative or lead with zero.
+		{"-1.2.3", true}, // negative major
+		{"1.2.3-rc.01", true},
+		{"1.2.3-01.2", true},
 	}
 
 	for _, tc := range tests {
@@ -137,6 +156,24 @@ func TestNewVersion(t *testing.T) {
 			{"1.0.0-alpha..1", true},                         // Multiple empty segments but one with a value
 			{"9.8.7+meta+meta", true},                        // Multiple metadata parts
 			{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
+
+			// Whitespace anywhere in the version is invalid, loose or not.
+			{" 1.2.3", true},
+			{"1.2.3 ", true},
+			{"1.2 .3", true},
+			{"1.2.3-alpha 1", true},
+
+			// Dangling separators and empty identifiers are invalid.
+			{"1.2.3+", true},
+			{"1.2.3-", true},
+			{"1.2.3-alpha.", true},
+			{"1.2.3+meta.", true},
+			{"1.2.3+meta..meta", true},
+
+			// Negative and leading-zero numeric parts are invalid even loosely.
+			{"-1.2.3", true},
+			{"1.2.3-rc.01", true},
+			{"1.2.3-01.2", true},
 
 			// Versions that are invalid but in loose mode are handled.
 			// This enables a calver-ish style. This pattern has long
@@ -218,6 +255,24 @@ func TestNewVersion(t *testing.T) {
 			{"1.1.01", true},                                 // A leading 0 on a number segment
 			{"9.8.7+meta+meta", true},                        // Multiple metadata parts
 			{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
+
+			// Whitespace anywhere in the version is invalid per the spec.
+			{" 1.2.3", true},
+			{"1.2.3 ", true},
+			{"1.2 .3", true},
+			{"1.2.3-alpha 1", true},
+
+			// Dangling separators and empty identifiers are invalid.
+			{"1.2.3+", true},
+			{"1.2.3-", true},
+			{"1.2.3-alpha.", true},
+			{"1.2.3+meta.", true},
+			{"1.2.3+meta..meta", true},
+
+			// Negative and leading-zero numeric parts are invalid.
+			{"-1.2.3", true},
+			{"1.2.3-rc.01", true},
+			{"1.2.3-01.2", true},
 		}
 
 		for _, tc := range tests {
