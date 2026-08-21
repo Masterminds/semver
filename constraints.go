@@ -294,11 +294,13 @@ func (e *constraintErr) Error() string {
 	return fmt.Sprintf(e.format, e.v)
 }
 
+const cerrOneFormat = "%q is a prerelease version and the constraint is only looking for release versions"
+
 // cerrOne builds a constraintErr referencing only the version, deferring all
 // message formatting (including the version string conversion) until Error()
 // is called.
-func cerrOne(v *Version, format string) *constraintErr {
-	return &constraintErr{format: format, v: v}
+func cerrOne(v *Version) *constraintErr {
+	return &constraintErr{format: cerrOneFormat, v: v}
 }
 
 // cerrTwo builds a constraintErr referencing the version and the constraint's
@@ -378,7 +380,7 @@ func constraintNotEqual(v *Version, c *constraint, includePre bool) (bool, error
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, cerrOne(v, "%q is a prerelease version and the constraint is only looking for release versions")
+		return false, cerrOne(v)
 	}
 
 	if c.dirty {
@@ -417,7 +419,7 @@ func constraintGreaterThan(v *Version, c *constraint, includePre bool) (bool, er
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, cerrOne(v, "%q is a prerelease version and the constraint is only looking for release versions")
+		return false, cerrOne(v)
 	}
 
 	var eq bool
@@ -461,7 +463,7 @@ func constraintLessThan(v *Version, c *constraint, includePre bool) (bool, error
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, cerrOne(v, "%q is a prerelease version and the constraint is only looking for release versions")
+		return false, cerrOne(v)
 	}
 
 	eq := v.Compare(c.con) < 0
@@ -476,7 +478,7 @@ func constraintGreaterThanEqual(v *Version, c *constraint, includePre bool) (boo
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, cerrOne(v, "%q is a prerelease version and the constraint is only looking for release versions")
+		return false, cerrOne(v)
 	}
 
 	eq := v.Compare(c.con) >= 0
@@ -490,7 +492,7 @@ func constraintLessThanEqual(v *Version, c *constraint, includePre bool) (bool, 
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, cerrOne(v, "%q is a prerelease version and the constraint is only looking for release versions")
+		return false, cerrOne(v)
 	}
 
 	var eq bool
@@ -522,7 +524,7 @@ func constraintTilde(v *Version, c *constraint, includePre bool) (bool, error) {
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, cerrOne(v, "%q is a prerelease version and the constraint is only looking for release versions")
+		return false, cerrOne(v)
 	}
 
 	if v.LessThan(c.con) {
@@ -553,7 +555,7 @@ func constraintTildeOrEqual(v *Version, c *constraint, includePre bool) (bool, e
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, cerrOne(v, "%q is a prerelease version and the constraint is only looking for release versions")
+		return false, cerrOne(v)
 	}
 
 	if c.dirty {
@@ -581,7 +583,7 @@ func constraintCaret(v *Version, c *constraint, includePre bool) (bool, error) {
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, cerrOne(v, "%q is a prerelease version and the constraint is only looking for release versions")
+		return false, cerrOne(v)
 	}
 
 	// This less than handles prereleases
