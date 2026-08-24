@@ -792,6 +792,7 @@ func TestConstraintsValidate(t *testing.T) {
 		constraint, version, msg string
 	}{
 		{"2.x", "1.2.3", `"1.2.3" is less than "2.x"`},
+		{"=2.0.0", "2.0.1", `"2.0.1" is not equal to "2.0.0"`},
 		{"2", "1.2.3", `"1.2.3" is less than "2"`},
 		{"= 2.0", "1.2.3", `"1.2.3" is less than "2.0"`},
 		{"!=4.1", "4.1.0", `"4.1.0" is equal to "4.1"`},
