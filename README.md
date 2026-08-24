@@ -82,6 +82,13 @@ for i, r := range raw {
 sort.Sort(semver.Collection(vs))
 ```
 
+The `Sort` function does the same thing without going through the `sort`
+package, which saves an interface dispatch on each comparison.
+
+```go
+semver.Sort(vs)
+```
+
 ## Checking Version Constraints
 
 There are two methods for comparing versions. One uses comparison methods on

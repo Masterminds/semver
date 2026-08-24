@@ -1,5 +1,7 @@
 package semver
 
+import "slices"
+
 // Collection is a collection of Version instances and implements the sort
 // interface. See the sort package for more details.
 // https://golang.org/pkg/sort/
@@ -21,4 +23,13 @@ func (c Collection) Less(i, j int) bool {
 // at two different positions in the slice.
 func (c Collection) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
+}
+
+// Sort sorts a Collection of versions from lowest to highest. It is equivalent
+// to sort.Sort(c) but does not go through the sort.Interface methods, so each
+// comparison avoids an interface dispatch.
+func Sort(c Collection) {
+	slices.SortFunc(c, func(a, b *Version) int {
+		return a.Compare(b)
+	})
 }

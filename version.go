@@ -1,21 +1,14 @@
 package semver
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 )
-
-// The compiled version of the regex created at init() is cached here so it
-// only needs to be created once.
-var versionRegex *regexp.Regexp
-var looseVersionRegex *regexp.Regexp
 
 // CoerceNewVersion sets if leading 0's are allowd in the version part. Leading 0's are
 // not allowed in a valid semantic version. When set to true, NewVersion will coerce
@@ -65,30 +58,12 @@ var (
 // against unbounded input causing excessive memory allocations during parsing.
 const MaxVersionLen = 256
 
-// semVerRegex is the regular expression used to parse a semantic version.
-// This is not the official regex from the semver spec. It has been modified to allow for loose handling
-// where versions like 2.1 are detected.
-const semVerRegex string = `v?(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?(?:\.(0|[1-9]\d*))?` +
-	`(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?` +
-	`(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?`
-
-// looseSemVerRegex is a regular expression that lets invalid semver expressions through
-// with enough detail that certain errors can be checked for.
-const looseSemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
-	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
-	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
-
 // Version represents a single semantic version.
 type Version struct {
 	major, minor, patch uint64
 	pre                 string
 	metadata            string
 	original            string
-}
-
-func init() {
-	versionRegex = regexp.MustCompile("^" + semVerRegex + "$")
-	looseVersionRegex = regexp.MustCompile("^" + looseSemVerRegex + "$")
 }
 
 const (
@@ -113,31 +88,36 @@ func StrictNewVersion(v string) (*Version, error) {
 		return nil, ErrVersionTooLong
 	}
 
-	// Split the parts into [0]major, [1]minor, and [2]patch,prerelease,build
-	parts := strings.SplitN(v, ".", 3)
-	if len(parts) != 3 {
-		return nil, ErrInvalidSemVer
+	// Split the parts into [0]major, [1]minor, and [2]patch,prerelease,build.
+	// The parts are walked in place so that no slice is allocated to hold them.
+	var parts [3]string
+	rest := v
+	for i := 0; i < 2; i++ {
+		j := strings.IndexByte(rest, '.')
+		if j < 0 {
+			return nil, ErrInvalidSemVer
+		}
+		parts[i], rest = rest[:j], rest[j+1:]
 	}
+	parts[2] = rest
 
 	sv := &Version{
 		original: v,
 	}
 
 	// Extract build metadata
-	if strings.Contains(parts[2], "+") {
-		extra := strings.SplitN(parts[2], "+", 2)
-		sv.metadata = extra[1]
-		parts[2] = extra[0]
+	if i := strings.IndexByte(parts[2], '+'); i >= 0 {
+		sv.metadata = parts[2][i+1:]
+		parts[2] = parts[2][:i]
 		if err := validateMetadata(sv.metadata); err != nil {
 			return nil, err
 		}
 	}
 
 	// Extract build prerelease
-	if strings.Contains(parts[2], "-") {
-		extra := strings.SplitN(parts[2], "-", 2)
-		sv.pre = extra[1]
-		parts[2] = extra[0]
+	if i := strings.IndexByte(parts[2], '-'); i >= 0 {
+		sv.pre = parts[2][i+1:]
+		parts[2] = parts[2][:i]
 		if err := validatePrerelease(sv.pre); err != nil {
 			return nil, err
 		}
@@ -146,7 +126,7 @@ func StrictNewVersion(v string) (*Version, error) {
 	// Validate the number segments are valid. This includes only having positive
 	// numbers and no leading 0's.
 	for _, p := range parts {
-		if !containsOnly(p, num) {
+		if !containsOnlyNum(p) {
 			return nil, ErrInvalidCharacters
 		}
 
@@ -186,68 +166,127 @@ func NewVersion(v string) (*Version, error) {
 	if CoerceNewVersion {
 		return coerceNewVersion(v)
 	}
-	m := versionRegex.FindStringSubmatch(v)
-	if m == nil {
+	return exactNewVersion(v)
+}
 
-		// Disabling detailed errors is first so that it is in the fast path.
-		if !DetailedNewVersionErrors {
-			return nil, ErrInvalidSemVer
+// parseVersionParts splits a SemVer-ish version into its numeric segments,
+// prerelease, and metadata. Parsing here does not use RegEx in order to
+// increase performance and reduce allocations.
+//
+// The shape accepted is the loose one: a leading v, one to three numeric
+// segments, then optional dot separated prerelease and metadata identifiers
+// made up of the characters [0-9A-Za-z-]. Rules that a valid semantic version
+// adds on top of that, such as numeric values not having a leading 0, are left
+// to the caller since NewVersion coerces some of them. n is the number of
+// numeric segments found. ok is false when v does not fit the shape at all.
+func parseVersionParts(v string) (segs [3]string, n int, pre, metadata string, ok bool) {
+	s := v
+	if len(s) > 0 && s[0] == 'v' {
+		s = s[1:]
+	}
+
+	// Metadata is everything following the first +. It is separated first
+	// because a - is a valid character within metadata.
+	if i := strings.IndexByte(s, '+'); i >= 0 {
+		metadata = s[i+1:]
+		s = s[:i]
+		if !validIdentifiers(metadata) {
+			return segs, 0, "", "", false
+		}
+	}
+
+	// The prerelease is everything following the first - that remains once
+	// the metadata has been removed.
+	if i := strings.IndexByte(s, '-'); i >= 0 {
+		pre = s[i+1:]
+		s = s[:i]
+		if !validIdentifiers(pre) {
+			return segs, 0, "", "", false
+		}
+	}
+
+	// What remains are the major, minor, and patch segments. The segments are
+	// all checked before any is parsed so that an invalid segment is reported
+	// ahead of a numeric one that is out of range.
+	for {
+		var seg string
+		more := false
+		if i := strings.IndexByte(s, '.'); i >= 0 {
+			seg, s, more = s[:i], s[i+1:], true
+		} else {
+			seg, s = s, ""
 		}
 
-		// Check for specific errors with the semver string and return a more detailed
-		// error.
-		m = looseVersionRegex.FindStringSubmatch(v)
-		if m == nil {
-			return nil, ErrInvalidSemVer
+		if n > 2 || seg == "" || !containsOnlyNum(seg) {
+			return segs, 0, "", "", false
 		}
-		err := validateVersion(m)
-		if err != nil {
-			return nil, err
+		segs[n] = seg
+		n++
+
+		if !more {
+			return segs, n, pre, metadata, true
 		}
+	}
+}
+
+// validIdentifiers reports if s is a series of dot separated identifiers made
+// up of the characters allowed in a prerelease or metadata string. Identifiers
+// must not be empty.
+func validIdentifiers(s string) bool {
+	for {
+		var part string
+		more := false
+		if i := strings.IndexByte(s, '.'); i >= 0 {
+			part, s, more = s[:i], s[i+1:], true
+		} else {
+			part, s = s, ""
+		}
+
+		if part == "" || !containsOnlyAllowed(part) {
+			return false
+		}
+
+		if !more {
+			return true
+		}
+	}
+}
+
+// coerceNewVersion parses a SemVer-ish version, coercing versions such as 1 or
+// 1.2 into a full version. Leading 0's on the numeric segments are allowed.
+func coerceNewVersion(v string) (*Version, error) {
+	segs, n, pre, metadata, ok := parseVersionParts(v)
+	if !ok {
 		return nil, ErrInvalidSemVer
 	}
 
 	sv := &Version{
-		metadata: m[5],
-		pre:      m[4],
+		metadata: metadata,
+		pre:      pre,
 		original: v,
 	}
 
 	var err error
-	sv.major, err = strconv.ParseUint(m[1], 10, 64)
-	if err != nil {
+	if sv.major, err = strconv.ParseUint(segs[0], 10, 64); err != nil {
 		return nil, fmt.Errorf("error parsing version segment: %w", err)
 	}
 
-	if m[2] != "" {
-		sv.minor, err = strconv.ParseUint(m[2], 10, 64)
-		if err != nil {
+	if n > 1 {
+		if sv.minor, err = strconv.ParseUint(segs[1], 10, 64); err != nil {
 			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
-	} else {
-		sv.minor = 0
 	}
 
-	if m[3] != "" {
-		sv.patch, err = strconv.ParseUint(m[3], 10, 64)
-		if err != nil {
+	if n > 2 {
+		if sv.patch, err = strconv.ParseUint(segs[2], 10, 64); err != nil {
 			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
-	} else {
-		sv.patch = 0
 	}
 
-	// Perform some basic due diligence on the extra parts to ensure they are
-	// valid.
-
+	// The characters in the prerelease are already known to be valid. This
+	// catches the numeric identifiers that have a leading 0.
 	if sv.pre != "" {
 		if err = validatePrerelease(sv.pre); err != nil {
-			return nil, err
-		}
-	}
-
-	if sv.metadata != "" {
-		if err = validateMetadata(sv.metadata); err != nil {
 			return nil, err
 		}
 	}
@@ -255,58 +294,93 @@ func NewVersion(v string) (*Version, error) {
 	return sv, nil
 }
 
-func coerceNewVersion(v string) (*Version, error) {
-	m := looseVersionRegex.FindStringSubmatch(v)
-	if m == nil {
+// exactNewVersion parses a version without coercing leading 0's on the numeric
+// segments or on the numeric identifiers of a prerelease. Missing minor and
+// patch segments are still filled in with 0.
+func exactNewVersion(v string) (*Version, error) {
+	segs, n, pre, metadata, ok := parseVersionParts(v)
+	if !ok {
 		return nil, ErrInvalidSemVer
 	}
 
+	// The loose shape allows leading 0's where a valid semantic version does
+	// not. Detect that before anything is parsed so that the fast path when
+	// detailed errors are disabled does no extra work.
+	valid := true
+	for i := 0; i < n; i++ {
+		if len(segs[i]) > 1 && segs[i][0] == '0' {
+			valid = false
+			break
+		}
+	}
+	if valid && pre != "" && validatePrerelease(pre) != nil {
+		valid = false
+	}
+
+	if !valid {
+
+		// Disabling detailed errors is first so that it is in the fast path.
+		if !DetailedNewVersionErrors {
+			return nil, ErrInvalidSemVer
+		}
+
+		// Check for specific errors with the semver string and return a more
+		// detailed error.
+		return nil, detailedVersionError(segs, n, pre, metadata)
+	}
+
 	sv := &Version{
-		metadata: m[8],
-		pre:      m[5],
+		metadata: metadata,
+		pre:      pre,
 		original: v,
 	}
 
 	var err error
-	sv.major, err = strconv.ParseUint(m[1], 10, 64)
-	if err != nil {
+	if sv.major, err = strconv.ParseUint(segs[0], 10, 64); err != nil {
 		return nil, fmt.Errorf("error parsing version segment: %w", err)
 	}
 
-	if m[2] != "" {
-		sv.minor, err = strconv.ParseUint(strings.TrimPrefix(m[2], "."), 10, 64)
-		if err != nil {
+	if n > 1 {
+		if sv.minor, err = strconv.ParseUint(segs[1], 10, 64); err != nil {
 			return nil, fmt.Errorf("error parsing version segment: %w", err)
 		}
-	} else {
-		sv.minor = 0
 	}
 
-	if m[3] != "" {
-		sv.patch, err = strconv.ParseUint(strings.TrimPrefix(m[3], "."), 10, 64)
-		if err != nil {
+	if n > 2 {
+		if sv.patch, err = strconv.ParseUint(segs[2], 10, 64); err != nil {
 			return nil, fmt.Errorf("error parsing version segment: %w", err)
-		}
-	} else {
-		sv.patch = 0
-	}
-
-	// Perform some basic due diligence on the extra parts to ensure they are
-	// valid.
-
-	if sv.pre != "" {
-		if err = validatePrerelease(sv.pre); err != nil {
-			return nil, err
-		}
-	}
-
-	if sv.metadata != "" {
-		if err = validateMetadata(sv.metadata); err != nil {
-			return nil, err
 		}
 	}
 
 	return sv, nil
+}
+
+// detailedVersionError reports the first problem found with a version that is
+// shaped like a semantic version but is not a valid one. Problems are looked
+// for in the order the parts appear in the version.
+func detailedVersionError(segs [3]string, n int, pre, metadata string) error {
+	for i := 0; i < n; i++ {
+		if len(segs[i]) > 1 && segs[i][0] == '0' {
+			return ErrSegmentStartsZero
+		}
+		if _, err := strconv.ParseUint(segs[i], 10, 64); err != nil {
+			return fmt.Errorf("error parsing version segment: %w", err)
+		}
+	}
+
+	if pre != "" {
+		if err := validatePrerelease(pre); err != nil {
+			return err
+		}
+	}
+
+	if metadata != "" {
+		if err := validateMetadata(metadata); err != nil {
+			return err
+		}
+	}
+
+	return ErrInvalidSemVer
 }
 
 // New creates a new instance of Version with each of the parts passed in as
@@ -344,17 +418,27 @@ func MustParse(v string) *Version {
 // don't contain a leading v per the spec. Instead it's optional on
 // implementation.
 func (v Version) String() string {
-	var buf bytes.Buffer
+	// The buffer starts on the stack. It is large enough for three uint64
+	// segments and their separators, so only a version with a prerelease or
+	// metadata can grow it.
+	var b [64]byte
+	buf := b[:0]
 
-	fmt.Fprintf(&buf, "%d.%d.%d", v.major, v.minor, v.patch)
+	buf = strconv.AppendUint(buf, v.major, 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, v.minor, 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, v.patch, 10)
 	if v.pre != "" {
-		fmt.Fprintf(&buf, "-%s", v.pre)
+		buf = append(buf, '-')
+		buf = append(buf, v.pre...)
 	}
 	if v.metadata != "" {
-		fmt.Fprintf(&buf, "+%s", v.metadata)
+		buf = append(buf, '+')
+		buf = append(buf, v.metadata...)
 	}
 
-	return buf.String()
+	return string(buf)
 }
 
 // Original returns the original value passed in to be parsed.
@@ -390,7 +474,7 @@ func (v Version) Metadata() string {
 // originalVPrefix returns the original 'v' prefix if any.
 func (v Version) originalVPrefix() string {
 	// Note, only lowercase v is supported as a prefix by the parser.
-	if v.original != "" && v.original[:1] == "v" {
+	if v.original != "" && v.original[0] == 'v' {
 		return v.original[:1]
 	}
 	return ""
@@ -690,37 +774,15 @@ func compareSegment(v, o uint64) int {
 }
 
 func comparePrerelease(v, o string) int {
-	// split the prelease versions by their part. The separator, per the spec,
-	// is a .
-	sparts := strings.Split(v, ".")
-	oparts := strings.Split(o, ".")
+	// Walk the dot separated parts of both prereleases. The separator, per the
+	// spec, is a . The parts are walked in place so that no slices are
+	// allocated to hold them.
+	for v != "" || o != "" {
+		var sp, op string
+		sp, v = nextPart(v)
+		op, o = nextPart(o)
 
-	// Find the longer length of the parts to know how many loop iterations to
-	// go through.
-	slen := len(sparts)
-	olen := len(oparts)
-
-	l := slen
-	if olen > slen {
-		l = olen
-	}
-
-	// Iterate over each part of the prereleases to compare the differences.
-	for i := 0; i < l; i++ {
-		// Since the lentgh of the parts can be different we need to create
-		// a placeholder. This is to avoid out of bounds issues.
-		stemp := ""
-		if i < slen {
-			stemp = sparts[i]
-		}
-
-		otemp := ""
-		if i < olen {
-			otemp = oparts[i]
-		}
-
-		d := comparePrePart(stemp, otemp)
-		if d != 0 {
+		if d := comparePrePart(sp, op); d != 0 {
 			return d
 		}
 	}
@@ -729,6 +791,15 @@ func comparePrerelease(v, o string) int {
 	// metadata (the part following a +). They are not identical in string form
 	// but the version comparison finds them to be equal.
 	return 0
+}
+
+// nextPart returns the leading dot separated segment of s along with the
+// remainder of s following the dot.
+func nextPart(s string) (part, rest string) {
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		return s[:i], s[i+1:]
+	}
+	return s, ""
 }
 
 func comparePrePart(s, o string) int {
@@ -760,19 +831,19 @@ func comparePrePart(s, o string) int {
 	// have precedence over alphanum. Parsing as Uints because negative numbers
 	// are ignored.
 
-	oi, n1 := strconv.ParseUint(o, 10, 64)
-	si, n2 := strconv.ParseUint(s, 10, 64)
+	oi, onum := parseIdentifierNum(o)
+	si, snum := parseIdentifierNum(s)
 
 	// The case where both are strings compare the strings
-	if n1 != nil && n2 != nil {
+	if !onum && !snum {
 		if s > o {
 			return 1
 		}
 		return -1
-	} else if n1 != nil {
+	} else if !onum {
 		// o is a string and s is a number
 		return -1
-	} else if n2 != nil {
+	} else if !snum {
 		// s is a string and o is a number
 		return 1
 	}
@@ -783,11 +854,62 @@ func comparePrePart(s, o string) int {
 	return -1
 }
 
-// Like strings.ContainsAny but does an only instead of any.
-func containsOnly(s string, comp string) bool {
-	return strings.IndexFunc(s, func(r rune) bool {
-		return !strings.ContainsRune(comp, r)
-	}) == -1
+// parseIdentifierNum reports if a prerelease identifier is a number and, when
+// it is, its value. An identifier that would overflow a uint64 is not treated
+// as a number. Parsing here does not use strconv so that an identifier that is
+// not a number costs no allocation.
+func parseIdentifierNum(s string) (uint64, bool) {
+	if s == "" {
+		return 0, false
+	}
+
+	var n uint64
+	for i := 0; i < len(s); i++ {
+		if !numChars[s[i]] {
+			return 0, false
+		}
+		d := uint64(s[i] - '0')
+		if n > (math.MaxUint64-d)/10 {
+			return 0, false
+		}
+		n = n*10 + d
+	}
+
+	return n, true
+}
+
+// allowedChars and numChars are lookup tables for the characters allowed in
+// the identifier and numeric portions of a version.
+var allowedChars, numChars [256]bool
+
+func init() {
+	for i := 0; i < len(allowed); i++ {
+		allowedChars[allowed[i]] = true
+	}
+	for i := 0; i < len(num); i++ {
+		numChars[num[i]] = true
+	}
+}
+
+// containsOnlyNum reports if s is made up only of the digits 0-9.
+func containsOnlyNum(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if !numChars[s[i]] {
+			return false
+		}
+	}
+	return true
+}
+
+// containsOnlyAllowed reports if s is made up only of the characters valid in
+// a prerelease or metadata identifier.
+func containsOnlyAllowed(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if !allowedChars[s[i]] {
+			return false
+		}
+	}
+	return true
 }
 
 // From the spec, "Identifiers MUST comprise only
@@ -795,16 +917,17 @@ func containsOnly(s string, comp string) bool {
 // Numeric identifiers MUST NOT include leading zeroes.". These segments can
 // be dot separated.
 func validatePrerelease(p string) error {
-	eparts := strings.Split(p, ".")
-	for _, p := range eparts {
-		if p == "" {
-			return ErrInvalidPrerelease
-		} else if containsOnly(p, num) {
-			if len(p) > 1 && p[0] == '0' {
-				return ErrSegmentStartsZero
-			}
-		} else if !containsOnly(p, allowed) {
-			return ErrInvalidPrerelease
+	if !validIdentifiers(p) {
+		return ErrInvalidPrerelease
+	}
+
+	// The identifiers are known to be valid and non-empty. Numeric identifiers
+	// must not have a leading 0.
+	for p != "" {
+		var part string
+		part, p = nextPart(p)
+		if len(part) > 1 && part[0] == '0' && containsOnlyNum(part) {
+			return ErrSegmentStartsZero
 		}
 	}
 
@@ -816,64 +939,8 @@ func validatePrerelease(p string) error {
 // following the patch or pre-release version. Identifiers MUST comprise only
 // ASCII alphanumerics and hyphen [0-9A-Za-z-]. Identifiers MUST NOT be empty."
 func validateMetadata(m string) error {
-	eparts := strings.Split(m, ".")
-	for _, p := range eparts {
-		if p == "" {
-			return ErrInvalidMetadata
-		} else if !containsOnly(p, allowed) {
-			return ErrInvalidMetadata
-		}
+	if !validIdentifiers(m) {
+		return ErrInvalidMetadata
 	}
-	return nil
-}
-
-// validateVersion checks for common validation issues but may not catch all errors
-func validateVersion(m []string) error {
-	var err error
-	var v string
-	if m[1] != "" {
-		if len(m[1]) > 1 && m[1][0] == '0' {
-			return ErrSegmentStartsZero
-		}
-		_, err = strconv.ParseUint(m[1], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing version segment: %w", err)
-		}
-	}
-
-	if m[2] != "" {
-		v = strings.TrimPrefix(m[2], ".")
-		if len(v) > 1 && v[0] == '0' {
-			return ErrSegmentStartsZero
-		}
-		_, err = strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing version segment: %w", err)
-		}
-	}
-
-	if m[3] != "" {
-		v = strings.TrimPrefix(m[3], ".")
-		if len(v) > 1 && v[0] == '0' {
-			return ErrSegmentStartsZero
-		}
-		_, err = strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing version segment: %w", err)
-		}
-	}
-
-	if m[5] != "" {
-		if err = validatePrerelease(m[5]); err != nil {
-			return err
-		}
-	}
-
-	if m[8] != "" {
-		if err = validateMetadata(m[8]); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }

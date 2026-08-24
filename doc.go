@@ -46,6 +46,11 @@ For example,
 
 		sort.Sort(semver.Collection(vs))
 
+The `Sort` function does the same thing without going through the `sort`
+package, which saves an interface dispatch on each comparison. For example,
+
+	semver.Sort(vs)
+
 # Checking Version Constraints and Comparing Versions
 
 There are two methods for comparing versions. One uses comparison methods on

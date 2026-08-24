@@ -1,6 +1,7 @@
 package semver
 
 import (
+	"sort"
 	"testing"
 )
 
@@ -244,4 +245,69 @@ func BenchmarkStrictNewVersionMetaDash(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	benchStrictNewVersion("1.0.0-alpha.1+meta.data", b)
+}
+
+/* Comparison benchmarks */
+
+func benchCompare(v1, v2 string, b *testing.B) {
+	a, _ := NewVersion(v1)
+	c, _ := NewVersion(v2)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		a.Compare(c)
+	}
+}
+
+func BenchmarkCompareSimple(b *testing.B) {
+	benchCompare("1.2.3", "1.2.4", b)
+}
+
+func BenchmarkComparePrerelease(b *testing.B) {
+	benchCompare("1.2.3-alpha.1", "1.2.3-alpha.2", b)
+}
+
+func BenchmarkComparePrereleaseLong(b *testing.B) {
+	benchCompare("1.2.3-alpha.beta.11.rc.1", "1.2.3-alpha.beta.11.rc.2", b)
+}
+
+/* Sorting benchmarks */
+
+// sortCorpus is a set of versions covering release and prerelease values
+// across several major, minor, and patch segments.
+var sortCorpus = []string{
+	"1.2.3", "0.4.2", "2.0.0", "1.0.0-alpha", "1.0.0-alpha.1",
+	"1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2", "1.0.0-beta.11",
+	"1.0.0-rc.1", "1.0.0", "1.3.0", "1.2.0", "3.1.4", "2.7.18",
+	"0.0.1", "10.0.0", "1.2.3+meta", "4.5.6-rc.1+build.1", "2.0.0-rc.2",
+}
+
+func BenchmarkCollectionSort(b *testing.B) {
+	vs := make(Collection, len(sortCorpus))
+	for i, r := range sortCorpus {
+		vs[i] = MustParse(r)
+	}
+
+	work := make(Collection, len(vs))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy(work, vs)
+		sort.Sort(work)
+	}
+}
+
+func BenchmarkCollectionSortFunc(b *testing.B) {
+	vs := make(Collection, len(sortCorpus))
+	for i, r := range sortCorpus {
+		vs[i] = MustParse(r)
+	}
+
+	work := make(Collection, len(vs))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		copy(work, vs)
+		Sort(work)
+	}
 }
