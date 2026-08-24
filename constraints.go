@@ -55,14 +55,9 @@ func NewConstraint(c string) (*Constraints, error) {
 	or := make([][]*constraint, lenors)
 	hasPre := make([]bool, lenors)
 	for k, v := range ors {
-		// Validate the segment
-		if !validConstraintRegex.MatchString(v) {
+		cs, ok := handSplitGroup(v)
+		if !ok {
 			return nil, fmt.Errorf("improper constraint: %q", v)
-		}
-
-		cs := findConstraintRegex.FindAllString(v, -1)
-		if cs == nil {
-			cs = append(cs, v)
 		}
 		result := make([]*constraint, len(cs))
 		for i, s := range cs {
@@ -98,7 +93,9 @@ func (cs Constraints) Check(v *Version) bool {
 	for i, o := range cs.constraints {
 		joy := true
 		for _, c := range o {
-			if check, _ := c.check(v, (cs.IncludePrerelease || cs.containsPre[i])); !check {
+			// The predicate form returns an errID instead of a formatted
+			// error, so a failing check costs no formatting or allocation.
+			if ok, _ := c.pf(v, c, cs.IncludePrerelease || cs.containsPre[i]); !ok {
 				joy = false
 				break
 			}
@@ -190,6 +187,7 @@ func (cs Constraints) MarshalText() ([]byte, error) {
 }
 
 var constraintOps map[string]cfunc
+var constraintPreds map[string]pfunc
 var constraintRegex *regexp.Regexp
 var constraintRangeRegex *regexp.Regexp
 
@@ -217,6 +215,21 @@ func init() {
 		"~":  constraintTilde,
 		"~>": constraintTilde,
 		"^":  constraintCaret,
+	}
+
+	constraintPreds = map[string]pfunc{
+		"":   tildeOrEqualPred,
+		"=":  tildeOrEqualPred,
+		"!=": notEqualPred,
+		">":  greaterThanPred,
+		"<":  lessThanPred,
+		">=": greaterThanEqualPred,
+		"=>": greaterThanEqualPred,
+		"<=": lessThanEqualPred,
+		"=<": lessThanEqualPred,
+		"~":  tildePred,
+		"~>": tildePred,
+		"^":  caretPred,
 	}
 
 	ops := `=||!=|>|<|>=|=>|<=|=<|~|~>|\^`
@@ -262,11 +275,19 @@ type constraint struct {
 	minorDirty bool
 	dirty      bool
 	patchDirty bool
+
+	// cf is the constraint function resolved at parse time so that Check does
+	// not pay a map lookup per check.
+	cf cfunc
+
+	// pf is the predicate form of cf that reports the failure as an errID
+	// instead of an error, so Check performs no error formatting.
+	pf pfunc
 }
 
 // Check if a version meets the constraint
 func (c *constraint) check(v *Version, includePre bool) (bool, error) {
-	return constraintOps[c.origfunc](v, c, includePre)
+	return c.cf(v, c, includePre)
 }
 
 // String prints an individual constraint into a string
@@ -276,10 +297,124 @@ func (c *constraint) string() string {
 
 type cfunc func(v *Version, c *constraint, includePre bool) (bool, error)
 
+// pfunc is the fast predicate form of cfunc. It reports the failure reason as
+// an errID so Check can skip all error formatting and allocation.
+type pfunc func(v *Version, c *constraint, includePre bool) (bool, errID)
+
+// Wrappers over the predicates that format the error for Validate.
+func constraintNotEqual(v *Version, c *constraint, includePre bool) (bool, error) {
+	if ok, id := notEqualPred(v, c, includePre); !ok {
+		return false, cerrError(id, v, c)
+	}
+	return true, nil
+}
+
+func constraintGreaterThan(v *Version, c *constraint, includePre bool) (bool, error) {
+	if ok, id := greaterThanPred(v, c, includePre); !ok {
+		return false, cerrError(id, v, c)
+	}
+	return true, nil
+}
+
+func constraintLessThan(v *Version, c *constraint, includePre bool) (bool, error) {
+	if ok, id := lessThanPred(v, c, includePre); !ok {
+		return false, cerrError(id, v, c)
+	}
+	return true, nil
+}
+
+func constraintGreaterThanEqual(v *Version, c *constraint, includePre bool) (bool, error) {
+	if ok, id := greaterThanEqualPred(v, c, includePre); !ok {
+		return false, cerrError(id, v, c)
+	}
+	return true, nil
+}
+
+func constraintLessThanEqual(v *Version, c *constraint, includePre bool) (bool, error) {
+	if ok, id := lessThanEqualPred(v, c, includePre); !ok {
+		return false, cerrError(id, v, c)
+	}
+	return true, nil
+}
+
+func constraintTilde(v *Version, c *constraint, includePre bool) (bool, error) {
+	if ok, id := tildePred(v, c, includePre); !ok {
+		return false, cerrError(id, v, c)
+	}
+	return true, nil
+}
+
+func constraintTildeOrEqual(v *Version, c *constraint, includePre bool) (bool, error) {
+	if ok, id := tildeOrEqualPred(v, c, includePre); !ok {
+		return false, cerrError(id, v, c)
+	}
+	return true, nil
+}
+
+func constraintCaret(v *Version, c *constraint, includePre bool) (bool, error) {
+	if ok, id := caretPred(v, c, includePre); !ok {
+		return false, cerrError(id, v, c)
+	}
+	return true, nil
+}
+
+// errID identifies the reason a constraint check failed. The predicates used
+// by Check return an errID instead of a formatted error so that a Check that
+// discards the error performs no message formatting and no allocation. The
+// wrapper cfuncs convert the errID into an error for Validate.
+type errID int
+
+const (
+	errNone           = errID(iota)
+	errPre            // "%q is a prerelease version and the constraint is only looking for release versions"
+	errEqual          // "%q is equal to %q"
+	errLTE            // "%q is less than or equal to %q"
+	errGTE            // "%q is greater than or equal to %q"
+	errLT             // "%q is less than %q"
+	errGT             // "%q is greater than %q"
+	errSameMajor      // "%q does not have same major version as %q"
+	errSameMajorMinor // "%q does not have same major and minor version as %q"
+	errNotEqual       // "%q is not equal to %q"
+	errMinorMatch     // "%q does not have same minor version as %q. Expected minor versions to match when constraint major version is 0"
+	errMinor          // "%q does not have same minor version as %q"
+	errZeroZero       // "%q does not equal %q. Expect version and constraint to equal when major and minor versions are 0"
+)
+
+// cerrError formats the error for a failed constraint check.
+func cerrError(id errID, v *Version, c *constraint) error {
+	switch id {
+	case errPre:
+		return fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+	case errEqual:
+		return fmt.Errorf("%q is equal to %q", v, c.orig)
+	case errLTE:
+		return fmt.Errorf("%q is less than or equal to %q", v, c.orig)
+	case errGTE:
+		return fmt.Errorf("%q is greater than or equal to %q", v, c.orig)
+	case errLT:
+		return fmt.Errorf("%q is less than %q", v, c.orig)
+	case errGT:
+		return fmt.Errorf("%q is greater than %q", v, c.orig)
+	case errSameMajor:
+		return fmt.Errorf("%q does not have same major version as %q", v, c.orig)
+	case errSameMajorMinor:
+		return fmt.Errorf("%q does not have same major and minor version as %q", v, c.orig)
+	case errNotEqual:
+		return fmt.Errorf("%q is not equal to %q", v, c.orig)
+	case errMinorMatch:
+		return fmt.Errorf("%q does not have same minor version as %q. Expected minor versions to match when constraint major version is 0", v, c.orig)
+	case errMinor:
+		return fmt.Errorf("%q does not have same minor version as %q", v, c.orig)
+	case errZeroZero:
+		return fmt.Errorf("%q does not equal %q. Expect version and constraint to equal when major and minor versions are 0", v, c.orig)
+	}
+	return fmt.Errorf("unknown check error")
+}
+
 func parseConstraint(c string) (*constraint, error) {
 	if len(c) > 0 {
-		m := constraintRegex.FindStringSubmatch(c)
-		if m == nil {
+		m, ok := parseAtomGroups(c)
+		if !ok {
 			return nil, fmt.Errorf("improper constraint: %q", c)
 		}
 
@@ -317,6 +452,8 @@ func parseConstraint(c string) (*constraint, error) {
 		cs.minorDirty = minorDirty
 		cs.patchDirty = patchDirty
 		cs.dirty = dirty
+		cs.cf = constraintOps[m[1]]
+		cs.pf = constraintPreds[m[1]]
 
 		return cs, nil
 	}
@@ -338,55 +475,57 @@ func parseConstraint(c string) (*constraint, error) {
 		minorDirty: false,
 		patchDirty: false,
 		dirty:      true,
+		cf:         constraintOps[""],
+		pf:         constraintPreds[""],
 	}
 	return cs, nil
 }
 
 // Constraint functions
-func constraintNotEqual(v *Version, c *constraint, includePre bool) (bool, error) {
+func notEqualPred(v *Version, c *constraint, includePre bool) (bool, errID) {
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+		return false, errPre
 	}
 
 	if c.dirty {
 		if c.con.Major() != v.Major() {
-			return true, nil
+			return true, errNone
 		}
 		if c.con.Minor() != v.Minor() && !c.minorDirty {
-			return true, nil
+			return true, errNone
 		} else if c.minorDirty {
-			return false, fmt.Errorf("%q is equal to %q", v, c.orig)
+			return false, errEqual
 		} else if c.con.Patch() != v.Patch() && !c.patchDirty {
-			return true, nil
+			return true, errNone
 		} else if c.patchDirty {
 			// Need to handle prereleases if present
 			if v.Prerelease() != "" || c.con.Prerelease() != "" {
 				eq := comparePrerelease(v.Prerelease(), c.con.Prerelease()) != 0
 				if eq {
-					return true, nil
+					return true, errNone
 				}
-				return false, fmt.Errorf("%q is equal to %q", v, c.orig)
+				return false, errEqual
 			}
-			return false, fmt.Errorf("%q is equal to %q", v, c.orig)
+			return false, errEqual
 		}
 	}
 
 	eq := v.Equal(c.con)
 	if eq {
-		return false, fmt.Errorf("%q is equal to %q", v, c.orig)
+		return false, errEqual
 	}
 
-	return true, nil
+	return true, errNone
 }
 
-func constraintGreaterThan(v *Version, c *constraint, includePre bool) (bool, error) {
+func greaterThanPred(v *Version, c *constraint, includePre bool) (bool, errID) {
 
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+		return false, errPre
 	}
 
 	var eq bool
@@ -394,72 +533,72 @@ func constraintGreaterThan(v *Version, c *constraint, includePre bool) (bool, er
 	if !c.dirty {
 		eq = v.Compare(c.con) == 1
 		if eq {
-			return true, nil
+			return true, errNone
 		}
-		return false, fmt.Errorf("%q is less than or equal to %q", v, c.orig)
+		return false, errLTE
 	}
 
 	if v.Major() > c.con.Major() {
-		return true, nil
+		return true, errNone
 	} else if v.Major() < c.con.Major() {
-		return false, fmt.Errorf("%q is less than or equal to %q", v, c.orig)
+		return false, errLTE
 	} else if c.minorDirty {
 		// This is a range case such as >11. When the version is something like
 		// 11.1.0 is it not > 11. For that we would need 12 or higher
-		return false, fmt.Errorf("%q is less than or equal to %q", v, c.orig)
+		return false, errLTE
 	} else if c.patchDirty {
 		// This is for ranges such as >11.1. A version of 11.1.1 is not greater
 		// which one of 11.2.1 is greater
 		eq = v.Minor() > c.con.Minor()
 		if eq {
-			return true, nil
+			return true, errNone
 		}
-		return false, fmt.Errorf("%q is less than or equal to %q", v, c.orig)
+		return false, errLTE
 	}
 
 	// If we have gotten here we are not comparing pre-preleases and can use the
 	// Compare function to accomplish that.
 	eq = v.Compare(c.con) == 1
 	if eq {
-		return true, nil
+		return true, errNone
 	}
-	return false, fmt.Errorf("%q is less than or equal to %q", v, c.orig)
+	return false, errLTE
 }
 
-func constraintLessThan(v *Version, c *constraint, includePre bool) (bool, error) {
+func lessThanPred(v *Version, c *constraint, includePre bool) (bool, errID) {
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+		return false, errPre
 	}
 
 	eq := v.Compare(c.con) < 0
 	if eq {
-		return true, nil
+		return true, errNone
 	}
-	return false, fmt.Errorf("%q is greater than or equal to %q", v, c.orig)
+	return false, errGTE
 }
 
-func constraintGreaterThanEqual(v *Version, c *constraint, includePre bool) (bool, error) {
+func greaterThanEqualPred(v *Version, c *constraint, includePre bool) (bool, errID) {
 
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+		return false, errPre
 	}
 
 	eq := v.Compare(c.con) >= 0
 	if eq {
-		return true, nil
+		return true, errNone
 	}
-	return false, fmt.Errorf("%q is less than %q", v, c.orig)
+	return false, errLT
 }
 
-func constraintLessThanEqual(v *Version, c *constraint, includePre bool) (bool, error) {
+func lessThanEqualPred(v *Version, c *constraint, includePre bool) (bool, errID) {
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+		return false, errPre
 	}
 
 	var eq bool
@@ -467,18 +606,18 @@ func constraintLessThanEqual(v *Version, c *constraint, includePre bool) (bool, 
 	if !c.dirty {
 		eq = v.Compare(c.con) <= 0
 		if eq {
-			return true, nil
+			return true, errNone
 		}
-		return false, fmt.Errorf("%q is greater than %q", v, c.orig)
+		return false, errGT
 	}
 
 	if v.Major() > c.con.Major() {
-		return false, fmt.Errorf("%q is greater than %q", v, c.orig)
+		return false, errGT
 	} else if v.Major() == c.con.Major() && v.Minor() > c.con.Minor() && !c.minorDirty {
-		return false, fmt.Errorf("%q is greater than %q", v, c.orig)
+		return false, errGT
 	}
 
-	return true, nil
+	return true, errNone
 }
 
 // ~*, ~>* --> >= 0.0.0 (any)
@@ -487,54 +626,54 @@ func constraintLessThanEqual(v *Version, c *constraint, includePre bool) (bool, 
 // ~1.2, ~1.2.x, ~>1.2, ~>1.2.x --> >=1.2.0, <1.3.0
 // ~1.2.3, ~>1.2.3 --> >=1.2.3, <1.3.0
 // ~1.2.0, ~>1.2.0 --> >=1.2.0, <1.3.0
-func constraintTilde(v *Version, c *constraint, includePre bool) (bool, error) {
+func tildePred(v *Version, c *constraint, includePre bool) (bool, errID) {
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+		return false, errPre
 	}
 
 	if v.LessThan(c.con) {
-		return false, fmt.Errorf("%q is less than %q", v, c.orig)
+		return false, errLT
 	}
 
 	// ~0.0.0 is a special case where all constraints are accepted. It's
 	// equivalent to >= 0.0.0.
 	if c.con.Major() == 0 && c.con.Minor() == 0 && c.con.Patch() == 0 &&
 		!c.minorDirty && !c.patchDirty {
-		return true, nil
+		return true, errNone
 	}
 
 	if v.Major() != c.con.Major() {
-		return false, fmt.Errorf("%q does not have same major version as %q", v, c.orig)
+		return false, errSameMajor
 	}
 
 	if v.Minor() != c.con.Minor() && !c.minorDirty {
-		return false, fmt.Errorf("%q does not have same major and minor version as %q", v, c.orig)
+		return false, errSameMajorMinor
 	}
 
-	return true, nil
+	return true, errNone
 }
 
 // When there is a .x (dirty) status it automatically opts in to ~. Otherwise
 // it's a straight =
-func constraintTildeOrEqual(v *Version, c *constraint, includePre bool) (bool, error) {
+func tildeOrEqualPred(v *Version, c *constraint, includePre bool) (bool, errID) {
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+		return false, errPre
 	}
 
 	if c.dirty {
-		return constraintTilde(v, c, includePre)
+		return tildePred(v, c, includePre)
 	}
 
 	eq := v.Equal(c.con)
 	if eq {
-		return true, nil
+		return true, errNone
 	}
 
-	return false, fmt.Errorf("%q is not equal to %q", v, c.orig)
+	return false, errNotEqual
 }
 
 // ^*      -->  (any)
@@ -546,16 +685,16 @@ func constraintTildeOrEqual(v *Version, c *constraint, includePre bool) (bool, e
 // ^0.0.3  -->  >=0.0.3 <0.0.4
 // ^0.0    -->  >=0.0.0 <0.1.0
 // ^0      -->  >=0.0.0 <1.0.0
-func constraintCaret(v *Version, c *constraint, includePre bool) (bool, error) {
+func caretPred(v *Version, c *constraint, includePre bool) (bool, errID) {
 	// The existence of prereleases is checked at the group level and passed in.
 	// Exit early if the version has a prerelease but those are to be ignored.
 	if v.Prerelease() != "" && !includePre {
-		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
+		return false, errPre
 	}
 
 	// This less than handles prereleases
 	if v.LessThan(c.con) {
-		return false, fmt.Errorf("%q is less than %q", v, c.orig)
+		return false, errLT
 	}
 
 	var eq bool
@@ -568,35 +707,158 @@ func constraintCaret(v *Version, c *constraint, includePre bool) (bool, error) {
 		// that greater but not within the same major range.
 		eq = v.Major() == c.con.Major()
 		if eq {
-			return true, nil
+			return true, errNone
 		}
-		return false, fmt.Errorf("%q does not have same major version as %q", v, c.orig)
+		return false, errSameMajor
 	}
 
 	// ^ when the major is 0 and minor > 0 is >=0.y.z < 0.y+1
 	if c.con.Major() == 0 && v.Major() > 0 {
-		return false, fmt.Errorf("%q does not have same major version as %q", v, c.orig)
+		return false, errSameMajor
 	}
 	// If the con Minor is > 0 it is not dirty
 	if c.con.Minor() > 0 || c.patchDirty {
 		eq = v.Minor() == c.con.Minor()
 		if eq {
-			return true, nil
+			return true, errNone
 		}
-		return false, fmt.Errorf("%q does not have same minor version as %q. Expected minor versions to match when constraint major version is 0", v, c.orig)
+		return false, errMinorMatch
 	}
 	// ^ when the minor is 0 and minor > 0 is =0.0.z
 	if c.con.Minor() == 0 && v.Minor() > 0 {
-		return false, fmt.Errorf("%q does not have same minor version as %q", v, c.orig)
+		return false, errMinor
 	}
 
 	// At this point the major is 0 and the minor is 0 and not dirty. The patch
 	// is not dirty so we need to check if they are equal. If they are not equal
 	eq = c.con.Patch() == v.Patch()
 	if eq {
-		return true, nil
+		return true, errNone
 	}
-	return false, fmt.Errorf("%q does not equal %q. Expect version and constraint to equal when major and minor versions are 0", v, c.orig)
+	return false, errZeroZero
+}
+
+// scanVersionEnd scans the constraint version part starting at s[start] and
+// returns the exclusive end offset, mirroring the segments/prerelease/metadata
+// part of cvRegex. Returns ok=false if the start is not the beginning of a
+// valid version segment.
+func scanVersionEnd(s string, start int) (int, bool) {
+	i := start
+	if i < len(s) && s[i] == 'v' {
+		i++
+	}
+	if i >= len(s) || !segTable[s[i]] {
+		return 0, false
+	}
+	for i < len(s) && segTable[s[i]] {
+		i++
+	}
+	if i < len(s) && s[i] == '.' {
+		if i+1 >= len(s) || !segTable[s[i+1]] {
+			return 0, false
+		}
+		i++
+		for i < len(s) && segTable[s[i]] {
+			i++
+		}
+	}
+	if i < len(s) && s[i] == '.' {
+		if i+1 >= len(s) || !segTable[s[i+1]] {
+			return 0, false
+		}
+		i++
+		for i < len(s) && segTable[s[i]] {
+			i++
+		}
+	}
+	if i < len(s) && s[i] == '-' {
+		if inner, j := scanIdent(s, i+1); inner != "" {
+			i = j
+		} else {
+			return 0, false
+		}
+	}
+	if i < len(s) && s[i] == '+' {
+		if _, j := scanIdent(s, i+1); j > i+1 {
+			i = j
+		} else {
+			return 0, false
+		}
+	}
+	return i, true
+}
+
+// matchAtomEnd returns the exclusive end offset of the constraint atom
+// beginning at s[start] (skipping leading whitespace), or ok=false if there is
+// no valid atom there. It tries the operator alternatives in order, as the
+// original regex alternation does, and returns whichever lets the rest be a
+// valid version.
+func matchAtomEnd(s string, start int) (int, bool) {
+	i := start
+	for i < len(s) && isWS(s[i]) {
+		i++
+	}
+	for _, op := range opAlternatives {
+		if !strings.HasPrefix(s[i:], op) {
+			continue
+		}
+		j := i + len(op)
+		for j < len(s) && isWS(s[j]) {
+			j++
+		}
+		if k, ok := scanVersionEnd(s, j); ok {
+			return k, true
+		}
+	}
+	return 0, false
+}
+
+// handSplitGroup validates an OR group and splits it into its atoms,
+// reproducing validConstraintRegex + findConstraintRegex without a regex. A
+// group is a sequence of atoms; consecutive atoms must be separated by
+// whitespace and/or a single comma (matching the (?:\s+|,\s*) alternation),
+// and every atom must be a valid operator+version.
+func handSplitGroup(g string) ([]string, bool) {
+	n := len(g)
+	firstEnd, ok := matchAtomEnd(g, 0)
+	if !ok {
+		return nil, false
+	}
+	atoms := []string{g[:firstEnd]}
+	rest := firstEnd
+	for rest < n {
+		q := rest
+		for q < n && isWS(g[q]) {
+			q++
+		}
+		if q == n {
+			// Only trailing whitespace after the last atom.
+			break
+		}
+		if g[q] == ',' {
+			// Comma separator (,\s*); a valid atom must follow the comma.
+			end, ok := matchAtomEnd(g, q+1)
+			if !ok {
+				return nil, false
+			}
+			atoms = append(atoms, g[q+1:end])
+			rest = end
+			continue
+		}
+		// Whitespace separator; require that whitespace actually separated the
+		// atoms (q > rest), otherwise the atoms are directly adjacent and the
+		// group is invalid.
+		if q == rest {
+			return nil, false
+		}
+		end, ok := matchAtomEnd(g, q)
+		if !ok {
+			return nil, false
+		}
+		atoms = append(atoms, g[q:end])
+		rest = end
+	}
+	return atoms, true
 }
 
 func isX(x string) bool {
@@ -608,7 +870,179 @@ func isX(x string) bool {
 	}
 }
 
+// opAlternatives is the ordered list of operator alternatives of the original
+// constraintRegex (`=||!=|>|<|>=|=>|<=|=<|~|~>|\^`). The order matters: the
+// first alternative for which the remainder is a valid version is the one the
+// regex would have chosen.
+var opAlternatives = []string{"=", "", "!=", ">", "<", ">=", "=>", "<=", "=<", "~", "~>", "^"}
+
+var segTable = [256]bool{}
+var idTable = [256]bool{}
+var wsTable = [256]bool{}
+
+func init() {
+	for c := '0'; c <= '9'; c++ {
+		segTable[c] = true
+		idTable[c] = true
+	}
+	segTable['x'], segTable['X'], segTable['*'], segTable['|'] = true, true, true, true
+	for c := 'a'; c <= 'z'; c++ {
+		idTable[c] = true
+	}
+	for c := 'A'; c <= 'Z'; c++ {
+		idTable[c] = true
+	}
+	idTable['-'] = true
+	// \s in Go's regexp (ASCII patterns) is [ \t\n\f\r].
+	wsTable[' '] = true
+	wsTable['\t'] = true
+	wsTable['\n'] = true
+	wsTable['\f'] = true
+	wsTable['\r'] = true
+}
+
+func isWS(b byte) bool { return wsTable[b] }
+
+// trimWSLeft trims leading whitespace bytes as \s in the original regex.
+func trimWSLeft(s string) string {
+	for len(s) > 0 && isWS(s[0]) {
+		s = s[1:]
+	}
+	return s
+}
+
+// parseAtomGroups hand-parses a single constraint atom (operator + version),
+// returning the capture groups the original constraintRegex would have
+// produced: m[1]=operator, m[2]=whole version, m[3]=major, m[4]=.minor,
+// m[5]=.patch, m[6]=-prerelease. It returns ok=false if no operator/version
+// combination matches (i.e. the atom is improper).
+func parseAtomGroups(c string) (m []string, ok bool) {
+	s := trimWSLeft(c)
+	m = make([]string, 7)
+	m[0] = s
+	for _, op := range opAlternatives {
+		if !strings.HasPrefix(s, op) {
+			continue
+		}
+		rest := trimWSLeft(s[len(op):])
+		whole, major, minor, patch, pre, matched := parseVersionPart(rest)
+		if !matched {
+			continue
+		}
+		m[1] = op
+		m[2] = whole
+		m[3] = major
+		m[4] = minor
+		m[5] = patch
+		m[6] = pre
+		return m, true
+	}
+	return nil, false
+}
+
+// parseVersionPart parses the cvRegex version part of a constraint: an
+// optional 'v', a required numeric-or-wildcard major segment, up to two more
+// dot-separated numeric-or-wildcard segments, an optional prerelease (starting
+// with '-'), and an optional build-metadata (starting with '+'). Only
+// trailing whitespace may follow. It mirrors the original loose cvRegex,
+// including its idiosyncratic segment character set (digits, x, X, *, '|').
+func parseVersionPart(r string) (whole, major, minor, patch, pre string, ok bool) {
+	i := 0
+	if i < len(r) && r[i] == 'v' {
+		i++
+	}
+	if i >= len(r) || !segTable[r[i]] {
+		return "", "", "", "", "", false
+	}
+	j := i
+	for j < len(r) && segTable[r[j]] {
+		j++
+	}
+	major = r[i:j]
+	i = j
+
+	if i < len(r) && r[i] == '.' {
+		if i+1 >= len(r) || !segTable[r[i+1]] {
+			return "", "", "", "", "", false
+		}
+		j = i + 1
+		for j < len(r) && segTable[r[j]] {
+			j++
+		}
+		minor = r[i:j]
+		i = j
+	}
+
+	if i < len(r) && r[i] == '.' {
+		if i+1 >= len(r) || !segTable[r[i+1]] {
+			return "", "", "", "", "", false
+		}
+		j = i + 1
+		for j < len(r) && segTable[r[j]] {
+			j++
+		}
+		patch = r[i:j]
+		i = j
+	}
+
+	if i < len(r) && r[i] == '-' {
+		if inner, k := scanIdent(r, i+1); inner != "" {
+			pre = r[i:k]
+			i = k
+		} else {
+			return "", "", "", "", "", false
+		}
+	}
+
+	if i < len(r) && r[i] == '+' {
+		if _, k := scanIdent(r, i+1); k > i+1 {
+			i = k
+		} else {
+			return "", "", "", "", "", false
+		}
+	}
+
+	for ; i < len(r); i++ {
+		if !isWS(r[i]) {
+			return "", "", "", "", "", false
+		}
+	}
+	return r[:i], major, minor, patch, pre, true
+}
+
+// scanIdent scans one or more dot-separated identifiers made of [0-9A-Za-z-],
+// as in the prerelease/metadata part of cvRegex, returning the matched
+// identifier (without the leading '-' or '+') and its end offset. Returns ""
+// if the first identifier is empty.
+func scanIdent(s string, start int) (string, int) {
+	if start >= len(s) || !idTable[s[start]] {
+		return "", start
+	}
+	i := start
+	for i < len(s) && idTable[s[i]] {
+		i++
+	}
+	for i < len(s) && s[i] == '.' {
+		k := i + 1
+		for k < len(s) && idTable[s[k]] {
+			k++
+		}
+		if k == i+1 {
+			return s[start:i], i
+		}
+		i = k
+	}
+	return s[start:i], i
+}
+
 func rewriteRange(i string) string {
+	// A range requires a hyphen (e.g. "2 - 3"). Skip the regex entirely when
+	// there is none, which is the common case. A hyphen in a prerelease will
+	// still fall through to the regex, so this is conservative.
+	if !strings.Contains(i, "-") {
+		return i
+	}
+
 	m := constraintRangeRegex.FindAllStringSubmatch(i, -1)
 	if m == nil {
 		return i

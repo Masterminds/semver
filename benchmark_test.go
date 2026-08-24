@@ -1,6 +1,8 @@
 package semver
 
 import (
+	"fmt"
+	"sort"
 	"testing"
 )
 
@@ -244,4 +246,46 @@ func BenchmarkStrictNewVersionMetaDash(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	benchStrictNewVersion("1.0.0-alpha.1+meta.data", b)
+}
+
+/* Compare and collection benchmarks */
+
+func BenchmarkCompareSimple(b *testing.B) {
+	b.ReportAllocs()
+	a, _ := NewVersion("1.2.3")
+	d, _ := NewVersion("2.0.0")
+	for i := 0; i < b.N; i++ {
+		_ = a.Compare(d)
+	}
+}
+
+func BenchmarkComparePrerelease(b *testing.B) {
+	b.ReportAllocs()
+	a, _ := NewVersion("1.2.3-alpha.10.2-beta.3.4")
+	d, _ := NewVersion("1.2.3-alpha.10.2-beta.3.4-c")
+	for i := 0; i < b.N; i++ {
+		_ = a.Compare(d)
+	}
+}
+
+func BenchmarkLessThanPrerelease(b *testing.B) {
+	b.ReportAllocs()
+	a, _ := NewVersion("1.2.3-rc.1.a.b.1")
+	d, _ := NewVersion("1.2.3-rc.1.a.b.2")
+	for i := 0; i < b.N; i++ {
+		_ = a.LessThan(d)
+	}
+}
+
+func BenchmarkCollectionSort(b *testing.B) {
+	b.ReportAllocs()
+	versions := make([]*Version, 256)
+	for i := range versions {
+		versions[i], _ = NewVersion(fmt.Sprintf("%d.%d.%d-alpha.%d", i%50, i%20, i%10, i))
+	}
+	data := make([]*Version, len(versions))
+	for i := 0; i < b.N; i++ {
+		copy(data, versions)
+		sort.Sort(Collection(data))
+	}
 }

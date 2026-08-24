@@ -20,9 +20,11 @@ test-cover:
 fuzz:
 	@echo "==> Running Fuzz Tests"
 	go env GOCACHE
-	go test -fuzz=FuzzNewVersion -fuzztime=15s .
-	go test -fuzz=FuzzStrictNewVersion -fuzztime=15s .
-	go test -fuzz=FuzzNewConstraint -fuzztime=15s .
+	go test -fuzz='^FuzzNewVersion$$' -fuzztime=15s .
+	go test -fuzz='^FuzzStrictNewVersion$$' -fuzztime=15s .
+	go test -fuzz='^FuzzNewConstraint$$' -fuzztime=15s .
+	go test -fuzz='^FuzzNewVersionCoerce$$' -fuzztime=15s .
+	go test -fuzz='^FuzzNewConstraintDifferential$$' -fuzztime=15s .
 
 $(GOLANGCI_LINT):
 	# Install golangci-lint. The configuration for it is in the .golangci.yml
