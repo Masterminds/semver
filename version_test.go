@@ -70,6 +70,11 @@ func TestStrictNewVersion(t *testing.T) {
 		{"alpha+beta", true},
 		{"1.2.3-alpha_beta+foo", true},
 		{"1.0.0-alpha..1", true},
+		{"1.0.0-", true},       // An empty pre-release
+		{"1.0.0+", true},       // An empty metadata
+		{"1.0.0-alpha+", true}, // An empty metadata following a pre-release
+		{"1.0.0-alpha.", true}, // A trailing empty pre-release segment
+		{"1.0.0+meta.", true},  // A trailing empty metadata segment
 	}
 
 	for _, tc := range tests {
@@ -137,6 +142,13 @@ func TestNewVersion(t *testing.T) {
 			{"1.0.0-alpha..1", true},                         // Multiple empty segments but one with a value
 			{"9.8.7+meta+meta", true},                        // Multiple metadata parts
 			{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
+			{"1.0.0-", true},                                 // An empty pre-release
+			{"1.0.0+", true},                                 // An empty metadata
+			{"1.0.0-alpha+", true},                           // An empty metadata following a pre-release
+			{"1.0.0-alpha.", true},                           // A trailing empty pre-release segment
+			{"1.0.0+meta.", true},                            // A trailing empty metadata segment
+			{"1.2.", true},                                   // A trailing empty number segment
+			{"1.", true},                                     // A trailing empty number segment
 
 			// Versions that are invalid but in loose mode are handled.
 			// This enables a calver-ish style. This pattern has long
@@ -218,6 +230,13 @@ func TestNewVersion(t *testing.T) {
 			{"1.1.01", true},                                 // A leading 0 on a number segment
 			{"9.8.7+meta+meta", true},                        // Multiple metadata parts
 			{"1.2.31----RC-SNAPSHOT.12.09.1--.12+788", true}, // Leading 0 in a number part of a pre-release segment
+			{"1.0.0-", true},                                 // An empty pre-release
+			{"1.0.0+", true},                                 // An empty metadata
+			{"1.0.0-alpha+", true},                           // An empty metadata following a pre-release
+			{"1.0.0-alpha.", true},                           // A trailing empty pre-release segment
+			{"1.0.0+meta.", true},                            // A trailing empty metadata segment
+			{"1.2.", true},                                   // A trailing empty number segment
+			{"1.", true},                                     // A trailing empty number segment
 		}
 
 		for _, tc := range tests {
