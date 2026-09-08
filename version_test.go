@@ -1018,6 +1018,29 @@ func TestOriginalVPrefix(t *testing.T) {
 	}
 }
 
+func TestCompareLargeNumericPrerelease(t *testing.T) {
+	for _, tc := range [][2]string{
+		{"99999999999999999999", "100000000000000000000"},
+		{"18446744073709551616", "0alpha"},
+		{"rc.99999999999999999999", "rc.100000000000000000000"},
+		{"18446744073709551615", "18446744073709551616"},
+	} {
+		t.Run(tc[0]+"_"+tc[1], func(t *testing.T) {
+			left, err := StrictNewVersion("1.0.0-" + tc[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			right, err := StrictNewVersion("1.0.0-" + tc[1])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if left.Compare(right) != -1 || right.Compare(left) != 1 {
+				t.Fatalf("expected %s < %s", left, right)
+			}
+		})
+	}
+}
+
 func TestJsonMarshal(t *testing.T) {
 	sVer := "1.1.1"
 	x, err := StrictNewVersion(sVer)

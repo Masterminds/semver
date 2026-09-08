@@ -762,21 +762,31 @@ func comparePrePart(s, o string) int {
 
 	oi, n1 := strconv.ParseUint(o, 10, 64)
 	si, n2 := strconv.ParseUint(s, 10, 64)
+	oNumeric := n1 == nil || errors.Is(n1, strconv.ErrRange)
+	sNumeric := n2 == nil || errors.Is(n2, strconv.ErrRange)
 
 	// The case where both are strings compare the strings
-	if n1 != nil && n2 != nil {
+	if !oNumeric && !sNumeric {
 		if s > o {
 			return 1
 		}
 		return -1
-	} else if n1 != nil {
+	} else if !oNumeric {
 		// o is a string and s is a number
 		return -1
-	} else if n2 != nil {
+	} else if !sNumeric {
 		// s is a string and o is a number
 		return 1
 	}
 	// Both are numbers
+	if n1 != nil || n2 != nil {
+		// Valid numeric identifiers have no leading zeroes. Compare their
+		// lengths and digits when either identifier exceeds uint64.
+		if len(s) != len(o) {
+			return compareSegment(uint64(len(s)), uint64(len(o)))
+		}
+		return strings.Compare(s, o)
+	}
 	if si > oi {
 		return 1
 	}
