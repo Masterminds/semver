@@ -9,6 +9,33 @@ import (
 	"testing"
 )
 
+func TestCaretMajorWildcard(t *testing.T) {
+	for _, text := range []string{"^*", "^x", "^X", "^*.*", "^x.x.x"} {
+		t.Run(text, func(t *testing.T) {
+			constraint, err := NewConstraint(text)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, version := range []string{"0.0.0", "0.1.0", "1.0.0", "9.8.7"} {
+				v := MustParse(version)
+				valid, reasons := constraint.Validate(v)
+				if !constraint.Check(v) || !valid || len(reasons) != 0 {
+					t.Errorf("%s should satisfy %s: %v", version, text, reasons)
+				}
+			}
+			pre := MustParse("1.0.0-alpha")
+			if constraint.Check(pre) {
+				t.Error("prerelease should be excluded by default")
+			}
+			constraint.IncludePrerelease = true
+			valid, reasons := constraint.Validate(pre)
+			if !constraint.Check(pre) || !valid || len(reasons) != 0 {
+				t.Errorf("explicitly included prerelease should satisfy %s: %v", text, reasons)
+			}
+		})
+	}
+}
+
 func TestParseConstraint(t *testing.T) {
 	tests := []struct {
 		in  string

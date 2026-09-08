@@ -558,6 +558,11 @@ func constraintCaret(v *Version, c *constraint, includePre bool) (bool, error) {
 		return false, fmt.Errorf("%q is less than %q", v, c.orig)
 	}
 
+	// A wildcard major has no upper bound, unlike ^0 or ^0.0.
+	if c.dirty && !c.minorDirty && !c.patchDirty {
+		return true, nil
+	}
+
 	var eq bool
 
 	// ^ when the major > 0 is >=x.y.z < x+1
