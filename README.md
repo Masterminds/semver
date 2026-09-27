@@ -182,7 +182,10 @@ There are multiple methods to handle ranges and the first is hyphens ranges.
 These look like:
 
 * `1.2 - 1.4.5` which is equivalent to `>= 1.2 <= 1.4.5`
-* `2.3.4 - 4.5` which is equivalent to `>= 2.3.4 <= 4.5`
+* `2.3.4 - 4.5` which is equivalent to `>= 2.3.4, < 4.6.0`
+
+A partial upper bound covers the rest of that level, the same way `4.5` does in a
+tilde range, so `2.3.4 - 4.5` accepts `4.5.9` and rejects `4.6.0`.
 
 Note that `1.2-1.4.5` without whitespace is parsed completely differently; it's
 parsed as a single constraint `1.2.0` with _prerelease_ `1.4.5`.
