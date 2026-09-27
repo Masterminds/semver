@@ -553,6 +553,13 @@ func constraintCaret(v *Version, c *constraint, includePre bool) (bool, error) {
 		return false, fmt.Errorf("%q is a prerelease version and the constraint is only looking for release versions", v)
 	}
 
+	// ^*, ^x, ^X parse as dirty 0.0.0 with neither minor nor patch dirty.
+	// That form means "any", matching the comment above. Exact ^0.0.0 is not
+	// dirty and still means >=0.0.0 <0.0.1.
+	if c.dirty && !c.minorDirty && !c.patchDirty {
+		return true, nil
+	}
+
 	// This less than handles prereleases
 	if v.LessThan(c.con) {
 		return false, fmt.Errorf("%q is less than %q", v, c.orig)
