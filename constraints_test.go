@@ -229,6 +229,7 @@ func TestNewConstraint(t *testing.T) {
 		{"2.0", 1, 1, false},
 		{"v2.3.5-20161202202307-sha.e8fc5e5", 1, 1, false},
 		{"v1.2.3-0abc", 1, 1, false},
+		{"0.0.1-0f9a5fdef.38", 1, 1, false},
 		{"v1.2.3-beta.01", 1, 1, true},
 		{">= bar", 0, 0, true},
 		{"BAR >= 1.2.3", 0, 0, true},

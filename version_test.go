@@ -40,6 +40,9 @@ func TestStrictNewVersion(t *testing.T) {
 		{"v1.2.0-x.Y.0+metadata-width-hypen", true},
 		{"1.2.3-rc1-with-hypen", false},
 		{"1.2.3-0abc123", false}, // string pre-releases can start with 0
+		{"0.0.1-0f9a5fdef.38", false},
+		{"0.0.1-0f", false},
+		{"0.0.1-00a", false},
 		{"1.2.3-beta.01", true},  // number segment cannot start with 0
 		{"v1.2.3-rc1-with-hypen", true},
 		{"1.2.3.4", true},
@@ -113,6 +116,9 @@ func TestNewVersion(t *testing.T) {
 			{"1.2.3-rc1-with-hypen", false},
 			{"v1.2.3-rc1-with-hypen", false},
 			{"1.2.3-0abc123", false}, // string pre-releases can start with 0
+			{"0.0.1-0f9a5fdef.38", false},
+			{"0.0.1-0f", false},
+			{"0.0.1-00a", false},
 			{"1.2.3-beta.01", true},  // number segment cannot start with 0
 			{"1.2.3.4", true},
 			{"v1.2.3.4", true},
@@ -191,6 +197,9 @@ func TestNewVersion(t *testing.T) {
 			{"1.2.3-rc1-with-hypen", false},
 			{"v1.2.3-rc1-with-hypen", false},
 			{"1.2.3-0abc123", false}, // string pre-releases can start with 0
+			{"0.0.1-0f9a5fdef.38", false},
+			{"0.0.1-0f", false},
+			{"0.0.1-00a", false},
 			{"1.2.3-beta.01", true},  // number segment cannot start with 0
 			{"1.2.3.4", true},
 			{"v1.2.3.4", true},
@@ -1156,6 +1165,11 @@ func TestValidatePrerelease(t *testing.T) {
 		{"alpha.01", ErrSegmentStartsZero},
 		{"foo☃︎", ErrInvalidPrerelease},
 		{"alpha.0-1", nil},
+		{"0f9a5fdef.38", nil},
+		{"0f", nil},
+		{"00a", nil},
+		{"0a.1", nil},
+		{"0-1", nil},
 	}
 
 	for _, tc := range tests {
@@ -1218,3 +1232,34 @@ func TestNewVersionTooLong(t *testing.T) {
 		t.Errorf("StrictNewVersion: expected ErrVersionTooLong, got: %v", err)
 	}
 }
+
+func TestAlphanumericPrereleaseLeadingZero(t *testing.T) {
+	tests := []struct {
+		input       string
+		expectedPre string
+	}{
+		{"0.0.1-0f9a5fdef.38", "0f9a5fdef.38"},
+		{"0.0.1-0f", "0f"},
+		{"0.0.1-00a", "00a"},
+		{"1.0.0-0abc.1", "0abc.1"},
+		{"1.2.3-0-alpha", "0-alpha"},
+		{"0.0.1-0f9a5fdef.38+meta", "0f9a5fdef.38"},
+	}
+
+	for _, tc := range tests {
+		v, err := NewVersion(tc.input)
+		if err != nil {
+			t.Errorf("NewVersion(%q) returned unexpected error: %v", tc.input, err)
+		} else if v.Prerelease() != tc.expectedPre {
+			t.Errorf("NewVersion(%q) prerelease = %q, expected %q", tc.input, v.Prerelease(), tc.expectedPre)
+		}
+
+		sv, err := StrictNewVersion(tc.input)
+		if err != nil {
+			t.Errorf("StrictNewVersion(%q) returned unexpected error: %v", tc.input, err)
+		} else if sv.Prerelease() != tc.expectedPre {
+			t.Errorf("StrictNewVersion(%q) prerelease = %q, expected %q", tc.input, sv.Prerelease(), tc.expectedPre)
+		}
+	}
+}
+
