@@ -55,6 +55,53 @@ func TestParseConstraint(t *testing.T) {
 	}
 }
 
+// A "|" is the OR separator in a constraint string and is never a legal
+// character in a version segment. The character class used to match the
+// numeric/wildcard segments of a constraint version must not accept it, so
+// that a stray pipe is reported as an improper constraint instead of being
+// silently dropped or surfacing the internal "constraint parser error".
+func TestNewConstraintRejectsPipeInVersion(t *testing.T) {
+	invalid := []string{
+		"1|2",
+		"1.2|3",
+		"1.2.3|4",
+		">=1.2.3 | 2.0.0",
+		">=1.2.3|",
+		"1.2.3 | | 2.0.0",
+		// A pipe in a segment that follows a wildcard used to be dropped
+		// entirely, silently turning these into "*" and "1.x".
+		"*.|2",
+		"*.2|3",
+		"1.*.2|3",
+		"x|2",
+		"*|2",
+	}
+
+	for _, input := range invalid {
+		c, err := NewConstraint(input)
+		if err == nil {
+			t.Errorf("NewConstraint(%q) = %v, want an error", input, c)
+			continue
+		}
+		if err.Error() == "constraint parser error" {
+			t.Errorf("NewConstraint(%q) returned the internal %q, want %q",
+				input, err, "improper constraint")
+		}
+	}
+
+	// The wildcards that are legal must keep parsing, so the fix does not
+	// narrow the class any further than intended.
+	valid := []string{
+		"*", "x", "X", "1.x", "1.X", "1.2.x", "*.2", "1.*", "*.*.*",
+		"^1.x", "~1.x", ">=1.x", "<=2.x", "!=1.x",
+	}
+	for _, input := range valid {
+		if _, err := NewConstraint(input); err != nil {
+			t.Errorf("NewConstraint(%q) returned unexpected error: %s", input, err)
+		}
+	}
+}
+
 func TestConstraintCheck(t *testing.T) {
 	tests := []struct {
 		constraint string

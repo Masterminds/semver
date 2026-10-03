@@ -199,7 +199,7 @@ var findConstraintRegex *regexp.Regexp
 // Used to validate an segment of ANDs is valid
 var validConstraintRegex *regexp.Regexp
 
-const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
+const cvRegex string = `v?([0-9xX*]+)(\.[0-9xX*]+)?(\.[0-9xX*]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
