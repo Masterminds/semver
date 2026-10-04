@@ -504,6 +504,23 @@ func TestCompare(t *testing.T) {
 		{"1.0.0-beta.4", "1.0.0-beta.-2", -1},
 		{"1.0.0-beta.-2", "1.0.0-beta.-3", -1},
 		{"1.0.0-beta.-3", "1.0.0-beta.5", 1},
+		// Numeric prerelease identifiers are compared by value, and the value is
+		// not bounded by uint64: 99999999999999999999 sorts below
+		// 100000000000000000000 even though "9" > "1" lexically.
+		{"1.0.0-99999999999999999999", "1.0.0-100000000000000000000", -1},
+		{"1.0.0-100000000000000000000", "1.0.0-99999999999999999999", 1},
+		{"1.0.0-18446744073709551615", "1.0.0-18446744073709551616", -1},
+		{"1.0.0-18446744073709551616", "1.0.0-18446744073709551615", 1},
+		{"1.0.0-18446744073709551617", "1.0.0-18446744073709551616", 1},
+		// Same width beyond uint64: a plain lexical comparison happens to agree,
+		// which is why this pair alone would not have caught the bug.
+		{"1.0.0-beta.18446744073709551617", "1.0.0-beta.18446744073709551616", 1},
+		// Still numeric, so still below any alphanumeric identifier.
+		{"1.0.0-99999999999999999999", "1.0.0-alpha", -1},
+		{"1.0.0-99999999999999999999", "1.0.0-1", 1},
+		// In-range identifiers must be unaffected.
+		{"1.0.0-beta.2", "1.0.0-beta.11", -1},
+		{"1.0.0-beta.11", "1.0.0-beta.2", 1},
 	}
 
 	for _, tc := range tests {
