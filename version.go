@@ -757,30 +757,60 @@ func comparePrePart(s, o string) int {
 	// cases like this we need to detect numbers and compare them. According
 	// to the semver spec, numbers are always positive. If there is a - at the
 	// start like -99 this is to be evaluated as an alphanum. numbers always
-	// have precedence over alphanum. Parsing as Uints because negative numbers
-	// are ignored.
+	// have precedence over alphanum.
 
-	oi, n1 := strconv.ParseUint(o, 10, 64)
-	si, n2 := strconv.ParseUint(s, 10, 64)
-
-	// The case where both are strings compare the strings
-	if n1 != nil && n2 != nil {
-		if s > o {
-			return 1
+	// Note that this deliberately does not use strconv.ParseUint. That reports an
+	// error both for a non-number and for a number too large for a uint64, and
+	// treating the two alike silently downgraded any prerelease identifier beyond
+	// 2^64-1 to a string comparison: "1.0.0-99999999999999999999" then sorted
+	// *after* "1.0.0-100000000000000000000", because "9" > "1" lexically while
+	// 99999999999999999999 < 100000000000000000000 numerically.
+	if isNumericIdentifier(s) != isNumericIdentifier(o) {
+		// One is a number and one is not, and numeric identifiers always have lower
+		// precedence than alphanumeric ones.
+		if isNumericIdentifier(s) {
+			return -1
 		}
-		return -1
-	} else if n1 != nil {
-		// o is a string and s is a number
-		return -1
-	} else if n2 != nil {
-		// s is a string and o is a number
 		return 1
 	}
-	// Both are numbers
-	if si > oi {
+
+	if isNumericIdentifier(s) {
+		return compareNumericIdentifiers(s, o)
+	}
+
+	// Both are alphanumeric, so compare them lexically.
+	if s > o {
 		return 1
 	}
 	return -1
+}
+
+// isNumericIdentifier reports whether s is a numeric prerelease identifier: a
+// non-empty run of ASCII digits with nothing else in it.
+func isNumericIdentifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	return strings.IndexFunc(s, func(r rune) bool {
+		return r < '0' || r > '9'
+	}) == -1
+}
+
+// compareNumericIdentifiers orders two non-empty numeric identifiers by numeric
+// value rather than lexically, without the uint64 range limit that the numeric
+// major/minor/patch segments are held to. Leading zeros are stripped first so
+// the comparison stays correct for any caller that has not been through
+// validatePrerelease, which rejects them.
+func compareNumericIdentifiers(s, o string) int {
+	s = strings.TrimLeft(s, "0")
+	o = strings.TrimLeft(o, "0")
+	if len(s) != len(o) {
+		if len(s) < len(o) {
+			return -1
+		}
+		return 1
+	}
+	return strings.Compare(s, o)
 }
 
 // Like strings.ContainsAny but does an only instead of any.
