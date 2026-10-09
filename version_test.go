@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -1216,5 +1217,361 @@ func TestNewVersionTooLong(t *testing.T) {
 	}
 	if _, err := StrictNewVersion(long); err != ErrVersionTooLong {
 		t.Errorf("StrictNewVersion: expected ErrVersionTooLong, got: %v", err)
+	}
+}
+
+func TestZeroValueVersion(t *testing.T) {
+	var v Version
+	vp := &Version{}
+	vn := new(Version)
+
+	if got := v.String(); got != "0.0.0" {
+		t.Errorf("v.String(): got %q, want %q", got, "0.0.0")
+	}
+	if got := v.Original(); got != "0.0.0" {
+		t.Errorf("v.Original(): got %q, want %q", got, "0.0.0")
+	}
+	if got := vp.Original(); got != "0.0.0" {
+		t.Errorf("vp.Original(): got %q, want %q", got, "0.0.0")
+	}
+	if got := vn.Original(); got != "0.0.0" {
+		t.Errorf("vn.Original(): got %q, want %q", got, "0.0.0")
+	}
+	var vNil *Version
+	if got := vNil.Original(); got != "" {
+		t.Errorf("vNil.Original(): got %q, want %q", got, "")
+	}
+	if got := v.Major(); got != 0 {
+		t.Errorf("v.Major(): got %d, want 0", got)
+	}
+	if got := v.Minor(); got != 0 {
+		t.Errorf("v.Minor(): got %d, want 0", got)
+	}
+	if got := v.Patch(); got != 0 {
+		t.Errorf("v.Patch(): got %d, want 0", got)
+	}
+	if got := v.Prerelease(); got != "" {
+		t.Errorf("v.Prerelease(): got %q, want %q", got, "")
+	}
+	if got := v.Metadata(); got != "" {
+		t.Errorf("v.Metadata(): got %q, want %q", got, "")
+	}
+}
+
+func TestZeroValueComparisons(t *testing.T) {
+	var zero Version
+	explicitZero, err := StrictNewVersion("0.0.0")
+	if err != nil {
+		t.Fatalf("StrictNewVersion failed: %v", err)
+	}
+	parsedZero, err := NewVersion("0.0.0")
+	if err != nil {
+		t.Fatalf("NewVersion failed: %v", err)
+	}
+	ctorZero := New(0, 0, 0, "", "")
+
+	zeros := []*Version{explicitZero, parsedZero, ctorZero, &zero, {}}
+	for i, target := range zeros {
+		if !zero.Equal(target) {
+			t.Errorf("case %d: zero.Equal(target) returned false", i)
+		}
+		if !target.Equal(&zero) {
+			t.Errorf("case %d: target.Equal(&zero) returned false", i)
+		}
+		if cmp := zero.Compare(target); cmp != 0 {
+			t.Errorf("case %d: zero.Compare(target) = %d, want 0", i, cmp)
+		}
+		if cmp := target.Compare(&zero); cmp != 0 {
+			t.Errorf("case %d: target.Compare(&zero) = %d, want 0", i, cmp)
+		}
+		if zero.LessThan(target) {
+			t.Errorf("case %d: zero.LessThan(target) returned true", i)
+		}
+		if !zero.LessThanEqual(target) {
+			t.Errorf("case %d: zero.LessThanEqual(target) returned false", i)
+		}
+		if zero.GreaterThan(target) {
+			t.Errorf("case %d: zero.GreaterThan(target) returned true", i)
+		}
+		if !zero.GreaterThanEqual(target) {
+			t.Errorf("case %d: zero.GreaterThanEqual(target) returned false", i)
+		}
+	}
+
+	withMeta, err := StrictNewVersion("0.0.0+build1")
+	if err != nil {
+		t.Fatalf("StrictNewVersion metadata failed: %v", err)
+	}
+	if !zero.Equal(withMeta) {
+		t.Error("zero.Equal(withMeta) returned false")
+	}
+	if cmp := zero.Compare(withMeta); cmp != 0 {
+		t.Errorf("zero.Compare(withMeta) = %d, want 0", cmp)
+	}
+
+	pre, err := StrictNewVersion("0.0.0-alpha")
+	if err != nil {
+		t.Fatalf("StrictNewVersion prerelease failed: %v", err)
+	}
+	if zero.Equal(pre) {
+		t.Error("zero.Equal(pre) returned true")
+	}
+	if cmp := zero.Compare(pre); cmp != 1 {
+		t.Errorf("zero.Compare(pre) = %d, want 1", cmp)
+	}
+	if cmp := pre.Compare(&zero); cmp != -1 {
+		t.Errorf("pre.Compare(&zero) = %d, want -1", cmp)
+	}
+	if !zero.GreaterThan(pre) {
+		t.Error("zero.GreaterThan(pre) returned false")
+	}
+	if zero.LessThan(pre) {
+		t.Error("zero.LessThan(pre) returned true")
+	}
+	if !pre.LessThan(&zero) {
+		t.Error("pre.LessThan(&zero) returned false")
+	}
+
+	cases := []string{"0.0.1", "0.1.0", "1.0.0"}
+	for _, raw := range cases {
+		other, err := StrictNewVersion(raw)
+		if err != nil {
+			t.Fatalf("StrictNewVersion(%q) failed: %v", raw, err)
+		}
+		if zero.Equal(other) {
+			t.Errorf("zero.Equal(%s) returned true", raw)
+		}
+		if cmp := zero.Compare(other); cmp != -1 {
+			t.Errorf("zero.Compare(%s) = %d, want -1", raw, cmp)
+		}
+		if cmp := other.Compare(&zero); cmp != 1 {
+			t.Errorf("%s.Compare(&zero) = %d, want 1", raw, cmp)
+		}
+		if !zero.LessThan(other) {
+			t.Errorf("zero.LessThan(%s) returned false", raw)
+		}
+		if zero.GreaterThan(other) {
+			t.Errorf("zero.GreaterThan(%s) returned true", raw)
+		}
+	}
+
+	if zero.Equal(nil) {
+		t.Error("zero.Equal(nil) returned true")
+	}
+	var nilVersion *Version
+	if nilVersion.Equal(&zero) {
+		t.Error("nilVersion.Equal(&zero) returned true")
+	}
+}
+
+func TestZeroValueMutations(t *testing.T) {
+	var zero Version
+
+	p := zero.IncPatch()
+	if got := p.String(); got != "0.0.1" {
+		t.Errorf("IncPatch String(): got %q, want %q", got, "0.0.1")
+	}
+	if got := p.Original(); got != "0.0.1" {
+		t.Errorf("IncPatch Original(): got %q, want %q", got, "0.0.1")
+	}
+	if got := p.Patch(); got != 1 {
+		t.Errorf("IncPatch Patch(): got %d, want 1", got)
+	}
+
+	m := zero.IncMinor()
+	if got := m.String(); got != "0.1.0" {
+		t.Errorf("IncMinor String(): got %q, want %q", got, "0.1.0")
+	}
+	if got := m.Original(); got != "0.1.0" {
+		t.Errorf("IncMinor Original(): got %q, want %q", got, "0.1.0")
+	}
+	if got := m.Minor(); got != 1 {
+		t.Errorf("IncMinor Minor(): got %d, want 1", got)
+	}
+
+	maj := zero.IncMajor()
+	if got := maj.String(); got != "1.0.0" {
+		t.Errorf("IncMajor String(): got %q, want %q", got, "1.0.0")
+	}
+	if got := maj.Original(); got != "1.0.0" {
+		t.Errorf("IncMajor Original(): got %q, want %q", got, "1.0.0")
+	}
+	if got := maj.Major(); got != 1 {
+		t.Errorf("IncMajor Major(): got %d, want 1", got)
+	}
+
+	pe, err := zero.IncPatchE()
+	if err != nil || pe.String() != "0.0.1" {
+		t.Errorf("IncPatchE() got (%v, %v), want (0.0.1, nil)", pe.String(), err)
+	}
+
+	me, err := zero.IncMinorE()
+	if err != nil || me.String() != "0.1.0" {
+		t.Errorf("IncMinorE() got (%v, %v), want (0.1.0, nil)", me.String(), err)
+	}
+
+	maje, err := zero.IncMajorE()
+	if err != nil || maje.String() != "1.0.0" {
+		t.Errorf("IncMajorE() got (%v, %v), want (1.0.0, nil)", maje.String(), err)
+	}
+
+	pre, err := zero.SetPrerelease("rc.1")
+	if err != nil {
+		t.Fatalf("SetPrerelease failed: %v", err)
+	}
+	if got := pre.String(); got != "0.0.0-rc.1" {
+		t.Errorf("SetPrerelease String(): got %q, want %q", got, "0.0.0-rc.1")
+	}
+	if got := pre.Original(); got != "0.0.0-rc.1" {
+		t.Errorf("SetPrerelease Original(): got %q, want %q", got, "0.0.0-rc.1")
+	}
+	if got := pre.Prerelease(); got != "rc.1" {
+		t.Errorf("SetPrerelease Prerelease(): got %q, want %q", got, "rc.1")
+	}
+
+	meta, err := zero.SetMetadata("build.42")
+	if err != nil {
+		t.Fatalf("SetMetadata failed: %v", err)
+	}
+	if got := meta.String(); got != "0.0.0+build.42" {
+		t.Errorf("SetMetadata String(): got %q, want %q", got, "0.0.0+build.42")
+	}
+	if got := meta.Original(); got != "0.0.0+build.42" {
+		t.Errorf("SetMetadata Original(): got %q, want %q", got, "0.0.0+build.42")
+	}
+	if got := meta.Metadata(); got != "build.42" {
+		t.Errorf("SetMetadata Metadata(): got %q, want %q", got, "build.42")
+	}
+}
+
+func TestZeroValueSerialization(t *testing.T) {
+	var zero Version
+
+	jb, err := zero.MarshalJSON()
+	if err != nil {
+		t.Fatalf("MarshalJSON failed: %v", err)
+	}
+	if string(jb) != `"0.0.0"` {
+		t.Errorf("MarshalJSON: got %s, want %s", string(jb), `"0.0.0"`)
+	}
+
+	jb2, err := json.Marshal(zero)
+	if err != nil {
+		t.Fatalf("json.Marshal failed: %v", err)
+	}
+	if string(jb2) != `"0.0.0"` {
+		t.Errorf("json.Marshal: got %s, want %s", string(jb2), `"0.0.0"`)
+	}
+
+	tb, err := zero.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText failed: %v", err)
+	}
+	if string(tb) != "0.0.0" {
+		t.Errorf("MarshalText: got %s, want %s", string(tb), "0.0.0")
+	}
+
+	val, err := zero.Value()
+	if err != nil {
+		t.Fatalf("Value failed: %v", err)
+	}
+	if s, ok := val.(string); !ok || s != "0.0.0" {
+		t.Errorf("Value: got %v, want 0.0.0", val)
+	}
+
+	var unmarshaled Version
+	if err := json.Unmarshal(jb, &unmarshaled); err != nil {
+		t.Fatalf("json.Unmarshal failed: %v", err)
+	}
+	if !zero.Equal(&unmarshaled) {
+		t.Errorf("roundtrip unmarshaled version not equal: got %v, want %v", unmarshaled, zero)
+	}
+	if unmarshaled.Original() != "0.0.0" {
+		t.Errorf("unmarshaled Original(): got %q, want %q", unmarshaled.Original(), "0.0.0")
+	}
+}
+
+func TestZeroValueCollection(t *testing.T) {
+	var zero Version
+	vs := Collection{
+		MustParse("1.0.0"),
+		&zero,
+		MustParse("0.0.0-alpha"),
+		MustParse("0.1.0"),
+		MustParse("0.0.1"),
+		MustParse("0.0.0"),
+	}
+
+	sort.Sort(vs)
+
+	expectedStrings := []string{
+		"0.0.0-alpha",
+		"0.0.0",
+		"0.0.0",
+		"0.0.1",
+		"0.1.0",
+		"1.0.0",
+	}
+
+	if vs.Len() != len(expectedStrings) {
+		t.Fatalf("vs.Len(): got %d, want %d", vs.Len(), len(expectedStrings))
+	}
+
+	for i, exp := range expectedStrings {
+		if got := vs[i].String(); got != exp {
+			t.Errorf("index %d: got %q, want %q", i, got, exp)
+		}
+	}
+}
+
+func TestZeroValueConstraints(t *testing.T) {
+	var zero Version
+	explicitZero := MustParse("0.0.0")
+
+	tests := []struct {
+		expr string
+		want bool
+	}{
+		{"*", true},
+		{">= 0.0.0", true},
+		{"<= 0.0.0", true},
+		{"= 0.0.0", true},
+		{"0.0.0", true},
+		{"~0.0.0", true},
+		{"^0.0.0", true},
+		{"> 0.0.0", false},
+		{"< 0.0.0", false},
+		{"< 1.0.0", true},
+		{"!= 0.0.0", false},
+		{"!= 1.0.0", true},
+		{">= 0.0.1", false},
+		{"<= 0.0.1", true},
+	}
+
+	for _, tc := range tests {
+		c, err := NewConstraint(tc.expr)
+		if err != nil {
+			t.Fatalf("NewConstraint(%q) failed: %v", tc.expr, err)
+		}
+
+		gotCheck := c.Check(&zero)
+		if gotCheck != tc.want {
+			t.Errorf("Check(%q): got %v, want %v", tc.expr, gotCheck, tc.want)
+		}
+
+		explicitCheck := c.Check(explicitZero)
+		if gotCheck != explicitCheck {
+			t.Errorf("Check(%q): zero value (%v) does not match explicit 0.0.0 (%v)", tc.expr, gotCheck, explicitCheck)
+		}
+
+		gotVal, valErrs := c.Validate(&zero)
+		if gotVal != tc.want {
+			t.Errorf("Validate(%q): got %v (errors: %v), want %v", tc.expr, gotVal, valErrs, tc.want)
+		}
+
+		explicitVal, _ := c.Validate(explicitZero)
+		if gotVal != explicitVal {
+			t.Errorf("Validate(%q): zero value (%v) does not match explicit 0.0.0 (%v)", tc.expr, gotVal, explicitVal)
+		}
 	}
 }

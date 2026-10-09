@@ -79,6 +79,7 @@ const looseSemVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 // Version represents a single semantic version.
+// The zero value of Version represents 0.0.0 and is safe to use without initialization.
 type Version struct {
 	major, minor, patch uint64
 	pre                 string
@@ -338,7 +339,7 @@ func MustParse(v string) *Version {
 	return sv
 }
 
-// String converts a Version object to a string.
+// String converts a Version object to a string. For a zero-value Version, this returns "0.0.0".
 // Note, if the original version contained a leading v this version will not.
 // See the Original() method to retrieve the original value. Semantic Versions
 // don't contain a leading v per the spec. Instead it's optional on
@@ -358,7 +359,17 @@ func (v Version) String() string {
 }
 
 // Original returns the original value passed in to be parsed.
+// For a zero-value Version, Original returns "0.0.0".
 func (v *Version) Original() string {
+	if v == nil {
+		return ""
+	}
+	if v.original == "" {
+		if v.major == 0 && v.minor == 0 && v.patch == 0 && v.pre == "" && v.metadata == "" {
+			return "0.0.0"
+		}
+		return v.String()
+	}
 	return v.original
 }
 

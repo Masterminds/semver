@@ -25,7 +25,8 @@ parsing the version. For example,
 
 The version object has methods to get the parts of the version, compare it to
 other versions, convert the version back into a string, and get the original
-string. For more details please see the documentation
+string. The zero value of Version represents 0.0.0 and is safe to use without
+initialization. For more details please see the documentation
 at https://godoc.org/github.com/Masterminds/semver.
 
 # Sorting Semantic Versions
