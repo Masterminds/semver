@@ -7,15 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 )
 
-// The compiled version of the regex created at init() is cached here so it
-// only needs to be created once.
-var versionRegex *regexp.Regexp
-var looseVersionRegex *regexp.Regexp
+var versionRegexOnce = mustCompileRegexpOnce("^" + semVerRegex + "$")
+var looseVersionRegexOnce = mustCompileRegexpOnce("^" + looseSemVerRegex + "$")
 
 // CoerceNewVersion sets if leading 0's are allowd in the version part. Leading 0's are
 // not allowed in a valid semantic version. When set to true, NewVersion will coerce
@@ -84,11 +81,6 @@ type Version struct {
 	pre                 string
 	metadata            string
 	original            string
-}
-
-func init() {
-	versionRegex = regexp.MustCompile("^" + semVerRegex + "$")
-	looseVersionRegex = regexp.MustCompile("^" + looseSemVerRegex + "$")
 }
 
 const (
@@ -186,7 +178,7 @@ func NewVersion(v string) (*Version, error) {
 	if CoerceNewVersion {
 		return coerceNewVersion(v)
 	}
-	m := versionRegex.FindStringSubmatch(v)
+	m := versionRegexOnce().FindStringSubmatch(v)
 	if m == nil {
 
 		// Disabling detailed errors is first so that it is in the fast path.
@@ -196,7 +188,7 @@ func NewVersion(v string) (*Version, error) {
 
 		// Check for specific errors with the semver string and return a more detailed
 		// error.
-		m = looseVersionRegex.FindStringSubmatch(v)
+		m = looseVersionRegexOnce().FindStringSubmatch(v)
 		if m == nil {
 			return nil, ErrInvalidSemVer
 		}
@@ -256,7 +248,7 @@ func NewVersion(v string) (*Version, error) {
 }
 
 func coerceNewVersion(v string) (*Version, error) {
-	m := looseVersionRegex.FindStringSubmatch(v)
+	m := looseVersionRegexOnce().FindStringSubmatch(v)
 	if m == nil {
 		return nil, ErrInvalidSemVer
 	}

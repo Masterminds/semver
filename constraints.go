@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 )
 
@@ -56,11 +55,11 @@ func NewConstraint(c string) (*Constraints, error) {
 	hasPre := make([]bool, lenors)
 	for k, v := range ors {
 		// Validate the segment
-		if !validConstraintRegex.MatchString(v) {
+		if !validConstraintRegexOnce().MatchString(v) {
 			return nil, fmt.Errorf("improper constraint: %q", v)
 		}
 
-		cs := findConstraintRegex.FindAllString(v, -1)
+		cs := findConstraintRegexOnce().FindAllString(v, -1)
 		if cs == nil {
 			cs = append(cs, v)
 		}
@@ -189,62 +188,40 @@ func (cs Constraints) MarshalText() ([]byte, error) {
 	return []byte(cs.String()), nil
 }
 
-var constraintOps map[string]cfunc
-var constraintRegex *regexp.Regexp
-var constraintRangeRegex *regexp.Regexp
+var constraintOps = map[string]cfunc{
+	"":   constraintTildeOrEqual,
+	"=":  constraintTildeOrEqual,
+	"!=": constraintNotEqual,
+	">":  constraintGreaterThan,
+	"<":  constraintLessThan,
+	">=": constraintGreaterThanEqual,
+	"=>": constraintGreaterThanEqual,
+	"<=": constraintLessThanEqual,
+	"=<": constraintLessThanEqual,
+	"~":  constraintTilde,
+	"~>": constraintTilde,
+	"^":  constraintCaret,
+}
+
+const ops = `=||!=|>|<|>=|=>|<=|=<|~|~>|\^`
+
+var constraintRegexOnce = mustCompileRegexpOnce(`^\s*(` + ops + `)\s*(` + cvRegex + `)\s*$`)
+
+var constraintRangeRegexOnce = mustCompileRegexpOnce(`\s*(` + cvRegex + `)\s+-\s+(` + cvRegex + `)\s*`)
 
 // Used to find individual constraints within a multi-constraint string
-var findConstraintRegex *regexp.Regexp
+var findConstraintRegexOnce = mustCompileRegexpOnce(`(` + ops + `)\s*(` + cvRegex + `)`)
 
 // Used to validate an segment of ANDs is valid
-var validConstraintRegex *regexp.Regexp
+//
+// The first time a constraint shows up will look slightly different from
+// future times it shows up due to a leading space or comma in a given
+// string.
+var validConstraintRegexOnce = mustCompileRegexpOnce(`^(\s*(` + ops + `)\s*(` + cvRegex + `)\s*)((?:\s+|,\s*)(` + ops + `)\s*(` + cvRegex + `)\s*)*$`)
 
 const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
 	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
 	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
-
-func init() {
-	constraintOps = map[string]cfunc{
-		"":   constraintTildeOrEqual,
-		"=":  constraintTildeOrEqual,
-		"!=": constraintNotEqual,
-		">":  constraintGreaterThan,
-		"<":  constraintLessThan,
-		">=": constraintGreaterThanEqual,
-		"=>": constraintGreaterThanEqual,
-		"<=": constraintLessThanEqual,
-		"=<": constraintLessThanEqual,
-		"~":  constraintTilde,
-		"~>": constraintTilde,
-		"^":  constraintCaret,
-	}
-
-	ops := `=||!=|>|<|>=|=>|<=|=<|~|~>|\^`
-
-	constraintRegex = regexp.MustCompile(fmt.Sprintf(
-		`^\s*(%s)\s*(%s)\s*$`,
-		ops,
-		cvRegex))
-
-	constraintRangeRegex = regexp.MustCompile(fmt.Sprintf(
-		`\s*(%s)\s+-\s+(%s)\s*`,
-		cvRegex, cvRegex))
-
-	findConstraintRegex = regexp.MustCompile(fmt.Sprintf(
-		`(%s)\s*(%s)`,
-		ops,
-		cvRegex))
-
-	// The first time a constraint shows up will look slightly different from
-	// future times it shows up due to a leading space or comma in a given
-	// string.
-	validConstraintRegex = regexp.MustCompile(fmt.Sprintf(
-		`^(\s*(%s)\s*(%s)\s*)((?:\s+|,\s*)(%s)\s*(%s)\s*)*$`,
-		ops,
-		cvRegex,
-		ops,
-		cvRegex))
-}
 
 // An individual constraint
 type constraint struct {
@@ -278,7 +255,7 @@ type cfunc func(v *Version, c *constraint, includePre bool) (bool, error)
 
 func parseConstraint(c string) (*constraint, error) {
 	if len(c) > 0 {
-		m := constraintRegex.FindStringSubmatch(c)
+		m := constraintRegexOnce().FindStringSubmatch(c)
 		if m == nil {
 			return nil, fmt.Errorf("improper constraint: %q", c)
 		}
@@ -293,16 +270,16 @@ func parseConstraint(c string) (*constraint, error) {
 		patchDirty := false
 		dirty := false
 		if isX(m[3]) || m[3] == "" {
-			ver = fmt.Sprintf("0.0.0%s", m[6])
+			ver = "0.0.0" + m[6]
 			dirty = true
 		} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
 			minorDirty = true
 			dirty = true
-			ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
+			ver = m[3] + ".0.0" + m[6]
 		} else if isX(strings.TrimPrefix(m[5], ".")) || m[5] == "" {
 			dirty = true
 			patchDirty = true
-			ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
+			ver = m[3] + m[4] + ".0" + m[6]
 		}
 
 		con, err := NewVersion(ver)
@@ -609,13 +586,13 @@ func isX(x string) bool {
 }
 
 func rewriteRange(i string) string {
-	m := constraintRangeRegex.FindAllStringSubmatch(i, -1)
+	m := constraintRangeRegexOnce().FindAllStringSubmatch(i, -1)
 	if m == nil {
 		return i
 	}
 	o := i
 	for _, v := range m {
-		t := fmt.Sprintf(">= %s, <= %s ", v[1], v[11])
+		t := ">= " + v[1] + ", <= " + v[11] + " "
 		o = strings.Replace(o, v[0], t, 1)
 	}
 
