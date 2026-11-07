@@ -763,21 +763,65 @@ func comparePrePart(s, o string) int {
 	oi, n1 := strconv.ParseUint(o, 10, 64)
 	si, n2 := strconv.ParseUint(s, 10, 64)
 
+	// An identifier made up only of digits is a numeric identifier no
+	// matter how large it is. ParseUint fails on identifiers that
+	// overflow a uint64, which would silently reclassify them as
+	// alphanumeric and compare them lexically; detect that case with
+	// the digit check so the ordering follows the spec.
+	sNumeric := n2 == nil || isNumericIdentifier(s)
+	oNumeric := n1 == nil || isNumericIdentifier(o)
+
+	switch {
+	case sNumeric && oNumeric:
+		if n1 == nil && n2 == nil {
+			// Both are numbers that fit in a uint64
+			if si > oi {
+				return 1
+			}
+			return -1
+		}
+		// At least one identifier overflows a uint64, so compare the
+		// digit strings by magnitude instead.
+		return compareNumericIdentifiers(s, o)
+	case sNumeric:
+		// s is a number and o is a string; numbers have precedence
+		return -1
+	case oNumeric:
+		// o is a number and s is a string
+		return 1
+	}
+
 	// The case where both are strings compare the strings
-	if n1 != nil && n2 != nil {
-		if s > o {
+	if s > o {
+		return 1
+	}
+	return -1
+}
+
+// isNumericIdentifier reports whether s is a numeric identifier in the
+// sense of the semver spec: one or more ASCII digits and nothing else.
+func isNumericIdentifier(s string) bool {
+	return s != "" && containsOnly(s, "0123456789")
+}
+
+// compareNumericIdentifiers compares two numeric identifiers by value.
+// The identifiers may be arbitrarily long, so they are compared as digit
+// strings rather than through an integer type: once leading zeroes are
+// trimmed, the longer string is the larger number, and strings of equal
+// length compare lexically.
+func compareNumericIdentifiers(s, o string) int {
+	s = strings.TrimLeft(s, "0")
+	o = strings.TrimLeft(o, "0")
+	if len(s) != len(o) {
+		if len(s) > len(o) {
 			return 1
 		}
 		return -1
-	} else if n1 != nil {
-		// o is a string and s is a number
-		return -1
-	} else if n2 != nil {
-		// s is a string and o is a number
-		return 1
 	}
-	// Both are numbers
-	if si > oi {
+	if s == o {
+		return 0
+	}
+	if s > o {
 		return 1
 	}
 	return -1
