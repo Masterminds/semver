@@ -1218,3 +1218,63 @@ func TestNewVersionTooLong(t *testing.T) {
 		t.Errorf("StrictNewVersion: expected ErrVersionTooLong, got: %v", err)
 	}
 }
+
+func TestNilVersionComparisons(t *testing.T) {
+	var nilV *Version
+	v := MustParse("1.2.3")
+
+	// Compare
+	if got := nilV.Compare(nilV); got != 0 {
+		t.Errorf("nil.Compare(nil): got %d, want 0", got)
+	}
+	if got := nilV.Compare(v); got != -1 {
+		t.Errorf("nil.Compare(v): got %d, want -1", got)
+	}
+	if got := v.Compare(nilV); got != 1 {
+		t.Errorf("v.Compare(nil): got %d, want 1", got)
+	}
+
+	// LessThan
+	if nilV.LessThan(nilV) {
+		t.Error("nil.LessThan(nil) should be false")
+	}
+	if !nilV.LessThan(v) {
+		t.Error("nil.LessThan(v) should be true")
+	}
+	if v.LessThan(nilV) {
+		t.Error("v.LessThan(nil) should be false")
+	}
+
+	// LessThanEqual
+	if !nilV.LessThanEqual(nilV) {
+		t.Error("nil.LessThanEqual(nil) should be true")
+	}
+	if !nilV.LessThanEqual(v) {
+		t.Error("nil.LessThanEqual(v) should be true")
+	}
+	if v.LessThanEqual(nilV) {
+		t.Error("v.LessThanEqual(nil) should be false")
+	}
+
+	// GreaterThan
+	if nilV.GreaterThan(nilV) {
+		t.Error("nil.GreaterThan(nil) should be false")
+	}
+	if nilV.GreaterThan(v) {
+		t.Error("nil.GreaterThan(v) should be false")
+	}
+	if !v.GreaterThan(nilV) {
+		t.Error("v.GreaterThan(nil) should be true")
+	}
+
+	// GreaterThanEqual
+	if !nilV.GreaterThanEqual(nilV) {
+		t.Error("nil.GreaterThanEqual(nil) should be true")
+	}
+	if nilV.GreaterThanEqual(v) {
+		t.Error("nil.GreaterThanEqual(v) should be false")
+	}
+	if !v.GreaterThanEqual(nilV) {
+		t.Error("v.GreaterThanEqual(nil) should be true")
+	}
+}
