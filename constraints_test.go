@@ -1186,6 +1186,25 @@ func TestTextUnmarshalConstraints(t *testing.T) {
 	}
 }
 
+func TestConstraintsNilVersion(t *testing.T) {
+	c, err := NewConstraint(">= 1.0.0")
+	if err != nil {
+		t.Fatalf("unexpected error creating constraint: %s", err)
+	}
+
+	if c.Check(nil) {
+		t.Error("c.Check(nil) should return false")
+	}
+
+	valid, errs := c.Validate(nil)
+	if valid {
+		t.Error("c.Validate(nil) should return false")
+	}
+	if len(errs) != 1 || errs[0].Error() != "version cannot be nil" {
+		t.Errorf("c.Validate(nil) unexpected errors: %v", errs)
+	}
+}
+
 func FuzzNewConstraint(f *testing.F) {
 	testcases := []string{
 		"v1.2.3",

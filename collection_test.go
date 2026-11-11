@@ -44,3 +44,22 @@ func TestCollection(t *testing.T) {
 		t.Error("Sorting Collection failed")
 	}
 }
+
+func TestCollectionWithNil(t *testing.T) {
+	vs := Collection{
+		MustParse("1.2.3"),
+		nil,
+		MustParse("0.4.2"),
+		nil,
+		MustParse("2.0.0"),
+	}
+
+	sort.Sort(vs)
+
+	if vs[0] != nil || vs[1] != nil {
+		t.Errorf("Expected nil versions at the beginning, got %v, %v", vs[0], vs[1])
+	}
+	if vs[2].String() != "0.4.2" || vs[3].String() != "1.2.3" || vs[4].String() != "2.0.0" {
+		t.Errorf("Unexpected sorted order: %v, %v, %v", vs[2], vs[3], vs[4])
+	}
+}

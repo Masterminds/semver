@@ -571,12 +571,23 @@ func (v *Version) Equal(o *Version) bool {
 
 // Compare compares this version to another one. It returns -1, 0, or 1 if
 // the version smaller, equal, or larger than the other version.
+// A nil Version is considered smaller than any non-nil Version, and equal to another nil Version.
 //
 // Versions are compared by X.Y.Z. Build metadata is ignored. Prerelease is
 // lower than the version without a prerelease. Compare always takes into account
 // prereleases. If you want to work with ranges using typical range syntaxes that
 // skip prereleases if the range is not looking for them use constraints.
 func (v *Version) Compare(o *Version) int {
+	if v == o {
+		return 0
+	}
+	if v == nil {
+		return -1
+	}
+	if o == nil {
+		return 1
+	}
+
 	// Compare the major, minor, and patch version for differences. If a
 	// difference is found return the comparison.
 	if d := compareSegment(v.Major(), o.Major()); d != 0 {
