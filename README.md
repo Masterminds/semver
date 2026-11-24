@@ -17,7 +17,7 @@ Active](https://masterminds.github.io/stability/active.svg)](https://masterminds
 
 Note, import `github.com/Masterminds/semver/v3` to use the latest version.
 
-There are three major versions fo the `semver` package.
+There are three major versions of the `semver` package.
 
 * 3.x.x is the stable and active version. This version is focused on constraint
   compatibility for range handling in other tools from other languages. It has
@@ -107,7 +107,7 @@ upon themselves to come up with range rules. This has resulted in differences.
 For example, npm/js and Cargo/Rust follow similar patterns while PHP has a
 different pattern for ^. The comparison features in this package follow the
 npm/js and Cargo/Rust lead because applications using it have followed similar
-patters with their versions.
+patterns with their versions.
 
 Checking a version against version constraints is one of the most featureful
 parts of the package.
