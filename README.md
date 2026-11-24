@@ -107,7 +107,7 @@ upon themselves to come up with range rules. This has resulted in differences.
 For example, npm/js and Cargo/Rust follow similar patterns while PHP has a
 different pattern for ^. The comparison features in this package follow the
 npm/js and Cargo/Rust lead because applications using it have followed similar
-patters with their versions.
+patterns with their versions.
 
 Checking a version against version constraints is one of the most featureful
 parts of the package.
