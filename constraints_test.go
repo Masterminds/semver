@@ -291,7 +291,8 @@ func TestConstraintsCheck(t *testing.T) {
 		check      bool
 	}{
 		{"*", "1.2.3", true},
-		{"~0.0.0", "1.2.3", true},
+		{"~0.0.0", "0.0.5", true},
+		{"~0.0.0", "1.2.3", false},
 		{"0.x.x", "1.2.3", false},
 		{"0.0.x", "1.2.3", false},
 		{"0.0.0", "1.2.3", false},
@@ -458,7 +459,8 @@ func TestConstraintsCheckIncludePrerelease(t *testing.T) {
 
 		// This next group of tests handles normal cases
 		{"*", "1.2.3", true},
-		{"~0.0.0", "1.2.3", true},
+		{"~0.0.0", "0.0.5", true},
+		{"~0.0.0", "1.2.3", false},
 		{"0.x.x", "1.2.3", false},
 		{"0.0.x", "1.2.3", false},
 		{"0.0.0", "1.2.3", false},
@@ -672,7 +674,8 @@ func TestConstraintsValidate(t *testing.T) {
 		check      bool
 	}{
 		{"*", "1.2.3", true},
-		{"~0.0.0", "1.2.3", true},
+		{"~0.0.0", "0.0.5", true},
+		{"~0.0.0", "1.2.3", false},
 		{"= 2.0", "1.2.3", false},
 		{"= 2.0", "2.0.0", true},
 		{"4.1", "4.1.0", true},
@@ -876,7 +879,8 @@ func TestConstraintsValidateIncludePrerelease(t *testing.T) {
 
 		// Tests that should continue to pass normally.
 		{"*", "1.2.3", true},
-		{"~0.0.0", "1.2.3", true},
+		{"~0.0.0", "0.0.5", true},
+		{"~0.0.0", "1.2.3", false},
 		{"= 2.0", "1.2.3", false},
 		{"= 2.0", "2.0.0", true},
 		{"4.1", "4.1.0", true},
