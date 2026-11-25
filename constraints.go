@@ -498,9 +498,11 @@ func constraintTilde(v *Version, c *constraint, includePre bool) (bool, error) {
 		return false, fmt.Errorf("%q is less than %q", v, c.orig)
 	}
 
-	// ~0.0.0 is a special case where all constraints are accepted. It's
-	// equivalent to >= 0.0.0.
-	if c.con.Major() == 0 && c.con.Minor() == 0 && c.con.Patch() == 0 &&
+	// A wildcard constraint (~*, ~>*) accepts any version. It parses to
+	// 0.0.0 with no explicit version parts, so it is only detectable through
+	// the dirty flag. An explicit ~0.0.0 is a patch-level range
+	// (>=0.0.0, <0.1.0) and must fall through to the checks below.
+	if c.dirty && c.con.Major() == 0 && c.con.Minor() == 0 && c.con.Patch() == 0 &&
 		!c.minorDirty && !c.patchDirty {
 		return true, nil
 	}
