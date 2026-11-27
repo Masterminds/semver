@@ -780,7 +780,10 @@ func comparePrePart(s, o string) int {
 	if si > oi {
 		return 1
 	}
-	return -1
+	if si < oi {
+		return -1
+	}
+	return 0
 }
 
 // Like strings.ContainsAny but does an only instead of any.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -524,6 +525,52 @@ func TestCompare(t *testing.T) {
 				"Comparison of '%s' and '%s' failed. Expected '%d', got '%d'",
 				tc.v1, tc.v2, e, a,
 			)
+		}
+	}
+}
+
+func TestCompareNumericallyEqualIdentifiers(t *testing.T) {
+	// New skips validation, allowing numerically equal but textually distinct
+	// numeric prerelease identifiers ("01" and "1") to be constructed.
+	a := New(1, 0, 0, "01", "")
+	b := New(1, 0, 0, "1", "")
+
+	if got, want := a.Compare(b), 0; got != want {
+		t.Errorf("a.Compare(b) = %d, want %d", got, want)
+	}
+	if got, want := b.Compare(a), 0; got != want {
+		t.Errorf("b.Compare(a) = %d, want %d", got, want)
+	}
+	if !a.Equal(b) {
+		t.Error("a.Equal(b) = false, want true")
+	}
+	if !b.Equal(a) {
+		t.Error("b.Equal(a) = false, want true")
+	}
+	if a.LessThan(b) {
+		t.Error("a.LessThan(b) = true, want false")
+	}
+	if b.LessThan(a) {
+		t.Error("b.LessThan(a) = true, want false")
+	}
+
+	// Sorting must give the same sequence regardless of the input order. Since
+	// a and b are semantically equal, compare the results with Equal instead of
+	// their (textually distinct) String forms.
+	sorted := func(versions ...*Version) Collection {
+		c := Collection(append([]*Version(nil), versions...))
+		sort.Sort(c)
+		return c
+	}
+
+	forward := sorted(a, b)
+	reverse := sorted(b, a)
+	if len(forward) != len(reverse) {
+		t.Fatalf("sorted lengths differ: %d vs %d", len(forward), len(reverse))
+	}
+	for i := range forward {
+		if !forward[i].Equal(reverse[i]) {
+			t.Errorf("sorted sequences differ at index %d: %s vs %s", i, forward[i], reverse[i])
 		}
 	}
 }
